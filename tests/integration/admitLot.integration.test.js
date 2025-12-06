@@ -8,6 +8,7 @@
 
 const request = require('supertest');
 const app = require('../../server/app');
+const { computeLotValues } = require('../../server/services/services');
 
 describe('POST /api/lots', () => {
   it('devrait ajouter un lot valide en base et retourner 201 + les infos lots', async () => {
