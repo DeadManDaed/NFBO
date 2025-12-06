@@ -3,7 +3,7 @@
  * Cette fonction pourrait exister dans 'server/services/computeLotValues.js' ou être apportée via un module commun.
  */
 
-const { computeLotValues } = require('../../server/services/computeLotValues');
+const { computeLotValues } = require('../../server/services/services');
 
 describe('computeLotValues', () => {
   it('doit calculer correctement la valeur totale et le bénéfice estimé pour un lot simple', () => {
