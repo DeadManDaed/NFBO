@@ -22,3 +22,10 @@
     "supertest": "^6.3.0"
   }
 }
+{
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watchAll",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration"
+}
