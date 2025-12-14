@@ -3,8 +3,8 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const lotsRouter = require('./routes/lots');
-
 const app = express();
+
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
@@ -33,4 +33,3 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
-
