@@ -3,7 +3,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const lotsRouter = require('./routes/lots');
 
-
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -27,4 +26,5 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
 
