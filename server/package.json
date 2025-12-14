@@ -1,0 +1,28 @@
+{
+  "name": "my-market-app",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server/server.js",
+    "dev": "nodemon server/server.js",
+    "migrate": "node server/migrations-runner/run-migrations.js",
+    "seed": "psql $DATABASE_URL -f scripts/seed.sql",
+    "test": "jest",
+    "test:watch": "jest --watchAll",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration"
+  },
+  "dependencies": {
+    "ajv": "^8.12.0",
+    "ajv-formats": "^2.1.1",
+    "body-parser": "^1.20.0",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.0",
+    "pg": "^8.8.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^6.3.0"
+  }
+}
+
