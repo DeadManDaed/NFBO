@@ -6,6 +6,14 @@ const lotsRouter = require('./routes/lots');
 const app = express();
 
 app.use((req, res, next) => {
+  console.log('=== Route non trouvée ===');
+  console.log('Method:', req.method);
+  console.log('URL:', req.url);
+  console.log('Base URL:', req.baseUrl);
+  console.log('Path:', req.path);
+  next();
+});
+app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
@@ -33,3 +41,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
