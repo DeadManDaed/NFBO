@@ -6,7 +6,10 @@
     "dev": "nodemon server/server.js",
     "migrate": "node server/migrations-runner/run-migrations.js",
     "seed": "psql $DATABASE_URL -f scripts/seed.sql",
-    "test": "jest"
+    "test": "jest",
+    "test:watch": "jest --watchAll",
+    "test:unit": "jest tests/unit",
+    "test:integration": "jest tests/integration"
   },
   "dependencies": {
     "ajv": "^8.12.0",
@@ -22,10 +25,5 @@
     "supertest": "^6.3.0"
   }
 }
-{
-  "scripts": {
-    "test": "jest",
-    "test:watch": "jest --watchAll",
-    "test:unit": "jest tests/unit",
-    "test:integration": "jest tests/integration"
-}
+
+
