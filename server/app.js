@@ -20,6 +20,7 @@ app.use((req, res, next) => {
 
 // Servir les fichiers statiques depuis le dossier 'public'
 app.use(express.static(path.join(__dirname, 'public')));
+// Route pour la page d'accueil
 
 // Middlewares pour parser le corps des requêtes
 app.use(bodyParser.json({ limit: '1mb' }));
@@ -30,7 +31,9 @@ app.use('/api/lots', lotsRouter);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
-
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 // 404 pour toutes les autres routes non gérées
 app.use((req, res) => res.status(404).json({ message: 'Not found' }));
 
@@ -41,4 +44,5 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
 
