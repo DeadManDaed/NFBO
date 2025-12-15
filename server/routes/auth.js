@@ -20,7 +20,6 @@ router.post('/login', async (req, res) => {
     
     // ✅ CORRECTION : Utilisez des guillemets doubles pour les noms de colonnes
     const result = await pool.query(
-  const result = await pool.query(
   'SELECT id, username, role, magasin_id FROM users u WHERE u.username = $1 AND u.password_hash = crypt($2, u.password_hash)',
   [username, password]
 );
