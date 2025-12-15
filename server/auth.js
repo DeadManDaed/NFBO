@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('./db'); // adapte le chemin selon l’emplacement réel de ton db.js
+const pool = require('../db');
 
 router.post('/login', async (req, res) => {
   const { username, password } = req.body;
+  
   try {
     // Vérification côté PostgreSQL avec pgcrypto
     const result = await pool.query(
@@ -13,11 +14,11 @@ router.post('/login', async (req, res) => {
          AND password_hash = crypt($2, password_hash)`,
       [username, password]
     );
-
+    
     if (result.rows.length === 0) {
       return res.status(401).json({ success: false, message: 'Identifiants incorrects' });
     }
-
+    
     const user = result.rows[0];
     res.json({
       success: true,
