@@ -3,12 +3,10 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
+const { Pool } = require('pg');
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // options utiles en dev
-  max: Number(process.env.PG_POOL_MAX) || 10,
-  idleTimeoutMillis: Number(process.env.PG_IDLE_TIMEOUT) || 30000,
-  connectionTimeoutMillis: Number(process.env.PG_CONN_TIMEOUT) || 2000
+  ssl: { rejectUnauthorized: false }
 });
 
 pool.on('error', (err) => {
@@ -17,3 +15,4 @@ pool.on('error', (err) => {
 });
 
 module.exports = pool;
+
