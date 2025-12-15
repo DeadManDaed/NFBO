@@ -39,7 +39,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         username: user.username,
         role: user.role,
-       // magasin_id: user.magasin_id || null // Gérer le cas superadmin sans magasin
+       magasin_id: user.magasin_id || null // Gérer le cas superadmin sans magasin
       }
     });
   } catch (err) {
