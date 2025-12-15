@@ -4,6 +4,7 @@ const path = require('path');
 const bodyParser = require('body-parser');
 const lotsRouter = require('./routes/lots');
 const app = express();
+const authRouter = require('./auth');
 
 // Middleware de logging (doit être en premier)
 app.use((req, res, next) => {
@@ -20,6 +21,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes API
 app.use('/api/lots', lotsRouter);
+app.use('/api', authRouter);   // <-- ajoute cette ligne
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
@@ -49,3 +51,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
