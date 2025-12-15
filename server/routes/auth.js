@@ -18,12 +18,12 @@ router.post('/login', async (req, res) => {
   try {
     console.log(`🔍 Recherche utilisateur: ${username}`);
     
-    // Vérification côté PostgreSQL avec pgcrypto
+    // ✅ CORRECTION : Utilisez des guillemets doubles pour les noms de colonnes
     const result = await pool.query(
-      `SELECT id, username, role, magasin_id
-       FROM users
-       WHERE username = $1
-         AND password_hash = crypt($2, password_hash)`,
+      `SELECT "id", "username", "role", "magasin_id"
+       FROM "users"
+       WHERE "username" = $1
+         AND "password_hash" = crypt($2, "password_hash")`,
       [username, password]
     );
     
@@ -43,13 +43,13 @@ router.post('/login', async (req, res) => {
         id: user.id,
         username: user.username,
         role: user.role,
-        magasin_id: user.magasin_id
+        magasin_id: user.magasin_id || null // Gérer le cas superadmin sans magasin
       }
     });
   } catch (err) {
     console.error('❌ ERREUR LOGIN:', err.message);
     console.error('Stack:', err.stack);
-    res.status(500).json({ success: false, message: 'Erreur serveur' });
+    res.status(500).json({ success: false, message: 'Erreur serveur', error: err.message });
   }
 });
 
