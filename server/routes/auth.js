@@ -1,11 +1,23 @@
+//server/routes/auth.js
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
 router.post('/login', async (req, res) => {
+  console.log('=== POST /api/login ===');
+  console.log('Body:', req.body);
+  
   const { username, password } = req.body;
   
+  // Validation
+  if (!username || !password) {
+    console.log('❌ Username ou password manquant');
+    return res.status(400).json({ success: false, message: 'Données manquantes' });
+  }
+  
   try {
+    console.log(`🔍 Recherche utilisateur: ${username}`);
+    
     // Vérification côté PostgreSQL avec pgcrypto
     const result = await pool.query(
       `SELECT id, username, role, magasin_id
@@ -15,11 +27,16 @@ router.post('/login', async (req, res) => {
       [username, password]
     );
     
+    console.log(`✅ Résultat requête: ${result.rows.length} utilisateur(s) trouvé(s)`);
+    
     if (result.rows.length === 0) {
+      console.log('❌ Identifiants incorrects');
       return res.status(401).json({ success: false, message: 'Identifiants incorrects' });
     }
     
     const user = result.rows[0];
+    console.log('✅ Connexion réussie:', user.username);
+    
     res.json({
       success: true,
       user: {
@@ -30,9 +47,23 @@ router.post('/login', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Erreur login:', err.message, err.stack);
+    console.error('❌ ERREUR LOGIN:', err.message);
+    console.error('Stack:', err.stack);
     res.status(500).json({ success: false, message: 'Erreur serveur' });
   }
 });
 
 module.exports = router;
+```
+
+---
+
+## 4. Vérifiez la variable d'environnement DATABASE_URL
+
+Sur Render :
+
+1. Allez dans **Environment** (dans le menu de gauche)
+2. Vérifiez que `DATABASE_URL` est bien définie
+3. Elle devrait ressembler à :
+```
+   postgresql://user:password@host:5432/database
