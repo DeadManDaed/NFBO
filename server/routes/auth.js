@@ -54,16 +54,4 @@ router.post('/login', async (req, res) => {
 });
 
 module.exports = router;
-```
 
----
-
-## 4. Vérifiez la variable d'environnement DATABASE_URL
-
-Sur Render :
-
-1. Allez dans **Environment** (dans le menu de gauche)
-2. Vérifiez que `DATABASE_URL` est bien définie
-3. Elle devrait ressembler à :
-```
-   postgresql://user:password@host:5432/database
