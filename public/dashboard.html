@@ -7,38 +7,36 @@
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>Dashboard NBFO</h1>
-      <div class="user-info">
-        <span id="userDisplay"></span>
-        <button onclick="logout()" class="btn">Déconnexion</button>
-      </div>
-    </header>
+  <!-- Zone d'erreur -->
+  <div id="errorBox" style="display:none;"></div>
 
-    <div id="errorBox" class="alert alert-error" style="display: none;"></div>
+  <!-- Message de bienvenue -->
+  <h2 id="welcome"></h2>
 
-    <main>
-      <div id="roleContent">
-        <!-- Contenu chargé dynamiquement -->
-      </div>
-    </main>
-  </div>
+  <!-- Contenu spécifique au rôle -->
+  <div id="roleContent"></div>
 
-  <!-- Charger le fichier auth.js -->
+  <!-- Bouton de déconnexion -->
+  <button id="logoutBtn">Déconnexion</button>
+
+  <!-- Scripts -->
   <script src="/js/auth.js"></script>
-  
   <script>
-    // Vérifier l'authentification
-    const user = requireLogin();
-    if (!user) throw new Error('Non authentifié');
+    document.addEventListener("DOMContentLoaded", () => {
+      const currentUser = requireLogin();
+      if (currentUser) {
+        // Message de bienvenue
+        document.getElementById("welcome").textContent =
+          `Bienvenue ${currentUser.username} (rôle: ${currentUser.role})`;
 
-    // Afficher les infos utilisateur
-    document.getElementById('userDisplay').textContent = 
-      `${user.username} (${user.role})`;
+        // Charger le contenu selon le rôle
+        loadRoleContent(currentUser.role);
 
-    // Charger le contenu selon le rôle
-    loadRoleContent(user.role);
+        // Déconnexion
+        document.getElementById("logoutBtn").addEventListener("click", logout);
+      }
+    });
   </script>
 </body>
 </html>
+
