@@ -2,224 +2,43 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tableau de bord - NBFO Coopérative</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-      background: #f5f5f5;
-      margin: 0;
-    }
-    .header {
-      background: linear-gradient(135deg, #2e7d32, #66bb6a);
-      color: white;
-      padding: 20px 40px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-    }
-    .logo {
-      width: 50px;
-      height: 50px;
-      background: rgba(255,255,255,0.2);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-    }
-    .header-title h1 {
-      font-size: 24px;
-      margin: 0;
-    }
-    .header-title p {
-      font-size: 14px;
-      opacity: 0.9;
-    }
-    .btn-logout {
-      background: rgba(244, 67, 54, 0.8);
-      border: none;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-    }
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 30px 40px;
-    }
-    .card {
-      background: white;
-      border-radius: 12px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .card h2 {
-      margin-top: 0;
-      color: #2e7d32;
-    }
-    .alert {
-      margin-top: 15px;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 14px;
-      display: none;
-    }
-    .alert-error {
-      background: #ffebee;
-      border: 1px solid #ef5350;
-      color: #c62828;
-    }
-  </style>
+  <title>Dashboard - NBFO</title>
+  <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
-  <div class="header">
-    <div class="header-left">
-      <div class="logo">🌾</div>
-      <div class="header-title">
-        <h1>Tableau de bord</h1>
-        <p id="welcomeMessage">Bienvenue</p>
-      </div>
-    </div>
-    <button class="btn-logout" onclick="logout()">Déconnexion</button>
-  </div>
-
   <div class="container">
-    <div id="alertBox" class="alert alert-error"></div>
+    <header>
+      <h1>Dashboard NBFO</h1>
+      <div class="user-info">
+        <span id="userDisplay"></span>
+        <button onclick="logout()" class="btn">Déconnexion</button>
+      </div>
+    </header>
 
-    <!-- Statistiques -->
-    <div class="card">
-      <h2>Statistiques générales</h2>
-      <p id="statsContent">Chargement des statistiques...</p>
-    </div>
+    <div id="errorBox" class="alert alert-error" style="display: none;"></div>
 
-    <!-- Contenu spécifique au rôle -->
-    <div class="card" id="roleContent">
-      <h2>Section dédiée</h2>
-      <p>Chargement du contenu...</p>
-    </div>
+    <main>
+      <div id="roleContent">
+        <!-- Contenu chargé dynamiquement -->
+      </div>
+    </main>
   </div>
-  <div id="errorBox" style="display:none; color:red;"></div>
-  <h2 id="welcome"></h2>
-  <div id="roleContent"></div>
-  <script defer>
-    const alertBox = document.getElementById('alertBox');
-    const welcomeMessage = document.getElementById('welcomeMessage');
-    const statsContent = document.getElementById('statsContent');
-    const roleContent = document.getElementById('roleContent');
 
-    function showError(message) {
-      alertBox.textContent = message;
-      alertBox.style.display = 'block';
-    }
+  <!-- Charger le fichier auth.js -->
+  <script src="/js/auth.js"></script>
+  
+  <script>
+    // Vérifier l'authentification
+    const user = requireLogin();
+    if (!user) throw new Error('Non authentifié');
 
-    // Vérification de la session
-    let currentUser = null;
-    try {
-      const userInfo = sessionStorage.getItem('userInfo');
-      if (!userInfo) {
-        window.location.href = '/index.html';
-      } else {
-        currentUser = JSON.parse(userInfo);
-        if (!currentUser.username || !currentUser.role) {
-    showError('Session invalide. Veuillez vous reconnecter.');
-    setTimeout(() => window.location.href = '/index.html', 2000);
-  } else {
-    // Ici tu peux afficher le rôle
-    document.getElementById("welcome").textContent =
-      `Bienvenue ${currentUser.username} (rôle: ${currentUser.role})`;
+    // Afficher les infos utilisateur
+    document.getElementById('userDisplay').textContent = 
+      `${user.username} (${user.role})`;
 
-    if (currentUser.role === "superadmin") {
-      document.getElementById("adminPanel").style.display = "block";
-    }
-  }
-      }
-    } catch (err) {
-      console.error('Erreur parsing session:', err);
-      showError('Erreur de session. Veuillez vous reconnecter.');
-      setTimeout(() => window.location.href = '/index.html', 2000);
-    }
-
-    // Affichage personnalisé
-    if (currentUser) {
-      welcomeMessage.textContent = `Bienvenue, ${currentUser.username}`;
-      loadStats();
-      loadRoleContent(currentUser.role);
-    }
-
-    async function loadStats() {
-      try {
-        const res = await fetch('/api/stats');
-        if (!res.ok) throw new Error('Erreur stats');
-        const data = await res.json();
-        statsContent.textContent = `Lots: ${data.lots}, Opérations: ${data.operations}, Solde: ${data.solde}`;
-      } catch (err) {
-        console.error(err);
-        statsContent.textContent = 'Impossible de charger les statistiques.';
-      }
-    }
-
-    function loadRoleContent(role) {
-  let html = '';
-
-  switch (role) {
-    case 'superadmin':
-      html = '<p>Accès illimité : gestion globale, configuration système, supervision des admins.</p>';
-      break;
-
-    case 'admin':
-      html = '<p>Accès complet : gestion des utilisateurs, audit, caisse et stock.</p>';
-      break;
-
-    case 'auditeur':
-      html = '<p>Accès audit : consultation des journaux, vérification des opérations, rapports.</p>';
-      break;
-
-    case 'caisse':
-      html = '<p>Accès caisse : opérations financières et chèques.</p>';
-      break;
-
-    case 'stock':
-      html = '<p>Accès stock : gestion des lots, inventaire et alertes.</p>';
-      break;
-
-    default:
-      html = '<p>Rôle non reconnu. Contactez un administrateur.</p>';
-  }
-
-  roleContent.innerHTML = `<h2>Section ${role}</h2>${html}`;
-}
-
-
-    function logout() {
-      sessionStorage.removeItem('userInfo');
-      window.location.href = '/index.html';
-    }
+    // Charger le contenu selon le rôle
+    loadRoleContent(user.role);
   </script>
-  <script src="../server/app.js"></script>
-<script>
-  document.addEventListener("DOMContentLoaded", () => {
-    const currentUser = requireLogin();
-    if (currentUser) {
-      document.getElementById("welcome").textContent =
-        `Bienvenue ${currentUser.username} (rôle: ${currentUser.role})`;
-
-      loadRoleContent(currentUser.role);
-    }
-  });
-</script>
-
 </body>
 </html>
-
