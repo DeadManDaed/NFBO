@@ -205,6 +205,19 @@
       window.location.href = '/index.html';
     }
   </script>
+  <script src="../server/app.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", () => {
+    const currentUser = requireLogin();
+    if (currentUser) {
+      document.getElementById("welcome").textContent =
+        `Bienvenue ${currentUser.username} (rôle: ${currentUser.role})`;
+
+      loadRoleContent(currentUser.role);
+    }
+  });
+</script>
+
 </body>
 </html>
 
