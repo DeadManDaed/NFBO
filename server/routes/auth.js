@@ -9,73 +9,44 @@ router.post('/login', async (req, res) => {
   
   const { username, password } = req.body;
   
-// Récupère l'utilisateur courant depuis sessionStorage
-function getCurrentUser() {
-  const userInfo = sessionStorage.getItem("userInfo");
-  if (!userInfo) return null;
+  // Validation
+  if (!username || !password) {
+    console.log('❌ Username ou password manquant');
+    return res.status(400).json({ success: false, message: 'Données manquantes' });
+  }
   
   try {
-    const data = JSON.parse(userInfo);
-    return data.user || data; // Support pour différents formats
-  } catch (e) {
-    console.error('Erreur parsing userInfo:', e);
-    return null;
+    console.log(`🔍 Recherche utilisateur: ${username}`);
+    
+    // ✅ CORRECTION : Utilisez des guillemets doubles pour les noms de colonnes
+    const result = await pool.query(
+  'SELECT id, username, role, magasin_id FROM users u WHERE u.username = $1 AND u.password_hash = crypt($2, u.password_hash)',
+  [username, password]
+);
+    console.log(`✅ Résultat requête: ${result.rows.length} utilisateur(s) trouvé(s)`);
+    
+    if (result.rows.length === 0) {
+      console.log('❌ Identifiants incorrects');
+      return res.status(401).json({ success: false, message: 'Identifiants incorrects' });
+    }
+    
+    const user = result.rows[0];
+    console.log('✅ Connexion réussie:', user.username);
+    
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+       magasin_id: user.magasin_id || null // Gérer le cas superadmin sans magasin
+      }
+    });
+  } catch (err) {
+    console.error('❌ ERREUR LOGIN:', err.message);
+    console.error('Stack:', err.stack);
+    res.status(500).json({ success: false, message: 'Erreur serveur', error: err.message });
   }
-}
+});
 
-// Vérifie qu'un utilisateur est connecté, sinon redirige
-function requireLogin() {
-  const user = getCurrentUser();
-  if (!user || !user.username || !user.role) {
-    sessionStorage.clear();
-    window.location.href = "/index.html";
-    return null;
-  }
-  return user;
-}
-
-// Déconnexion
-function logout() {
-  sessionStorage.clear();
-  window.location.href = "/index.html";
-}
-
-// Affiche un message d'erreur
-function showError(message) {
-  const errorBox = document.getElementById("errorBox");
-  if (errorBox) {
-    errorBox.textContent = message;
-    errorBox.style.display = "block";
-  } else {
-    alert(message);
-  }
-}
-
-// Redirige vers la page appropriée selon le rôle
-function redirectToRolePage(role) {
-  const rolePages = {
-    'superadmin': '/administration.html',
-    'admin': '/administration.html',
-    'auditeur': '/dashboard.html', // Page d'audit/consultation
-    'caisse': '/caisse.html',
-    'stock': '/stock.html'
-  };
-  
-  const page = rolePages[role] || '/dashboard.html';
-  window.location.href = page;
-}
-
-// Vérifie si l'utilisateur a accès à la page actuelle
-function checkPageAccess(allowedRoles) {
-  const user = requireLogin();
-  if (!user) return false;
-  
-  if (!allowedRoles.includes(user.role)) {
-    showError(`Accès refusé. Cette page nécessite le rôle: ${allowedRoles.join(' ou ')}`);
-    setTimeout(() => redirectToRolePage(user.role), 2000);
-    return false;
-  }
-  
-  return true;
-}
 module.exports = router;
