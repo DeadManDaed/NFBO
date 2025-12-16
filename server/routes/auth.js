@@ -1,4 +1,4 @@
-//server/routes/auth.js
+// server/routes/auth.js
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
@@ -18,12 +18,16 @@ router.post('/login', async (req, res) => {
   try {
     console.log(`🔍 Recherche utilisateur: ${username}`);
     
-    // ✅ CORRECTION : Utilisez des guillemets doubles pour les noms de colonnes
+    // Vérification avec pgcrypto
     const result = await pool.query(
-  'SELECT id, username, role, magasin_id FROM users u WHERE u.username = $1 AND u.password_hash = crypt($2, u.password_hash)',
-  [username, password]
-);
-    console.log(`✅ Résultat requête: ${result.rows.length} utilisateur(s) trouvé(s)`);
+      `SELECT id, username, role, magasin_id
+       FROM users
+       WHERE username = $1
+         AND password_hash = crypt($2, password_hash)`,
+      [username, password]
+    );
+    
+    console.log(`✅ Résultat: ${result.rows.length} utilisateur(s)`);
     
     if (result.rows.length === 0) {
       console.log('❌ Identifiants incorrects');
@@ -39,7 +43,7 @@ router.post('/login', async (req, res) => {
         id: user.id,
         username: user.username,
         role: user.role,
-       magasin_id: user.magasin_id || null // Gérer le cas superadmin sans magasin
+        magasin_id: user.magasin_id || null
       }
     });
   } catch (err) {
