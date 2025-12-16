@@ -131,9 +131,17 @@
       } else {
         currentUser = JSON.parse(userInfo);
         if (!currentUser.username || !currentUser.role) {
-          showError('Session invalide. Veuillez vous reconnecter.');
-          setTimeout(() => window.location.href = '/index.html', 2000);
-        }
+    showError('Session invalide. Veuillez vous reconnecter.');
+    setTimeout(() => window.location.href = '/index.html', 2000);
+  } else {
+    // Ici tu peux afficher le rôle
+    document.getElementById("welcome").textContent =
+      `Bienvenue ${currentUser.username} (rôle: ${currentUser.role})`;
+
+    if (currentUser.role === "superadmin") {
+      document.getElementById("adminPanel").style.display = "block";
+    }
+  }
       }
     } catch (err) {
       console.error('Erreur parsing session:', err);
