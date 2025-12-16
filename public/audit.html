@@ -26,7 +26,28 @@
     <h2>Historique des actions</h2>
     <div id="auditContainer">Chargement...</div>
   </div>
+<script scr = "/js/auth.js></script>  
+<script>   
+  // Ce code reste tel quel - il ne touche PAS aux mots de passe
+  function getCurrentUser() {
+  const userInfo = sessionStorage.getItem("userInfo");
+  return userInfo ? JSON.parse(userInfo) : null;
+}
 
+function requireLogin() {
+  const user = getCurrentUser();
+  if (!user || !user.username || !user.role) {
+    sessionStorage.clear();
+    window.location.href = "/index.html";
+    return null;
+  }
+  return user;
+}
+
+function loadRoleContent(role) {
+  // ... votre code actuel
+}
+</script>
   <script defer>
     const alertBox=document.getElementById('alertBox');
     const auditContainer=document.getElementById('auditContainer');
