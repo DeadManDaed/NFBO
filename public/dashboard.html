@@ -169,25 +169,36 @@
     }
 
     function loadRoleContent(role) {
-      let html = '';
-      switch (role) {
-        case 'admin':
-          html = '<p>Accès complet : gestion des utilisateurs, audit, caisse et stock.</p>';
-          break;
-          case 'superadmin':
-          html = '<p>Accès complet : gestion des utilisateurs, audit, caisse et stock.</p>';
-          break;
-        case 'caisse':
-          html = '<p>Accès caisse : opérations financières et chèques.</p>';
-          break;
-        case 'stock':
-          html = '<p>Accès stock : gestion des lots, inventaire et alertes.</p>';
-          break;
-        default:
-          html = '<p>Rôle non reconnu. Contactez un administrateur.</p>';
-      }
-      roleContent.innerHTML = `<h2>Section ${role}</h2>${html}`;
-    }
+  let html = '';
+
+  switch (role) {
+    case 'superadmin':
+      html = '<p>Accès illimité : gestion globale, configuration système, supervision des admins.</p>';
+      break;
+
+    case 'admin':
+      html = '<p>Accès complet : gestion des utilisateurs, audit, caisse et stock.</p>';
+      break;
+
+    case 'auditeur':
+      html = '<p>Accès audit : consultation des journaux, vérification des opérations, rapports.</p>';
+      break;
+
+    case 'caisse':
+      html = '<p>Accès caisse : opérations financières et chèques.</p>';
+      break;
+
+    case 'stock':
+      html = '<p>Accès stock : gestion des lots, inventaire et alertes.</p>';
+      break;
+
+    default:
+      html = '<p>Rôle non reconnu. Contactez un administrateur.</p>';
+  }
+
+  roleContent.innerHTML = `<h2>Section ${role}</h2>${html}`;
+}
+
 
     function logout() {
       sessionStorage.removeItem('userInfo');
