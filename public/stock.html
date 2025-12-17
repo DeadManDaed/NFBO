@@ -1,708 +1,351 @@
 <!DOCTYPE html>
-<html
-  lang="fr"
-  
-  data-color-mode="auto" data-light-theme="light" data-dark-theme="dark"
-  data-a11y-animated-images="system" data-a11y-link-underlines="true"
-  
-  >
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestion des Stocks</title>
+  <style>
+    /* Bloc CSS global */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; background: #f5f5f5; color: #333; }
 
-    <style>
-:root {
-  --fontStack-monospace: "Monaspace Neon", ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace !important;
-}
-</style>
+    /* Header */
+    .header { background: linear-gradient(135deg, #1976d2, #42a5f5); color: white; padding: 20px 40px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+    .header-left { display: flex; align-items: center; gap: 20px; }
+    .logo { width: 50px; height: 50px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; }
+    .header-title h1 { font-size: 24px; margin-bottom: 5px; }
+    .header-title p { font-size: 14px; opacity: 0.9; }
+    .header-actions { display: flex; gap: 15px; align-items: center; }
+    .btn-dashboard { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s; display: flex; align-items: center; gap: 8px; }
+    .btn-dashboard:hover { background: rgba(255,255,255,0.3); }
+    .btn-logout { background: rgba(244, 67, 54, 0.8); border: none; color: white; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+    /* Navigation tabs */
+    .nav-tabs { background: white; padding: 0 40px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); display: flex; gap: 5px; overflow-x: auto; }
+    .nav-tab { padding: 18px 25px; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.3s; font-weight: 600; color: #666; white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+    .nav-tab:hover { color: #1976d2; background: #f9f9f9; }
+    .nav-tab.active { color: #1976d2; border-bottom-color: #1976d2; background: #f9f9f9; }
 
+    /* Container */
+    .container { max-width: 1400px; margin: 0 auto; padding: 30px 40px; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: fadeIn 0.3s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
+    /* Cards */
+    .card { background: white; border-radius: 15px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 25px; }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0; }
+    .card-title { font-size: 22px; font-weight: 700; color: #1976d2; display: flex; align-items: center; gap: 10px; }
 
+    /* Form styles */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+    .form-group { display: flex; flex-direction: column; }
+    label { font-weight: 600; margin-bottom: 8px; color: #333; font-size: 14px; }
+    input, select, textarea { padding: 12px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 14px; transition: all 0.3s; font-family: inherit; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #1976d2; box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1); }
+    /* Buttons */
+    .btn { padding: 12px 24px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary { background: linear-gradient(135deg, #1976d2, #42a5f5); color: white; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(25, 118, 210, 0.3); }
+    .btn-secondary { background: #f5f5f5; color: #666; }
+    .btn-secondary:hover { background: #e0e0e0; }
+    .btn-success { background: linear-gradient(135deg, #43a047, #388e3c); color: white; }
+    .btn-danger { background: linear-gradient(135deg, #e53935, #d32f2f); color: white; }
+    .btn-warning { background: linear-gradient(135deg, #fb8c00, #f57c00); color: white; }
 
-  <head>
-    <meta charset="utf-8">
-  <link rel="dns-prefetch" href="https://github.githubassets.com">
-  <link rel="dns-prefetch" href="https://avatars.githubusercontent.com">
-  <link rel="dns-prefetch" href="https://github-cloud.s3.amazonaws.com">
-  <link rel="dns-prefetch" href="https://user-images.githubusercontent.com/">
-  <link rel="preconnect" href="https://github.githubassets.com" crossorigin>
-  <link rel="preconnect" href="https://avatars.githubusercontent.com">
+    /* Table */
+    .table-container { overflow-x: auto; margin-top: 20px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f9f9f9; padding: 15px; text-align: left; font-weight: 600; color: #666; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
+    td { padding: 15px; border-bottom: 1px solid #f0f0f0; font-size: 14px; }
+    tr:hover { background: #fafafa; }
 
-  
+    /* Badges */
+    .badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+    .badge-entree { background: #e8f5e9; color: #388e3c; }
+    .badge-sortie { background: #fff3e0; color: #f57c00; }
+    .badge-disponible { background: #e3f2fd; color: #1976d2; }
+    .badge-alerte { background: #ffebee; color: #d32f2f; }
+    /* Alert messages */
+    .alert { padding: 15px 20px; border-radius: 10px; margin-bottom: 20px; display: none; animation: slideDown 0.3s; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    .alert-success { background: #e8f5e9; border: 1px solid #66bb6a; color: #2e7d32; }
+    .alert-error { background: #ffebee; border: 1px solid #ef5350; color: #c62828; }
+    .alert-warning { background: #fff3e0; border: 1px solid #ffa726; color: #f57c00; }
 
+    /* Stats cards */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit    .alert-warning { background: #fff3e0; border: 1px solid #ffa726; color: #f57c00; }
 
-  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/light-8e973f836952.css" /><link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/dark-4bce7af39e21.css" /><link data-color-theme="light_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_high_contrast-34b642d57214.css" /><link data-color-theme="light_colorblind" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_colorblind-54be93e666a7.css" /><link data-color-theme="light_colorblind_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_colorblind_high_contrast-8ae7edf5489c.css" /><link data-color-theme="light_tritanopia" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_tritanopia-84d50df427c0.css" /><link data-color-theme="light_tritanopia_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/light_tritanopia_high_contrast-a80873375146.css" /><link data-color-theme="dark_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_high_contrast-ad512d3e2f3b.css" /><link data-color-theme="dark_colorblind" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_colorblind-d152d6cd6879.css" /><link data-color-theme="dark_colorblind_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_colorblind_high_contrast-fa4060c1a9da.css" /><link data-color-theme="dark_tritanopia" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_tritanopia-d7bad0fb00bb.css" /><link data-color-theme="dark_tritanopia_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_tritanopia_high_contrast-4a0107c0f60c.css" /><link data-color-theme="dark_dimmed" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_dimmed-045e6b6ac094.css" /><link data-color-theme="dark_dimmed_high_contrast" crossorigin="anonymous" media="all" rel="stylesheet" data-href="https://github.githubassets.com/assets/dark_dimmed_high_contrast-5de537db5e79.css" />
+    /* Stats cards */
+    .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .stat-card { background: white; padding: 20px; border-radius: 12px; border-left: 4px solid #1976d2; }
+    .stat-value { font-size: 32px; font-weight: 700; color: #1976d2; margin-bottom: 5px; }
+    .stat-label { color: #666; font-size: 14px; }
 
-  <style type="text/css">
-    :root {
-      --tab-size-preference: 4;
-    }
+    /* Loading spinner */
+    .loading { text-align: center; padding: 40px; color: #999; }
+    .loading-spinner { display: inline-block; width: 40px; height: 40px; border: 4px solid #f0f0f0; border-radius: 50%; border-top-color: #1976d2; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    pre, code {
-      tab-size: var(--tab-size-preference);
+    /* Action buttons in table */
+    .action-btns { display: flex; gap: 8px; }
+    .btn-icon { padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+    .btn-icon:hover { transform: scale(1.1); }
+
+    /* Responsive */
+    @media (max-width: 968px) {
+      .container { padding: 20px; }
+      .header { padding: 15px 20px; flex-direction: column; gap: 15px; }
+      .nav-tabs { padding: 0 20px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .action-btns { flex-direction: column; }
     }
   </style>
-
-    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-primitives-c37d781e2da5.css" />
-    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-efa08b71f947.css" />
-    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/global-6dcb16809e76.css" />
-    <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/github-f86c648606b5.css" />
-  <link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/repository-5d735668c600.css" />
-<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/code-9c9b8dc61e74.css" />
-
-  
-
-  <script type="application/json" id="client-env">{"locale":"en","featureFlags":["a11y_status_checks_ruleset","actions_custom_images_public_preview_visibility","actions_custom_images_storage_billing_ui_visibility","actions_enable_snapshot_keyword","actions_image_version_event","agent_session_retry_fetch_capi_on_401","alternate_user_config_repo","api_insights_show_missing_data_banner","arianotify_comprehensive_migration","arianotify_partial_migration","billing_hard_budget_limits_for_licenses","client_version_header","codespaces_prebuild_region_target_update","contentful_lp_footnotes","copilot_agent_cli_public_preview","copilot_agent_task_list_v2","copilot_agent_tasks_btn_code_nav","copilot_agent_tasks_btn_code_view","copilot_agent_tasks_btn_code_view_lines","copilot_agent_tasks_btn_repo","copilot_api_agentic_issue_marshal_yaml","copilot_api_draft_issue_reference_with_project_id","copilot_api_draft_issues_with_dependencies","copilot_api_github_draft_update_issue_skill","copilot_chat_agents_empty_state","copilot_chat_attach_multiple_images","copilot_chat_disable_model_picker_while_streaming","copilot_chat_file_redirect","copilot_chat_input_commands","copilot_chat_opening_thread_switch","copilot_chat_reduce_quota_checks","copilot_chat_search_bar_redirect","copilot_chat_selection_attachments","copilot_chat_vision_in_claude","copilot_chat_vision_preview_gate","copilot_coding_agent_task_response","copilot_custom_copilots","copilot_custom_copilots_feature_preview","copilot_duplicate_thread","copilot_extensions_hide_in_dotcom_chat","copilot_extensions_removal_on_marketplace","copilot_features_raycast_logo","copilot_file_block_ref_matching","copilot_ftp_hyperspace_upgrade_prompt","copilot_immersive_generate_thread_name_async","copilot_immersive_issues_readonly_viewer","copilot_immersive_issues_show_relationships","copilot_immersive_job_result_preview","copilot_immersive_structured_model_picker","copilot_immersive_task_hyperlinking","copilot_immersive_task_within_chat_thread","copilot_issue_list_show_more","copilot_org_policy_page_focus_mode","copilot_pipes_code_nodes","copilot_pipes_github_graphql_nodes","copilot_premium_request_quotas","copilot_security_alert_assignee_options","copilot_share_active_subthread","copilot_spaces_as_attachments","copilot_spaces_code_view","copilot_spaces_ga","copilot_spaces_individual_policies_ga","copilot_spaces_public_access_to_user_owned_spaces","copilot_spaces_read_access_to_user_owned_spaces","copilot_spaces_report_abuse","copilot_spark_empty_state","copilot_spark_loading_webgl","copilot_spark_progressive_error_handling","copilot_spark_use_billing_headers","copilot_stable_conversation_view","copilot_swe_agent_progress_commands","copilot_swe_agent_use_subagents","copilot_workbench_agent_seed_tool","copilot_workbench_agent_user_edit_awareness","copilot_workbench_cache","copilot_workbench_preview_analytics","copilot_workbench_use_single_prompt","dashboard_universe_2025_feedback_dialog","data_router_force_refetch_on_navigation","direct_to_salesforce","disable_turbo_visit","dom_node_counts","dotcom_chat_client_side_skills","enterprise_ai_controls","failbot_report_error_react_apps_on_page","fetch_graphql_improved_error_serialization","fgpat_permissions_selector_redesign","ghost_pilot_confidence_truncation_25","ghost_pilot_confidence_truncation_40","global_nav_react_top_repos_api_caching","global_search_multi_orgs","global_sso_banner","global_sso_banner_dismiss_dialog","hyperspace_2025_logged_out_batch_1","hyperspace_nudges_universe25","hyperspace_nudges_universe25_post_event","initial_per_page_pagination_updates","issue_fields_report_usage","issue_fields_timeline_events","issues_expanded_file_types","issues_lazy_load_comment_box_suggestions","issues_react_bots_timeline_pagination","issues_react_include_bots_in_pickers","issues_react_prohibit_title_fallback","issues_report_sidebar_interactions","issues_sticky_sidebar","issues_title_flex_header_fix","item_picker_assignee_tsq_migration","item_picker_project_tsq_migration","kb_semantic_api_migration","kb_sunset","lifecycle_label_name_updates","link_contact_sales_swp_marketo","loops_service_graphql_execution","marketing_pages_search_explore_provider","mcp_registry_install","mcp_registry_oss_v0_1_api","memex_default_issue_create_repository","memex_grouped_by_edit_route","memex_mwl_filter_field_delimiter","memex_roadmap_drag_style","mission_control_use_body_html","new_traffic_page_banner","open_agent_session_in_vscode_insiders","open_agent_session_in_vscode_stable","pr_react_loading_optimizations","pr_sfv_new_diff_fetch","primer_react_segmented_control_tooltip","projects_assignee_max_limit","react_fetch_graphql_ignore_expected_errors","record_sso_banner_metrics","repos_insights_remove_new_url","repository_suggester_elastic_search","ruleset_deletion_confirmation","sample_network_conn_type","scheduled_reminders_updated_limits","site_features_copilot_universe","site_homepage_collaborate_video","site_homepage_contentful","site_homepage_eyebrow_banner","site_homepage_universe_animations","site_msbuild_webgl_hero","spark_agent_max_output_tokens_error","spark_fix_rename","spark_force_push_after_checkout","spark_improve_image_upload","spark_kv_encocoded_keys","spark_show_data_access_on_publish","spark_sync_repository_after_iteration","spark_use_agent_status","viewscreen_sandbox","webp_support","wiki_a11y_compliant_sidebar","workbench_store_readonly"],"login":"DeadManDaed","copilotApiOverrideUrl":"https://api.individual.githubcopilot.com"}</script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/wp-runtime-9d0568c32bfb.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/913-ca2305638c53.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/6488-de87864e6818.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/environment-122ed792f7a3.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/11683-aa3d1ebe6648.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/43784-4652ae97a661.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/4712-809eac2badf7.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/81028-5b8c5e07a4fa.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/74911-6a311b93ee8e.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/91853-b5d2e5602241.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/78143-31968346cf4c.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/52430-c46e2de36eb2.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/github-elements-5b3e77949adb.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/element-registry-fa070ee9a768.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/28546-ee41c9313871.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/17688-a9e16fb5ed13.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/2869-a4ba8f17edb3.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/70191-5122bf27bf3e.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/7332-5ea4ccf72018.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/3561-d56ebea34f95.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/19037-69d630e73af8.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/51519-b4d929bb1e46.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/67310-00ed42590310.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/96384-750ef5263abe.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/19718-676a65610616.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/behaviors-c9e610c5aa64.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/48011-1f20a5c80dd7.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/notifications-global-eb21f5b0029d.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/31615-236504c8966f.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/code-menu-67717e88b7e6.js" defer="defer"></script>
-  
-  <script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/primer-react-e4ebdadc89a4.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/react-lib-760965ba27bb.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/react-core-021efa96a7a2.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/octicons-react-a215e6ee021a.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/12979-6037a19d779b.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/48775-3cc79d2cd30e.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/42892-341e79a04903.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/23832-db66abd83e08.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/99418-9d4961969e0d.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/33915-05ba9b3edc31.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/96537-8e29101f7d81.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/51220-ec5733320b36.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/32219-236f5281aec8.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/59579-2ea999aac712.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/62029-a6360a734229.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/25407-c730eb15ec58.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/40771-82ad16a5cc1d.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/66990-bcc3e84258a5.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/29665-96a2ad6dd82d.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/6623-ff0ff52cb37f.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/19976-d9a685a90a0d.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/3774-6fb5a6174da6.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/18406-1107abf79753.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/36584-61e8176018bd.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/29806-7c403c1af2af.js" defer="defer"></script>
-<script crossorigin="anonymous" type="application/javascript" src="https://github.githubassets.com/assets/react-code-view-348d2d8d00d3.js" defer="defer"></script>
-<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/primer-react.fbf61c683a537e8f92d5.module.css" />
-<link crossorigin="anonymous" media="all" rel="stylesheet" href="https://github.githubassets.com/assets/react-code-view.5fabe269aba9949ea13c.module.css" />
-
-
-  <title>nbfocoop/public/stock.html at main · DeadManDaed/nbfocoop</title>
-
-
-
-  <meta name="route-pattern" content="/:user_id/:repository/blob/*name(/*path)" data-turbo-transient>
-  <meta name="route-controller" content="blob" data-turbo-transient>
-  <meta name="route-action" content="show" data-turbo-transient>
-  <meta name="fetch-nonce" content="v2:231fba8a-c001-a06c-b51f-e6980cb0bbc3">
-
-    
-  <meta name="current-catalog-service-hash" content="f3abb0cc802f3d7b95fc8762b94bdcb13bf39634c40c357301c4aa1d67a256fb">
-
-
-  <meta name="request-id" content="D62E:2013B7:D305EA7:B894ED5:692EECC9" data-turbo-transient="true" /><meta name="html-safe-nonce" content="60efb2eb61f4dab43447b61620cdfaa42db76e7258578eeee46891a0db7fc5c4" data-turbo-transient="true" /><meta name="visitor-payload" content="eyJyZWZlcnJlciI6Imh0dHBzOi8vZ2l0aHViLmNvbS9EZWFkTWFuRGFlZC9uYmZvY29vcC90cmVlL21haW4vcHVibGljIiwicmVxdWVzdF9pZCI6IkQ2MkU6MjAxM0I3OkQzMDVFQTc6Qjg5NEVENTo2OTJFRUNDOSIsInZpc2l0b3JfaWQiOiIyMTA4Nzc5NjEyMTA1NzA5MjU2IiwicmVnaW9uX2VkZ2UiOiJmcmEiLCJyZWdpb25fcmVuZGVyIjoiaWFkIn0=" data-turbo-transient="true" /><meta name="visitor-hmac" content="c5b31099713ab465c9aa828d3b9fb514b5af497e2d0252533b074d89ea875f18" data-turbo-transient="true" />
-
-
-    <meta name="hovercard-subject-tag" content="repository:1106431796" data-turbo-transient>
-
-
-  <meta name="github-keyboard-shortcuts" content="repository,source-code,file-tree,copilot" data-turbo-transient="true" />
-  
-
-  <meta name="selected-link" value="repo_source" data-turbo-transient>
-  <link rel="assets" href="https://github.githubassets.com/">
-
-    <meta name="google-site-verification" content="Apib7-x98H0j5cPqHWwSMm6dNU4GmODRoqxLiDzdx9I">
-
-<meta name="octolytics-url" content="https://collector.github.com/github/collect" /><meta name="octolytics-actor-id" content="160432445" /><meta name="octolytics-actor-login" content="DeadManDaed" /><meta name="octolytics-actor-hash" content="72a48e99d9fdb44f1b9bbc567db94ef665605c9bc7cefc86bd7a76078a686a91" />
-
-  <meta name="analytics-location" content="/&lt;user-name&gt;/&lt;repo-name&gt;/blob/show" data-turbo-transient="true" />
-
-  
-
-
-
-
-    <meta name="user-login" content="DeadManDaed">
-
-  <link rel="sudo-modal" href="/sessions/sudo_modal">
-
-    <meta name="viewport" content="width=device-width">
-
-    
-
-      <meta name="description" content="Contribute to DeadManDaed/nbfocoop development by creating an account on GitHub.">
-
-      <link rel="search" type="application/opensearchdescription+xml" href="/opensearch.xml" title="GitHub">
-
-    <link rel="fluid-icon" href="https://github.com/fluidicon.png" title="GitHub">
-    <meta property="fb:app_id" content="1401488693436528">
-    <meta name="apple-itunes-app" content="app-id=1477376905, app-argument=https://github.com/DeadManDaed/nbfocoop/blob/main/public/stock.html" />
-
-      <meta name="twitter:image" content="https://opengraph.githubassets.com/7489808071be22203e09d39035abfb0b949330627e2fb7303132a3075c3aac57/DeadManDaed/nbfocoop" /><meta name="twitter:site" content="@github" /><meta name="twitter:card" content="summary_large_image" /><meta name="twitter:title" content="nbfocoop/public/stock.html at main · DeadManDaed/nbfocoop" /><meta name="twitter:description" content="Contribute to DeadManDaed/nbfocoop development by creating an account on GitHub." />
-  <meta property="og:image" content="https://opengraph.githubassets.com/7489808071be22203e09d39035abfb0b949330627e2fb7303132a3075c3aac57/DeadManDaed/nbfocoop" /><meta property="og:image:alt" content="Contribute to DeadManDaed/nbfocoop development by creating an account on GitHub." /><meta property="og:image:width" content="1200" /><meta property="og:image:height" content="600" /><meta property="og:site_name" content="GitHub" /><meta property="og:type" content="object" /><meta property="og:title" content="nbfocoop/public/stock.html at main · DeadManDaed/nbfocoop" /><meta property="og:url" content="https://github.com/DeadManDaed/nbfocoop/blob/main/public/stock.html" /><meta property="og:description" content="Contribute to DeadManDaed/nbfocoop development by creating an account on GitHub." />
-  
-
-
-      <link rel="shared-web-socket" href="wss://alive.github.com/_sockets/u/160432445/ws?session=eyJ2IjoiVjMiLCJ1IjoxNjA0MzI0NDUsInMiOjE4NzkxNzEwMzcsImMiOjI1MzUyNzA4ODYsInQiOjE3NjQ2ODI5NjJ9--7a6d5e0be0e65a787cacc4c5010e84740805f9d86e24b8ccbfcf564f24580032" data-refresh-url="/_alive" data-session-id="df8ff9ea80a7878810a17eccea5479786f21883dae3aadabb626a42f9e90a818">
-      <link rel="shared-web-socket-src" href="/assets-cdn/worker/socket-worker-2a038060e454.js">
-
-
-      <meta name="hostname" content="github.com">
-
-
-      <meta name="keyboard-shortcuts-preference" content="all">
-      <meta name="hovercards-preference" content="true">
-      <meta name="announcement-preference-hovercard" content="true">
-
-        <meta name="expected-hostname" content="github.com">
-
-
-  <meta http-equiv="x-pjax-version" content="357a4441d707c1ea953912be6e542c3f6148977d595cf8cb8cd655f6e0be47c1" data-turbo-track="reload">
-  <meta http-equiv="x-pjax-csp-version" content="21a43568025709b66240454fc92d4f09335a96863f8ab1c46b4a07f6a5b67102" data-turbo-track="reload">
-  <meta http-equiv="x-pjax-css-version" content="8487fec39c8c06b815832ce80ebd89387f6b3bac9b5498b820bc97b9a51ed30a" data-turbo-track="reload">
-  <meta http-equiv="x-pjax-js-version" content="08855dea5a4040e62befe4bd21ac7e5567c3990d78acd9f443553027d4a4de57" data-turbo-track="reload">
-
-  <meta name="turbo-cache-control" content="no-preview" data-turbo-transient="">
-
-      <meta name="turbo-cache-control" content="no-cache" data-turbo-transient>
-
-    <meta data-hydrostats="publish">
-
-  <meta name="go-import" content="github.com/DeadManDaed/nbfocoop git https://github.com/DeadManDaed/nbfocoop.git">
-
-  <meta name="octolytics-dimension-user_id" content="160432445" /><meta name="octolytics-dimension-user_login" content="DeadManDaed" /><meta name="octolytics-dimension-repository_id" content="1106431796" /><meta name="octolytics-dimension-repository_nwo" content="DeadManDaed/nbfocoop" /><meta name="octolytics-dimension-repository_public" content="true" /><meta name="octolytics-dimension-repository_is_fork" content="false" /><meta name="octolytics-dimension-repository_network_root_id" content="1106431796" /><meta name="octolytics-dimension-repository_network_root_nwo" content="DeadManDaed/nbfocoop" />
-
-
-
-    
-
-    <meta name="turbo-body-classes" content="logged-in env-production page-responsive">
-  <meta name="disable-turbo" content="false">
-
-
-  <meta name="browser-stats-url" content="https://api.github.com/_private/browser/stats">
-
-  <meta name="browser-errors-url" content="https://api.github.com/_private/browser/errors">
-
-  <meta name="release" content="0ed90c40c35983bb3059d7977655dedf1dd14e12">
-  <meta name="ui-target" content="full">
-
-  <link rel="mask-icon" href="https://github.githubassets.com/assets/pinned-octocat-093da3e6fa40.svg" color="#000000">
-  <link rel="alternate icon" class="js-site-favicon" type="image/png" href="https://github.githubassets.com/favicons/favicon.png">
-  <link rel="icon" class="js-site-favicon" type="image/svg+xml" href="https://github.githubassets.com/favicons/favicon.svg" data-base-href="https://github.githubassets.com/favicons/favicon">
-
-<meta name="theme-color" content="#1e2327">
-<meta name="color-scheme" content="light dark" />
-
-  <meta name="msapplication-TileImage" content="/windows-tile.png">
-  <meta name="msapplication-TileColor" content="#ffffff">
-
-  <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials">
-
-  </head>
-
-  <body class="logged-in env-production page-responsive" style="word-wrap: break-word;" >
-    <!-- Header --> <div class="header"> <div class="header-left"> <div class="logo">📦</div> <div class="header-title"> <h1>Gestion de Stock</h1> <p>Suivi des inventaires et mouvements</p> </div> </div> <div class="header-actions"> <button class="btn-dashboard" onclick="window.location.href='/dashboard.html'"> <span>🏠</span> Tableau de bord </button> <button class="btn-logout" onclick="logout()">Déconnexion</button> </div> </div>
-
-<!-- Navigation Tabs --> <div class="nav-tabs"> <div class="nav-tab active" onclick="switchTab('stock', event)"> <span>📦</span> Stock </div> <div class="nav-tab" onclick="switchTab('inventaire', event)"> <span>📊</span> Inventaire </div> <div class="nav-tab" onclick="switchTab('alerts', event)"> <span>⚠️</span> Alertes </div> </div>
-
-<!-- Container --> <div class="container"> <div id="alertBox" class="alert"></div>
-
-<!-- TAB: Stock (fusion mouvements + lots) -->
-<div id="tab-stock" class="tab-content active">
-  <div class="card">
-    <div class="card-header">
-      <h2 class="card-title"><span>📥</span> Gestion des lots et mouvements</h2>
-    </div>
-    <form id="stockForm">
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="nomProducteur">Nom du producteur *</label>
-          <input type="text" id="nomProducteur" required placeholder="Ex: Koné Martin">
-        </div>
-        <div class="form-group">
-          <label for="telProducteur">Téléphone *</label>
-          <input type="tel" id="telProducteur" required placeholder="+237 6XX XX XX XX">
-        </div>
-        <div class="form-group">
-          <label for="typeProducteur">Type de producteur *</label>
-          <select id="typeProducteur" required>
-            <option value="">Sélectionner</option>
-            <option value="agriculteur">Agriculteur</option>
-            <option value="eleveur">Éleveur</option>
-            <option value="artisan">Artisan</option>
-            <option value="transformateur">Transformateur</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="categorieLot">Catégorie *</label>
-          <select id="categorieLot" required>
-            <option value="">Sélectionner</option>
-            <option value="fruits">Fruits</option>
-            <option value="legumes">Légumes</option>
-            <option value="cereales">Céréales</option>
-            <option value="tubercules">Tubercules</option>
-            <option value="artisanat">Artisanat</option>
-            <option value="elevage">Élevage</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="description">Description *</label>
-          <input type="text" id="description" required placeholder="Description du produit">
-        </div>
-        <div class="form-group">
-          <label for="quantite">Quantité *</label>
-          <input type="number" id="quantite" required min="0" step="0.01">
-        </div>
-        <div class="form-group">
-          <label for="unite">Unité *</label>
-          <select id="unite" required>
-            <option value="kg">Kilogrammes (kg)</option>
-            <option value="g">Grammes (g)</option>
-            <option value="L">Litres (L)</option>
-            <option value="unite">Unités</option>
-            <option value="sac">Sacs</option>
-            <option value="caisse">Caisses</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="prixRef">Prix de référence *</label>
-          <input type="number" id="prixRef" required min="0" step="0.01">
-        </div>
-        <div class="form-group">
-          <label for="qualite">Qualité *</label>
-          <select id="qualite" required>
-            <option value="A">A (standard)</option>
-            <option value="B">B (moyenne)</option>
-            <option value="C">C (faible)</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="dateReception">Date de réception</label>
-          <input type="date" id="dateReception">
-        </div>
-        <div class="form-group">
-          <label for="dateExpiration">Date d'expiration</label>
-          <input type="date" id="dateExpiration">
-        </div>
-        <div class="form-group">
-          <label for="typeMouvement">Type de mouvement *</label>
-          <select id="typeMouvement" required>
-            <option value="entree">Entrée</option>
-            <option value="sortie">Sortie</option>
-          </select>
-        </div>
+</head>
+<body>
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">📦</div>
+      <div class="header-title">
+        <h1>Gestion des Stocks</h1>
+        <p>Administration et suivi des lots</p>
       </div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-dashboard">🏠 Tableau de bord</button>
+      <button class="btn-logout">Déconnexion</button>
+    </div>
+  </div>
 
-      <div class="form-grid">
-        <div class="form-group"><label>Valeur brute</label><div id="valBrute">0</div></div>
-        <div class="form-group"><label>Coef qualité</label><div id="coefQualite">1.00</div></div>
-        <div class="form-group"><label>Valeur estimée</label><div id="valEstimee">0</div></div>
-        <div class="form-group"><label>Taux de taxe</label><div id="tauxTax">10%</div></div>
-        <div class="form-group"><label>Montant attribué</label><div id="montantAttribue">0</div></div>
+  <div class="nav-tabs">
+    <div class="nav-tab active" data-tab="definition">Définition des lots</div>
+    <div class="nav-tab" data-tab="admission">Admission des lots</div>
+    <div class="nav-tab" data-tab="stock">Mouvements de stock</div>
+    <div class="nav-tab" data-tab="suivi">Suivi des recettes</div>
+  </div>
+
+  <div class="container">
+    <div id="definition" class="tab-content active">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Définition des lots</div>
+        </div>
+        <form id="newLotForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="categorieLot">Catégorie *</label>
+              <select id="categorieLot" required onchange="loadCriteria(this.value)">
+                <option value="">Sélectionner</option>
+                <option value="frais">Produits frais</option>
+                <option value="court">Cycle court</option>
+                <option value="secs">Produits secs</option>
+                <option value="manualim">Manufacturés alimentaires</option>
+                <option value="nonalim">Manufacturés non alimentaires</option>
+                <option value="sensible">Produits sensibles</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="description">Description *</label>
+              <input type="text" id="description" required>
+            </div>
+            <div class="form-group">
+              <label for="prixRef">Prix de référence *</label>
+              <input type="number" id="prixRef" required min="0" step="0.01">
+            </div>
+            <div class="form-group">
+              <label for="unitesLot">Unités admises *</label>
+              <select id="unitesLot" multiple required>
+                <option value="kg">Kilogrammes</option>
+                <option value="g">Grammes</option>
+                <option value="L">Litres</option>
+                <option value="unite">Unités</option>
+                <option value="sac">Sacs</option>
+                <option value="caisse">Caisses</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Critères d’admission</label>
+              <ul id="criteriaList"></ul>
+              <button type="button" id="addCriteriaBtn" class="btn btn-secondary" style="display:none;">➕ Nouveau critère</button>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Créer le lot</button>
+          </div>
+        </form>
       </div>
-
-      <button type="submit" class="btn btn-primary"><span>✅</span> Enregistrer</button>
-    </form>
-  </div>
-
-  <div class="card">
-    <div class="card-header">
-      <h2 class="card-title"><span>📋</span> Liste des lots</h2>
-      <button class="btn btn-secondary" onclick="loadLots()"><span>🔄</span> Actualiser</button>
     </div>
-    <div class="table-container" id="lotsTableContainer">
-      <div class="loading"><div class="loading-spinner"></div><p>Chargement des lots...</p></div>
+    <div id="admission" class="tab-content">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Admission des lots</div>
+        </div>
+        <form id="admissionForm">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="lotSelect">Produit / Lot *</label>
+              <select id="lotSelect" required onchange="loadUnitsForLot(this.value)"></select>
+            </div>
+            <div class="form-group">
+              <label for="quantity">Quantité *</label>
+              <input type="number" id="quantity" min="0" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label for="unitSelect">Unité *</label>
+              <select id="unitSelect" required></select>
+            </div>
+            <div class="form-group">
+              <label for="price">Prix (unité) *</label>
+              <input type="number" id="price" step="0.01" required>
+            </div>
+            <div class="form-group">
+              <label for="qualityCoeff">Coefficient qualité *</label>
+              <input type="number" id="qualityCoeff" step="0.01" min="0" required>
+            </div>
+            <div class="form-group">
+              <label for="producerSelect">Déposant *</label>
+              <select id="producerSelect" required></select>
+            </div>
+            <div class="form-group">
+              <label for="expirationDate">Date d’expiration</label>
+              <input type="date" id="expirationDate">
+            </div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">➕ Enregistrer l’admission</button>
+            <button type="button" class="btn btn-warning" id="reportErrorBtn">⚠️ Signaler une erreur</button>
+          </div>
+        </form>
+      </div>
     </div>
-  </div>
-</div>
-
-<!-- TAB: Inventaire -->
-<div id="tab-inventaire" class="tab-content">
-  <div class="card">
-    <div class="card-header"><h2 class="card-title"><span>📊</span> Inventaire</h2></div>
-    <div class="table-container" id="inventaireTableContainer">
-      <div class="loading"><div class="loading-spinner"></div><p>Chargement de l’inventaire...</p></div>
-    </div>
-  </div>
-</div>
-
-<!-- TAB: Alertes -->
-<div id="tab-alerts" class="tab-content">
-  <div class="card">
-    <div class="card-header"><h2 class="card-title"><span>⚠️</span> Alertes et notifications</h2></div>
-    <div id="alertsContainer">
-      <div class="loading"><div class="loading-spinner"></div><p>Chargement des alertes...</p></div>
-    </div>
-  </div>
-</div>
-
-</div>
-<script scr = "/js/auth.js></script>  
-<script>   
-  // Ce code reste tel quel - il ne touche PAS aux mots de passe
-  function getCurrentUser() {
-  const userInfo = sessionStorage.getItem("userInfo");
-  return userInfo ? JSON.parse(userInfo) : null;
-}
-
-function requireLogin() {
-  const user = getCurrentUser();
-  if (!user || !user.username || !user.role) {
-    sessionStorage.clear();
-    window.location.href = "/index.html";
-    return null;
-  }
-  return user;
-}
-
-function loadRoleContent(role) {
-  // ... votre code actuel
-}
-</script>
-<script> let currentUser = null; let allStock = []; let allLots = [];
-
-// === Initialisation ===
-document.addEventListener('DOMContentLoaded', () => {
-  const userInfo = sessionStorage.getItem('userInfo');
-  if (!userInfo) {
-    window.location.href = '/index.html';
-    return;
-  }
-
-  currentUser = JSON.parse(userInfo);
-
-  // Vérifier rôle
-  if (currentUser.role !== 'stock' && currentUser.role !== 'admin') {
-    showAlert('Accès refusé : vous devez être gestionnaire de stock', 'error');
-    setTimeout(() => window.location.href = '/dashboard.html', 2000);
-    return;
-  }
-
-  // Charger les données
-  loadLots();
-  loadLotsForSelect();
-  loadInventaire();
-  loadAlerts();
-  updateStats();
-  recompute();
-});
-
-// === Gestion des tabs ===
-function switchTab(tabName, event) {
-  document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
-  document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
-  event.target.closest('.nav-tab').classList.add('active');
-  document.getElementById(`tab-${tabName}`).classList.add('active');
-}
-
-// === Affichage des alertes ===
-function showAlert(message, type) {
-  const alertBox = document.getElementById('alertBox');
-  if (!alertBox) return;
-  alertBox.textContent = message;
-  alertBox.className = `alert alert-${type}`;
-  alertBox.style.display = 'block';
-  setTimeout(() => { alertBox.style.display = 'none'; }, 5000);
-}
-
-// === Recalcul des valeurs ===
-const TAXBYCAT = { frais:0.25, secs:0.10, manualim:0.10, nonalim:0.10, sensible:0.25 };
-const QUAL_COEF = { A:1.00, B:0.95, C:0.90 };
-
-const quantiteEl = document.getElementById('quantite');
-const prixRefEl = document.getElementById('prixRef');
-const qualiteEl = document.getElementById('qualite');
-const categorieEl = document.getElementById('categorieLot');
-const uniteEl = document.getElementById('unite');
-
-const valBruteEl = document.getElementById('valBrute');
-const coefQualiteEl = document.getElementById('coefQualite');
-const valEstimeeEl = document.getElementById('valEstimee');
-const tauxTaxEl = document.getElementById('tauxTax');
-const montantAttribueEl = document.getElementById('montantAttribue');
-
-function recompute() {
-  const qte = parseFloat(quantiteEl.value || 0);
-  const prix = parseFloat(prixRefEl.value || 0);
-  const qual = QUAL_COEF[qualiteEl.value || 'A'];
-  const cat = categorieEl.value || 'secs';
-  const tax = TAXBYCAT[cat];
-
-  const brut = qte * prix;
-  const estimee = brut * qual;
-  const attribue = Math.round(estimee * (1 - tax));
-
-  valBruteEl.textContent = brut.toLocaleString('fr-FR');
-  coefQualiteEl.textContent = qual.toFixed(2);
-  valEstimeeEl.textContent = estimee.toLocaleString('fr-FR');
-  tauxTaxEl.textContent = Math.round(tax * 100) + '%';
-  montantAttribueEl.textContent = attribue.toLocaleString('fr-FR');
-}
-
-[quantiteEl, prixRefEl, qualiteEl, categorieEl].forEach(el => el.addEventListener('input', recompute));
-
-// === Soumission du formulaire ===
-document.getElementById('stockForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const data = {
-    nomProducteur: document.getElementById('nomProducteur').value.trim(),
-    telProducteur: document.getElementById('telProducteur').value.trim(),
-    typeProducteur: document.getElementById('typeProducteur').value,
-    categorie: document.getElementById('categorieLot').value,
-    description: document.getElementById('description').value.trim(),
-    quantite: parseFloat(document.getElementById('quantite').value || 0),
-    unite: document.getElementById('unite').value,
-    prixRef: parseFloat(document.getElementById('prixRef').value || 0),
-    qualite: document.getElementById('qualite').value,
-    dateReception: document.getElementById('dateReception').value,
-    dateExpiration: document.getElementById('dateExpiration').value,
-    typeMouvement: document.getElementById('typeMouvement').value
-  };
-  try {
-    const resp = await fetch('/lots', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
+  <script>
+    // Gestion des onglets
+    document.querySelectorAll('.nav-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
     });
-    if (resp.ok) {
-      showAlert('Lot enregistré avec succès.', 'success');
-      e.target.reset();
-      recompute();
+
+    // Critères par catégorie
+    const defaultCriteria = {
+      frais: ["Fraîcheur", "Calibre minimum", "Absence de pesticides", "Présentation propre"],
+      court: ["Date récente", "Durée ≤ 7 jours", "Chaîne de froid", "Emballage adapté"],
+      secs: ["Humidité ≤ 12%", "Absence de moisissures", "Uniformité du tri", "Odeur normale"],
+      manualim: ["Conformité hygiène", "Date fabrication & péremption", "Emballage conforme", "Certification interne"],
+      nonalim: ["Finition correcte", "Solidité", "Esthétique", "Traçabilité"],
+      sensible: ["Stockage contrôlé", "Traçabilité stricte", "Emballage sécurisé", "Autorisation réglementaire"]
+    };
+
+    function loadCriteria(cat) {
+      const list = document.getElementById('criteriaList');
+      list.innerHTML = "";
+      if (defaultCriteria[cat]) {
+        defaultCriteria[cat].forEach(c => {
+          const li = document.createElement('li');
+          li.textContent = c;
+          list.appendChild(li);
+        });
+        document.getElementById('addCriteriaBtn').style.display = 'inline-block';
+      }
+    }
+    // Charger lots et producteurs
+    async function loadLots() {
+      const response = await fetch('/api/lots');
+      const lots = await response.json();
+      const select = document.getElementById('lotSelect');
+      select.innerHTML = '<option value="">Sélectionner un lot</option>' +
+        lots.map(l => `<option value="${l.id}" data-unites='${JSON.stringify(l.unites_admises)}'>${l.description} (${l.categorie})</option>`).join('');
+      const stockSelect = document.getElementById('stockLot');
+      stockSelect.innerHTML = select.innerHTML;
+    }
+
+    function loadUnitsForLot(lotId) {
+      const selectLot = document.getElementById('lotSelect');
+      const selectedOption = selectLot.options[selectLot.selectedIndex];
+      const unites = JSON.parse(selectedOption.getAttribute('data-unites') || '[]');
+      const unitSelect = document.getElementById('unitSelect');
+      unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
+    }
+
+    async function loadProducers() {
+      const response = await fetch('/api/producteurs');
+      const producers = await response.json();
+      const select = document.getElementById('producerSelect');
+      select.innerHTML = '<option value="">Sélectionner un producteur</option>' +
+        producers.map(p => `<option value="${p.id}">${p.nom_producteur} - ${p.tel_producteur}</option>`).join('');
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
       loadLots();
-    } else {
-      showAlert('Erreur lors de l'enregistrement du lot.', 'error');
-    }
-  } catch (err) {
-    console.error(err);
-    showAlert('Erreur réseau ou serveur.', 'error');
+      loadProducers();
+    });
+    // soumission d'une nouvelle admission de lot
+document.getElementById('admissionForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const lot_id = document.getElementById('lotSelect').value;
+  const quantite = parseFloat(document.getElementById('quantity').value);
+  const unite = document.getElementById('unitSelect').value;
+  const prix_ref = parseFloat(document.getElementById('price').value);
+  const coef_qualite = parseFloat(document.getElementById('qualityCoeff').value);
+  const producteur_id = document.getElementById('producerSelect').value;
+  const date_expiration = document.getElementById('expirationDate').value || null;
+
+  // Champs obligatoires supplémentaires
+  const date_reception = new Date().toISOString().split('T')[0]; // aujourd’hui
+  const magasin_id = 1; // à adapter selon le compte connecté
+  const utilisateur = "admin"; // ou superadmin, selon session
+
+  const response = await fetch('/api/admissions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      lot_id, producteur_id, quantite, unite, prix_ref,
+      date_reception, date_expiration, magasin_id, utilisateur,
+      coef_qualite
+    })
+  });
+
+  if (response.ok) {
+    showAlert('Admission enregistrée ✅', 'success');
+  } else {
+    showAlert('Erreur lors de l’enregistrement ❌', 'error');
   }
 });
+    // nouveau lot - définition et soumission
+document.getElementById('newLotForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
 
-// === Chargement des lots ===
-async function loadLots() {
-  try {
-    const resp = await fetch('/lots');
-    const lots = await resp.json();
+  const description = document.getElementById('description').value;
+  const categorie = document.getElementById('categorieLot').value;
+  const prix_ref = parseFloat(document.getElementById('prixRef').value);
 
-    const html = lots.length === 0 
-      ? '<p style="text-align:center; color:#999; padding:40px;">Aucun lot enregistré</p>'
-      : `
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Producteur</th>
-              <th>Catégorie</th>
-              <th>Quantité</th>
-              <th>Valeur estimée</th>
-              <th>Statut</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${lots.map(lot => `
-              <tr>
-                <td>${lot.id}</td>
-                <td>${lot.producteur || '-'}</td>
-                <td>${lot.categorie || '-'}</td>
-                <td>${lot.quantite} ${lot.unite || ''}</td>
-                <td>${lot.val_estimee ? lot.val_estimee.toLocaleString('fr-FR') : '-'}</td>
-                <td><span class="badge badge-credit">${lot.statut || 'Enregistré'}</span></td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
+  // Récupérer unités admises (multi-select)
+  const unitesSelect = document.getElementById('unitesLot');
+  const unites_admises = Array.from(unitesSelect.selectedOptions).map(opt => opt.value);
 
-    const lotsContainer = document.getElementById('lotsTableContainer');
-    if (lotsContainer) lotsContainer.innerHTML = html;
+  // Récupérer critères admission (liste UL)
+  const criteres = Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.textContent);
 
-  } catch (err) {
-    console.error(err);
-    const errorHtml = '<p style="color:#c62828; text-align:center; padding:40px;">Erreur de chargement</p>';
-    const lotsContainer = document.getElementById('lotsTableContainer');
-    if (lotsContainer) lotsContainer.innerHTML = errorHtml;
+  const response = await fetch('/api/lots', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      description,
+      categorie,
+      prix_ref,
+      unites_admises,       // envoyé comme tableau → backend doit insérer en JSONB
+      criteres_admission: criteres // idem
+    })
+  });
+
+  if (response.ok) {
+    showAlert('Lot créé ✅', 'success');
+  } else {
+    showAlert('Erreur lors de la création ❌', 'error');
   }
-}
-
-// === Lots pour select ===
-async function loadLotsForSelect() {
-  try {
-    const response = await fetch('/lots');
-    const lots = await response.json();
-    const select = document.getElementById('lotId');
-    if (!select) return;
-    select.innerHTML = '<option value="">Aucun lot</option>' +
-      lots.map(lot => `<option value="${lot.id}">Lot #${lot.id} - ${lot.description || lot.producteur}</option>`).join('');
-  } catch (error) {
-    console.error('Erreur:', error);
-  }
-}
-
-// === INVENTAIRE ===
-async function loadInventaire() {
-  const container = document.getElementById('inventaireTableContainer');
-  try {
-    const response = await fetch('/lot-stock');
-    const inventaire = await response.json();
-
-    if (inventaire.length === 0) {
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:40px;">Aucune donnée d'inventaire</p>';
-      return;
-    }
-
-    container.innerHTML = `
-      <table>
-        <thead>
-          <tr>
-            <th>Lot</th>
-            <th>Produit</th>
-            <th>Quantité initiale</th>
-            <th>Quantité restante</th>
-            <th>Statut</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${inventaire.map(item => {
-            const pourcentage = (item.quantite_restante / item.quantite_initiale) * 100;
-            let statutBadge = 'badge-disponible';
-            let statutTexte = 'Disponible';
-            if (pourcentage < 20) { statutBadge = 'badge-alerte'; statutTexte = 'Stock faible'; }
-            else if (pourcentage < 50) { statutBadge = 'badge-sortie'; statutTexte = 'Stock moyen'; }
-            return `
-              <tr>
-                <td>Lot #${item.lot_id}</td>
-                <td>${item.description || '-'}</td>
-                <td>${item.quantite_initiale || 0}</td>
-                <td style="font-weight:600;">${item.quantite_restante || 0}</td>
-                <td><span class="badge ${statutBadge}">${statutTexte}</span></td>
-              </tr>
-            `;
-          }).join('')}
-        </tbody>
-      </table>
-    `;
-  } catch (error) {
-    console.error('Erreur:', error);
-    container.innerHTML = '<p style="color:#c62828; text-align:center; padding:40px;">Erreur de chargement</p>';
-  }
-}
-
-// === ALERTES ===
-async function loadAlerts() {
-  const container = document.getElementById('alertsContainer');
-  try {
-    const response = await fetch('/lot-stock');
-    const inventaire = await response.json();
-
-    const alertes = inventaire.filter(item => {
-      const pourcentage = (item.quantite_restante / item.quantite_initiale) * 100;
-      return pourcentage < 20;
-    });
-
-    const lotsResponse = await fetch('/lots');
-    const lots = await lotsResponse.json();
-    const today = new Date();
-    const expirationAlerts = lots.filter(lot => {
-      if (!lot.date_expiration) return false;
-      const expDate = new Date(lot.date_expiration);
-      const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
-      return diffDays <= 7 && diffDays >= 0;
-    });
-
-    document.getElementById('alertCount').textContent = alertes.length + expirationAlerts.length;
-
-    if (alertes.length === 0 && expirationAlerts.length === 0) {
-      container.innerHTML = '<p style="text-align:center; color:#999; padding:40px;">✓ Aucune alerte pour le moment</p>';
-      return;
-    }
-
-    let html = '';
-    if (alertes.length > 0) {
-      html += '<h3 style="color:#d32f2f; margin-bottom:20px;">⚠️ Stocks faibles</h3>';
-      alertes.forEach(item => {
-        html += `
-          <div style="background:#ffebee; padding:15px; border-radius:10px; margin-bottom:15px; border-left:4px solid #d32f2f;">
-            <strong>Lot #${item.lot_id}</strong> - ${item.description || 'Produit'}<br>
-            Quantité restante: ${item.quantite_restante} / ${item.quantite_initiale}<br>
-            <em>Action recommandée: Réapprovisionnement urgent</em>
-          </div>
-        `;
-      });
-    }
-    if (expirationAlerts.length > 0) {
-      html += '<h3 style="color:#f57c00; margin:30px 0 20px 0;">⏰ Expirations prochaines</h3>';
-      expirationAlerts.forEach(lot => {
-        const expDate = new Date(lot.date_expiration);
-        const diffDays = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
-        html += `
-          <div style="background:#fff3e0; padding:15px; border-radius:10px; margin-bottom:15px; border-left:4px solid #f57c00;">
-            <strong>Lot #${lot.id}</strong> - ${lot.description || 'Produit'}<br>
-            Expire dans ${diffDays} jour${diffDays > 1 ? 's' : ''} (${expDate.toLocaleDateString('fr-FR')})<br>
-            <em>Action recommandée: Écouler en priorité</em>
-          </div>
-        `;
-      });
-    }
-    container.innerHTML = html;
-  } catch (error) {
-    console.error('Erreur:', error);
-    container.innerHTML = '<p style="color:#c62828;">Erreur de chargement des alertes</p>';
-  }
-}
-
-// === STATISTIQUES ===
-async function updateStats() {
-  try {
-    const [stockResponse, lotsResponse] = await Promise.all([
-      fetch('/stock'),
-      fetch('/lots')
-    ]);
-    const stock = await stockResponse.json();
-    const lots = await lotsResponse.json();
-
-    const entrees = stock.filter(s => s.type_mouvement === 'entree').length;
-    const sorties = stock.filter(s => s.type_mouvement === 'sortie').length;
-
-    document.getElementById('totalEntrees').textContent = entrees;
-    document.getElementById('totalSorties').textContent = sorties;
-    document.getElementById('totalLots').textContent = lots.length;
-  } catch (error) {
-    console.error('Erreur stats:', error);
-  }
-}
-
-// === Déconnexion ===
-function logout() {
-  sessionStorage.removeItem('userInfo');
-  window.location.href = '/index.html';
-}
-
-</script>  </body>
+});
+  </script>
+</body>
 </html>
-
