@@ -17,15 +17,101 @@
   </style>
 </head>
 <body>
-  <div class="header">
-    <div>👨‍💼 Administration</div>
-    <button class="btn-logout" onclick="logout()">Déconnexion</button>
+  <div id="adminProducteurs" class="tab-content">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Ajouter un producteur</div>
+    </div>
+
+    <form id="producerForm" style="margin-top:20px;">
+      <div class="form-grid">
+        <!-- Nom -->
+        <div class="form-group">
+          <label for="nomProducteur">Nom du producteur *</label>
+          <input type="text" id="nomProducteur" maxlength="100" required>
+        </div>
+
+        <!-- Téléphone -->
+        <div class="form-group">
+          <label for="telProducteur">Téléphone *</label>
+          <input type="tel" id="telProducteur" maxlength="20" required>
+        </div>
+
+        <!-- Type producteur -->
+        <div class="form-group">
+          <label for="typeProducteur">Type *</label>
+          <select id="typeProducteur" required>
+            <option value="agriculteur">Agriculteur</option>
+            <option value="éleveur">Éleveur</option>
+            <option value="pêcheur">Pêcheur</option>
+            <option value="artisan">Artisan</option>
+            <option value="alimentaire manufacture">Alimentaire manufacture</option>
+            <option value="coopérative">Coopérative</option>
+            <option value="individuel">Individuel</option>
+            <option value="autre">Autre</option>
+          </select>
+        </div>
+
+        <!-- Carte membre -->
+        <div class="form-group">
+          <label for="carteMembre">Carte membre</label>
+          <input type="checkbox" id="carteMembre">
+        </div>
+
+        <!-- Points fidélité -->
+        <div class="form-group">
+          <label for="pointsFidelite">Points fidélité</label>
+          <input type="number" id="pointsFidelite" min="0" step="1" value="0">
+        </div>
+
+        <!-- Solde -->
+        <div class="form-group">
+          <label for="solde">Solde initial</label>
+          <input type="number" id="solde" min="0" step="0.01" value="0">
+        </div>
+
+        <!-- Statut -->
+        <div class="form-group">
+          <label for="statut">Statut</label>
+          <select id="statut">
+            <option value="en_attente" selected>En attente</option>
+            <option value="actif">Actif</option>
+            <option value="suspendu">Suspendu</option>
+          </select>
+        </div>
+
+        <!-- Région -->
+        <div class="form-group">
+          <label for="region">Région</label>
+          <select id="region"></select>
+        </div>
+
+        <!-- Département -->
+        <div class="form-group">
+          <label for="departement">Département</label>
+          <select id="departement"></select>
+        </div>
+
+        <!-- Arrondissement -->
+        <div class="form-group">
+          <label for="arrondissement">Arrondissement</label>
+          <select id="arrondissement"></select>
+        </div>
+
+        <!-- Localité -->
+        <div class="form-group">
+          <label for="localite">Localité</label>
+          <input type="text" id="localite" maxlength="100">
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-success">✅ Ajouter producteur</button>
+      </div>
+    </form>
   </div>
-  <div class="container">
-    <div id="alertBox" class="alert alert-error"></div>
-    <h2>Gestion des utilisateurs</h2>
-    <div id="usersContainer">Chargement...</div>
-  </div>
+</div>
+
 <script src="/js/auth.js"></script>
 <script>   
   // Ce code reste tel quel - il ne touche PAS aux mots de passe
@@ -44,9 +130,75 @@ function requireLogin() {
   return user;
 }
 
-function loadRoleContent(role) {
-  // ... votre code actuel
+/*function loadRoleContent(role) {
+  
+  
+}*/
+
+  // Charger régions/départements/arrondissements dynamiquement
+async function loadGeo() {
+  try {
+    const regionsResp = await fetch('/api/regions');
+    const regions = await regionsResp.json();
+    document.getElementById('region').innerHTML =
+      regions.map(r => `<option value="${r.id}">${r.nom}</option>`).join('');
+
+    document.getElementById('region').addEventListener('change', async (e) => {
+      const depResp = await fetch(`/api/departements?region_id=${e.target.value}`);
+      const deps = await depResp.json();
+      document.getElementById('departement').innerHTML =
+        deps.map(d => `<option value="${d.id}">${d.nom}</option>`).join('');
+    });
+
+    document.getElementById('departement').addEventListener('change', async (e) => {
+      const arrResp = await fetch(`/api/arrondissements?departement_id=${e.target.value}`);
+      const arrs = await arrResp.json();
+      document.getElementById('arrondissement').innerHTML =
+        arrs.map(a => `<option value="${a.id}">${a.nom}</option>`).join('');
+    });
+  } catch (err) {
+    console.error("Erreur chargement géo", err);
+  }
 }
+
+// Soumission du formulaire
+document.getElementById('producerForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const payload = {
+    nom_producteur: document.getElementById('nomProducteur').value,
+    tel_producteur: document.getElementById('telProducteur').value,
+    type_producteur: document.getElementById('typeProducteur').value,
+    carte_membre: document.getElementById('carteMembre').checked,
+    points_fidelite: parseInt(document.getElementById('pointsFidelite').value),
+    solde: parseFloat(document.getElementById('solde').value),
+    statut: document.getElementById('statut').value,
+    region_id: document.getElementById('region').value || null,
+    departement_id: document.getElementById('departement').value || null,
+    arrondissement_id: document.getElementById('arrondissement').value || null,
+    localite: document.getElementById('localite').value
+  };
+
+  try {
+    const response = await fetch('/api/producteurs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) throw new Error("Erreur API producteurs");
+
+    alert("Producteur ajouté ✅");
+    document.getElementById('producerForm').reset();
+  } catch (err) {
+    console.error(err);
+    alert("Impossible d’ajouter le producteur ❌");
+  }
+});
+
+// Charger géo au démarrage
+loadGeo();
+
 </script>
   <script defer>
     const alertBox=document.getElementById('alertBox');
@@ -120,5 +272,6 @@ function loadRoleContent(role) {
   </script>
 </body>
 </html>
+
 
 
