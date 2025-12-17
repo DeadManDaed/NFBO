@@ -420,7 +420,7 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
   const producteur_id = document.getElementById('producerSelect').value;
   const date_expiration = document.getElementById('expirationDate').value || null;
 
-  // Champs obligatoires supplémentaires
+      // Champs obligatoires supplémentaires
   const date_reception = new Date().toISOString().split('T')[0]; // aujourd’hui
   const magasin_id = 1; // à adapter selon le compte connecté
   const utilisateur = "admin"; // ou superadmin, selon session
@@ -440,40 +440,63 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
   } else {
     showAlert('Erreur lors de l’enregistrement ❌', 'error');
   }
-});
+});    
+      // FIN ADMISSION
+    
     // nouveau lot - définition et soumission
-document.getElementById('newLotForm').addEventListener('submit', async (e) => {
+document.getElementById('lotForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
+  const categorie = document.getElementById('categorie').value;
   const description = document.getElementById('description').value;
-  const categorie = document.getElementById('categorieLot').value;
-  const prix_ref = parseFloat(document.getElementById('prixRef').value);
+  const prixRef = parseFloat(document.getElementById('prixRef').value);
+  const unite = document.getElementById('unite').value;
 
-  // Récupérer unités admises (multi-select)
-  const unitesSelect = document.getElementById('unitesLot');
-  const unites_admises = Array.from(unitesSelect.selectedOptions).map(opt => opt.value);
-
-  // Récupérer critères admission (liste UL)
+  // Récupérer les critères
   const criteres = Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.textContent);
 
-  const response = await fetch('/api/lots', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      description,
-      categorie,
-      prix_ref,
-      unites_admises,       // envoyé comme tableau → backend doit insérer en JSONB
-      criteres_admission: criteres // idem
-    })
-  });
+  try {
+    const response = await fetch('/api/lots', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ categorie, description, prix_ref: prixRef, unite, criteres_admission: criteres })
+    });
 
-  if (response.ok) {
-    showAlert('Lot créé ✅', 'success');
-  } else {
-    showAlert('Erreur lors de la création ❌', 'error');
+    if (!response.ok) throw new Error("Erreur API lots");
+
+    const newLot = await response.json();
+
+    // Confirmation visuelle
+    alert("Lot créé ✅");
+
+    // Ajouter le lot à la liste sous le formulaire
+    const list = document.getElementById('lotsList');
+    const li = document.createElement('li');
+    li.textContent = `${newLot.description} (${newLot.categorie}) - Prix réf: ${newLot.prix_ref}`;
+    list.appendChild(li);
+
+    // Réinitialiser le formulaire
+    document.getElementById('lotForm').reset();
+    document.getElementById('criteriaList').innerHTML = "";
+
+  } catch (err) {
+    console.error(err);
+    alert("Impossible de créer le lot ❌");
   }
 });
+
+
+    document.getElementById('addCriteriaBtn').addEventListener('click', () => {
+  const newCritere = prompt("Entrez un nouveau critère d'admission :");
+  if (newCritere && newCritere.trim() !== "") {
+    const li = document.createElement('li');
+    li.textContent = newCritere.trim();
+    document.getElementById('criteriaList').appendChild(li);
+  }
+});
+
+      // FIN DEFINITION LOT
+//    
     // Afficher/masquer le formulaire
 document.getElementById('newStockBtn').addEventListener('click', () => {
   document.getElementById('stockForm').style.display = 'block';
