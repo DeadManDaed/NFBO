@@ -46,11 +46,11 @@ function showError(message) {
 // Redirige vers la page appropriée selon le rôle
 function redirectToRolePage(role) {
   const rolePages = {
-    'superadmin': '/administration.html',
-    'admin': '/administration.html',
-    'auditeur': '/dashboard.html',
-    'caisse': '/caisse.html',
-    'stock': '/stock.html'
+    'superadmin': '../administration.html',
+    'admin': '../administration.html',
+    'auditeur': '../dashboard.html',
+    'caisse': '../caisse.html',
+    'stock': '../stock.html'
   };
   
   const page = rolePages[role] || '/dashboard.html';
