@@ -282,6 +282,67 @@
     </form>
   </div>
 </div>
+<div id="transfer" class="tab-content">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Transfert inter‑magasins</div>
+    </div>
+
+    <!-- Liste des transferts existants -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Lot</th>
+            <th>Quantité</th>
+            <th>Magasin source</th>
+            <th>Magasin destinataire</th>
+            <th>Utilisateur</th>
+          </tr>
+        </thead>
+        <tbody id="transferList">
+          <!-- Exemple de ligne -->
+          <tr>
+            <td>2025-12-17</td>
+            <td>Lot #12 - Tomates</td>
+            <td>50 kg</td>
+            <td>Magasin Central</td>
+            <td>Magasin Nord</td>
+            <td>magasinier1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bouton pour ajouter un nouveau transfert -->
+    <div class="form-actions" style="margin-top:20px;">
+      <button id="newTransferBtn" class="btn btn-primary">➕ Nouveau transfert</button>
+    </div>
+
+    <!-- Formulaire caché -->
+    <form id="transferForm" style="display:none; margin-top:20px;">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="transferLot">Lot *</label>
+          <select id="transferLot" required></select>
+        </div>
+        <div class="form-group">
+          <label for="transferQuantity">Quantité *</label>
+          <input type="number" id="transferQuantity" min="0" step="0.01" required>
+        </div>
+        <div class="form-group">
+          <label for="destMagasin">Magasin destinataire *</label>
+          <select id="destMagasin" required></select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-success">✅ Enregistrer transfert</button>
+        <button type="button" class="btn btn-secondary" id="cancelTransferBtn">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
 
   <script>
     // Gestion des onglets
@@ -453,6 +514,65 @@ document.getElementById('stockForm').addEventListener('submit', async (e) => {
     document.getElementById('stockForm').style.display = 'none';
   } else {
     showAlert('Erreur lors de l’enregistrement ❌', 'error');
+  }
+});
+// Afficher/masquer le formulaire
+document.getElementById('newTransferBtn').addEventListener('click', async () => {
+  document.getElementById('transferForm').style.display = 'block';
+
+  // Charger lots
+  const lotsResp = await fetch('/api/lots');
+  const lots = await lotsResp.json();
+  document.getElementById('transferLot').innerHTML =
+    lots.map(l => `<option value="${l.id}">${l.description} (${l.categorie})</option>`).join('');
+
+  // Charger magasins destinataires
+  const magsResp = await fetch('/api/magasins');
+  const mags = await magsResp.json();
+  document.getElementById('destMagasin').innerHTML =
+    mags.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
+});
+
+document.getElementById('cancelTransferBtn').addEventListener('click', () => {
+  document.getElementById('transferForm').style.display = 'none';
+});
+
+// Soumission du formulaire
+document.getElementById('transferForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const lotId = document.getElementById('transferLot').value;
+  const quantity = parseFloat(document.getElementById('transferQuantity').value);
+  const destMagasinId = document.getElementById('destMagasin').value;
+
+  const response = await fetch('/api/retraits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      lot_id: lotId,
+      quantite: quantity,
+      type_retrait: 'magasin',
+      destination_magasin_id: destMagasinId,
+      utilisateur: "magasinier1",
+      magasin_id: CURRENT_MAGASIN_ID
+    })
+  });
+
+  if (response.ok) {
+    showAlert('Transfert enregistré ✅', 'success');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date().toISOString().split('T')[0]}</td>
+      <td>Lot #${lotId}</td>
+      <td>${quantity}</td>
+      <td>Magasin ${CURRENT_MAGASIN_NAME}</td>
+      <td>Magasin ${document.getElementById('destMagasin').selectedOptions[0].text}</td>
+      <td>magasinier1</td>
+    `;
+    document.getElementById('transferList').appendChild(tr);
+    document.getElementById('transferForm').reset();
+    document.getElementById('transferForm').style.display = 'none';
+  } else {
+    showAlert('Erreur lors du transfert ❌', 'error');
   }
 });
 
