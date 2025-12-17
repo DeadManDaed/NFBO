@@ -216,6 +216,73 @@
         </form>
       </div>
     </div>
+    <div id="stock" class="tab-content">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Mouvements de stock</div>
+    </div>
+
+    <!-- Liste des mouvements existants -->
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Lot</th>
+            <th>Type</th>
+            <th>Quantité</th>
+            <th>Utilisateur</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="stockMovementsList">
+          <!-- Exemple de ligne -->
+          <tr>
+            <td>2025-12-17</td>
+            <td>Lot #12 - Tomates</td>
+            <td><span class="badge badge-entree">Entrée</span></td>
+            <td>50 kg</td>
+            <td>magasinier1</td>
+            <td class="action-btns">
+              <button class="btn-icon btn-warning">⚠️ Signaler erreur</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Bouton pour ajouter un nouveau mouvement -->
+    <div class="form-actions" style="margin-top:20px;">
+      <button id="newStockBtn" class="btn btn-primary">➕ Nouveau mouvement</button>
+    </div>
+
+    <!-- Formulaire caché qui s’ouvre au clic -->
+    <form id="stockForm" style="display:none; margin-top:20px;">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="stockLot">Lot *</label>
+          <select id="stockLot" required></select>
+        </div>
+        <div class="form-group">
+          <label for="movementType">Type *</label>
+          <select id="movementType" required>
+            <option value="entree">Entrée</option>
+            <option value="sortie">Sortie</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="stockQuantity">Quantité *</label>
+          <input type="number" id="stockQuantity" min="0" step="0.01" required>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-success">✅ Enregistrer</button>
+        <button type="button" class="btn btn-secondary" id="cancelStockBtn">Annuler</button>
+      </div>
+    </form>
+  </div>
+</div>
+
   <script>
     // Gestion des onglets
     document.querySelectorAll('.nav-tab').forEach(tab => {
