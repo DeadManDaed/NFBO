@@ -413,6 +413,49 @@ document.getElementById('newLotForm').addEventListener('submit', async (e) => {
     showAlert('Erreur lors de la création ❌', 'error');
   }
 });
+    // Afficher/masquer le formulaire
+document.getElementById('newStockBtn').addEventListener('click', () => {
+  document.getElementById('stockForm').style.display = 'block';
+});
+
+document.getElementById('cancelStockBtn').addEventListener('click', () => {
+  document.getElementById('stockForm').style.display = 'none';
+});
+
+// Soumission du formulaire
+document.getElementById('stockForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const lotId = document.getElementById('stockLot').value;
+  const type = document.getElementById('movementType').value;
+  const quantity = parseFloat(document.getElementById('stockQuantity').value);
+
+  const response = await fetch('/api/stock', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ lotId, type, quantity, utilisateur: "magasinier1" })
+  });
+
+  if (response.ok) {
+    showAlert('Mouvement enregistré ✅', 'success');
+    // Ajouter la nouvelle ligne dans le tableau
+    const tbody = document.getElementById('stockMovementsList');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date().toISOString().split('T')[0]}</td>
+      <td>Lot #${lotId}</td>
+      <td><span class="badge ${type === 'entree' ? 'badge-entree' : 'badge-sortie'}">${type}</span></td>
+      <td>${quantity}</td>
+      <td>magasinier1</td>
+      <td class="action-btns"><button class="btn-icon btn-warning">⚠️ Signaler erreur</button></td>
+    `;
+    tbody.appendChild(tr);
+    document.getElementById('stockForm').reset();
+    document.getElementById('stockForm').style.display = 'none';
+  } else {
+    showAlert('Erreur lors de l’enregistrement ❌', 'error');
+  }
+});
+
   </script>
 </body>
 </html>
