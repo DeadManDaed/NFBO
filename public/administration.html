@@ -1,108 +1,280 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="fr">
 <head>
-  <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
-  <title>Hello, World!</title>
-  <style>
- /* --- Onglets --- */
-.tabs {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 1rem;
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Administration</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+  --muted: #aaa;
+  --border: #333;
 }
-.tabs button {
-  padding: 8px 16px;
+
+/* Layout global */
+html, body {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: "Segoe UI", sans-serif;
+}
+main { flex: 1; }
+
+/* Onglets principaux */
+.main-tabs {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin: 1rem 0;
+  flex-wrap: wrap;
+}
+.main-tabs button {
+  padding: 10px 20px;
   border: none;
   background: #eee;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
+  border-radius: 25px;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.tabs button.active {
+.main-tabs button.active {
   background: #007bff;
   color: #fff;
 }
-.tab-content {
-  display: none;
-  padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-.tab-content.active {
-  display: block;
-}
 
-/* --- Dashboard --- */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
+/* Sections */
+.section { display: none; }
+.section.active { display: flex; gap: 1rem; }
+
+/* Nav verticale */
+.admin-nav {
+  flex: 0 0 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.card {
-  background: #fafafa;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  padding: 1rem;
-  text-align: center;
-  transition: box-shadow 0.2s;
-}
-.card:hover {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-}
-.card h3 {
-  margin-bottom: 0.5rem;
-}
-.btn-details, .btn-manage {
-  margin: 5px;
-  padding: 6px 12px;
+.admin-nav button {
+  padding: 10px;
   border: none;
-  border-radius: 4px;
+  background: #f0f0f0;
   cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.btn-details {
-  background: #6c757d;
-  color: #fff;
-}
-.btn-manage {
+.admin-nav button.active {
   background: #28a745;
   color: #fff;
 }
-  </style>
-  </head>
+
+/* Contenu admin */
+.admin-content {
+  flex: 1;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  background: #fff;
+  position: relative;
+}
+
+/* Data sections */
+.data-section { display: none; }
+.data-section.active { display: block; margin-bottom: 1rem; }
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.btn-refresh {
+  padding: 6px 12px;
+  border: none;
+  background: #17a2b8;
+  color: #fff;
+  border-radius: 20px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: bold;
+}
+.btn-refresh i { font-size: 1rem; }
+
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+  color: #666;
+}
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
+
+.btn-new {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  padding: 10px 18px;
+  background: #007bff;
+  color: #fff;
+  border: none;
+  border-radius: 25px;
+  font-weight: bold;
+}
+
+/* Dashboard */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  width: 100%;
+}
+.card {
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+.card i { font-size: 2rem; margin-bottom: 0.5rem; color: #007bff; }
+.btn-details, .btn-manage {
+  margin: 5px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+}
+.btn-details { background: #6c757d; color: #fff; }
+.btn-manage { background: #28a745; color: #fff; }
+.loading {
+  text-align: center;
+  padding: 20px;
+  font-style: italic;
+  color: #666;
+}
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #007bff;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 10px;
+}
+@keyframes spin {
+  0% { transform: rotate(0deg);}
+  100% { transform: rotate(360deg);}
+}
+/* --- Utilisateurs */
+#form-user form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#form-user input, #form-user select {
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* --- Formulaire nouvel employé --- */
+#form-employer form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#form-employer input, #form-employer select {
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+/* Footer */
+.app-footer {
+  padding:16px; text-align:center; color:var(--muted);
+  border-top:1px solid var(--border); background:#0d1424;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .section.active { flex-direction: column; }
+  .admin-nav { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+}
+</style>
+</head>
+<main>
 <body>
-  <div id="admin-section">
-  <h2>Administration (Super Admin)</h2>
-  <div class="tabs">
-    <button data-tab="producteurs">Producteurs</button>
-    <button data-tab="utilisateurs">Utilisateurs</button>
-    <button data-tab="magasins">Magasins</button>
-    <button data-tab="validations">Validations</button>
-    <button data-tab="messagerie">Messagerie</button>
-  </div>
-  <div class="tab-content" id="producteurs">...</div>
-  <div class="tab-content" id="utilisateurs">...</div>
-  <!-- etc -->
-</div>
 
-<div id="dashboard-section">
-  <h2>Tableau de bord</h2>
-  <div class="dashboard-grid">
-    <div class="card">
-      <h3>Lots</h3>
-      <p>Total : 120</p>
-      <button class="btn-details">Détails</button>
-      <button class="btn-manage">Gérer</button>
-    </div>
-    <div class="card">
-      <h3>Admissions</h3>
-      <p>Dernières : 5</p>
-      <button class="btn-details">Détails</button>
-      <button class="btn-manage">Gérer</button>
-    </div>
-    <!-- autres cartes -->
+<div class="data-section" data-id="magasins">
+  <div class="header">
+    <h3>Liste des magasins</h3>
+    <button class="btn-refresh">
+      <i class="fa-solid fa-rotate"></i> Actualiser
+    </button>
   </div>
+  <div class="data-container">
+    <div class="loading">Chargement...</div>
+  </div>
+  <button class="btn-new"><i class="fa-solid fa-plus"></i> Nouveau</button>
 </div>
-</body>
+<footer class="app-footer">
+  <p>NFBO © 2025 — Khepri Design</p>
+</footer>
 
-</html>
+<script>
+function chargerMagasins() {
+  const container = document.querySelector('[data-id="magasins"] .data-container');
+  container.innerHTML = '<div class="loading">Chargement...</div>';
+
+  fetch('/api/magasins')
+    .then(res => res.json())
+    .then(data => {
+      container.innerHTML = '';
+      const table = document.createElement('table');
+      table.classList.add('table');
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Localisation</th>
+            <th>Stock</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map(m => `
+            <tr>
+              <td>${m.nom}</td>
+              <td>${m.localisation}</td>
+              <td>${m.stock}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      `;
+      container.appendChild(table);
+    })
+    .catch(err => {
+      container.innerHTML = '<div class="loading">Erreur de connexion à la base</div>';
+      console.error(err);
+    });
+}
+
+// Bouton Actualiser
+document.querySelector('[data-id="magasins"] .btn-refresh')
+  .addEventListener('click', chargerMagasins);
+
+// Charger au premier affichage
+chargerMagasins();
+</script>
