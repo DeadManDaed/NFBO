@@ -188,15 +188,26 @@ main { flex: 1; }
 <body>
 <main>
 
-<div class="data-section active" data-id="magasins">
-  <div class="header">
-    <h3>Liste des magasins</h3>
-    <button class="btn-refresh">Actualiser</button>
+<div class="section administration active">
+  <nav class="admin-nav">
+    <button data-section="magasins" class="active">Magasins</button>
+    <button data-section="utilisateurs">Utilisateurs</button>
+    <button data-section="employes">Employés</button>
+    <button data-section="producteurs">Producteurs</button>
+    <button data-section="validations">Validations</button>
+    <button data-section="messages">Messages</button>
+  </nav>
+
+  <div class="admin-content">
+    <div class="header">
+      <h3 id="section-title">Liste des magasins</h3>
+      <button class="btn-refresh">Actualiser</button>
+    </div>
+    <div class="data-container">
+      <div class="loading">Chargement...</div>
+    </div>
+    <button class="btn-new">Nouveau</button>
   </div>
-  <div class="data-container">
-    <div class="loading">Chargement...</div>
-  </div>
-  <button class="btn-new">Nouveau</button>
 </div>
 </main>
 <footer class="app-footer">
@@ -205,31 +216,43 @@ main { flex: 1; }
 
   <script src = '../app.js'></script>
   <script>
-function chargerMagasins() {
-  const container = document.querySelector('[data-id="magasins"] .data-container');
+const routes = {
+  magasins: '/api/magasins',
+  utilisateurs: '/api/utilisateurs',
+  employes: '/api/employers',      // selon ton fichier
+  producteurs: '/api/producteurs',
+  validations: '/api/validations',
+  messages: '/api/messages'
+};
+
+let activeSection = 'magasins';
+
+function chargerSection(section) {
+  activeSection = section;
+  document.getElementById('section-title').textContent =
+    'Liste des ' + section;
+
+  const container = document.querySelector('.data-container');
   container.innerHTML = '<div class="loading">Chargement...</div>';
 
-  fetch('/api/magasins')
+  fetch(routes[section])
     .then(res => res.json())
     .then(data => {
       container.innerHTML = '';
+      if (!data.length) {
+        container.innerHTML = '<div class="loading">Aucune donnée</div>';
+        return;
+      }
+      const keys = Object.keys(data[0]);
       const table = document.createElement('table');
       table.classList.add('table');
       table.innerHTML = `
         <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Localisation</th>
-            <th>Stock</th>
-          </tr>
+          <tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr>
         </thead>
         <tbody>
-          ${data.map(m => `
-            <tr>
-              <td>${m.nom}</td>
-              <td>${m.localisation}</td>
-              <td>${m.stock}</td>
-            </tr>
+          ${data.map(row => `
+            <tr>${keys.map(k => `<td>${row[k]}</td>`).join('')}</tr>
           `).join('')}
         </tbody>
       `;
@@ -241,9 +264,36 @@ function chargerMagasins() {
     });
 }
 
+// Navigation verticale
+document.querySelectorAll('.admin-nav button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.admin-nav button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    chargerSection(btn.dataset.section);
+  });
+});
+
 // Bouton Actualiser
-document.querySelector('[data-id="magasins"] .btn-refresh')
-  .addEventListener('click', chargerMagasins);
+document.querySelector('.btn-refresh').addEventListener('click', () => {
+  chargerSection(activeSection);
+});
+
+// Bouton Nouveau
+document.querySelector('.btn-new').addEventListener('click', () => {
+  ouvrirFormulaire(activeSection);
+});
+
+function ouvrirFormulaire(section) {
+  const container = document.querySelector('.data-container');
+  container.innerHTML = `<form>
+    <h4>Nouveau ${section}</h4>
+    <!-- champs selon le schéma de ${section} -->
+    <button type="submit">Enregistrer</button>
+  </form>`;
+}
+
+// Charger la section par défaut
+chargerSection(activeSection);
 
 // Charger au premier affichage
 chargerMagasins();
