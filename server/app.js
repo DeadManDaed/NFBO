@@ -5,6 +5,14 @@ const bodyParser = require('body-parser');
 const lotsRouter = require('./routes/lots');
 const authRouter = require('./routes/auth'); // ✅ Corrigé le chemin
 const app = express();
+const geoRoutes = require('./routes/geo'); // chemin adapté
+app.use('/api', geoRoutes);
+const producteursRouter = require('./routes/producteurs');
+app.use('/api/producteurs', producteursRouter);
+const admissionsRouter = require('./routes/admissions');
+app.use('/api/admissions', admissionsRouter);
+const retraitsRouter = require('./routes/retraits');
+app.use('/api/retraits', retraitsRouter);
 
 // Middleware de logging (doit être en premier)
 app.use((req, res, next) => {
@@ -99,4 +107,5 @@ function loadRoleContent(role) {
 }
 
 module.exports = app;
+
 
