@@ -15,6 +15,8 @@ const retraitsRouter = require('./routes/retraits');
 app.use('/api/retraits', retraitsRouter);
 const employersRouter = require('./routes/employers');
 app.use('/api/employers', employersRouter);
+const magasinsRoutes = require('./routes/magasins');
+app.use('/api/magasins', magasinsRoutes);
 
 // Middleware de logging (doit être en premier)
 app.use((req, res, next) => {
@@ -109,6 +111,7 @@ function loadRoleContent(role) {
 }
 
 module.exports = app;
+
 
 
 
