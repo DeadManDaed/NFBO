@@ -1,7 +1,6 @@
-// /server/routes/magasins.js
 const express = require('express');
 const router = express.Router();
-const pool = require('./db'); // connexion Render
+const pool = require('../db'); // connexion Render
 
 // 🔹 GET : liste des magasins avec nom de la région
 router.get('/', async (req, res) => {
@@ -72,7 +71,9 @@ router.delete('/:id', async (req, res) => {
   try {
     // ⚠️ Attention : cascade sur admissions, retraits, employers
     await pool.query('DELETE FROM magasins WHERE id=$1', [req.params.id]);
-    res.json({ message: 'Magasin supprimé (⚠️ admissions, retraits, employés liés supprimés automatiquement)' });
+    res.json({
+      message: 'Magasin supprimé (⚠️ admissions, retraits, employés liés supprimés automatiquement)'
+    });
   } catch (err) {
     console.error('Erreur DELETE /magasins:', err);
     res.status(500).json({ error: 'Erreur serveur' });
