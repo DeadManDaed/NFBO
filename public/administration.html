@@ -219,52 +219,137 @@ main { flex: 1; }
 const routes = {
   magasins: '/api/magasins',
   utilisateurs: '/api/utilisateurs',
-  employes: '/api/employers',      // selon ton fichier
+  employes: '/api/employers',
   producteurs: '/api/producteurs',
   validations: '/api/validations',
   messages: '/api/messages'
 };
 
+const schemas = {
+  magasins: [
+    { name: 'nom', label: 'Nom du magasin', type: 'text', required: true },
+    { name: 'code', label: 'Code (ex: CE01)', type: 'text', required: true },
+    { name: 'region_id', label: 'ID Région', type: 'number', required: false }
+  ],
+  users: [
+    { name: 'username', label: 'Nom d’utilisateur', type: 'text', required: true },
+    { name: 'password_hash', label: 'Mot de passe', type: 'password', required: true },
+    { name: 'role', label: 'Rôle', type: 'select', options: ['superadmin', 'auditeur', 'admin', 'caisse', 'stock'], required: true },
+    { name: 'magasin_id', label: 'Magasin ID', type: 'number' },
+    { name: 'prenom', label: 'Prénom', type: 'text' },
+    { name: 'nom', label: 'Nom', type: 'text' },
+    { name: 'email', label: 'Email', type: 'email' },
+    { name: 'statut', label: 'Statut', type: 'select', options: ['actif', 'inactif'] }
+  ],
+  employers: [
+    { name: 'magasin_id', label: 'Magasin ID', type: 'number', required: true },
+    { name: 'nom', label: 'Nom complet', type: 'text', required: true },
+    { name: 'role', label: 'Rôle', type: 'select', options: ['manutentionnaire', 'securite', 'chauffeur', 'caissier', 'magasinier', 'maintenance', 'nettoyage', 'logistique'], required: true },
+    { name: 'contact', label: 'Contact', type: 'text' },
+    { name: 'date_embauche', label: 'Date d’embauche', type: 'date' },
+    { name: 'statut', label: 'Statut', type: 'select', options: ['actif', 'inactif'] }
+  ],
+  producteurs: [
+    { name: 'nom_producteur', label: 'Nom du producteur', type: 'text', required: true },
+    { name: 'tel_producteur', label: 'Téléphone', type: 'text', required: true },
+    { name: 'type_producteur', label: 'Type', type: 'select', options: ['agriculteur', 'éleveur', 'pêcheur', 'artisan', 'coopérative', 'individuel', 'autre'] },
+    { name: 'carte_membre', label: 'Carte membre', type: 'checkbox' },
+    { name: 'points_fidelite', label: 'Points', type: 'number', value: 0 },
+    { name: 'solde', label: 'Solde initial', type: 'number', value: 0 },
+    { name: 'region_id', label: 'Région ID', type: 'number' },
+    { name: 'localite', label: 'Localité', type: 'text' }
+  ]
+};
+
 let activeSection = 'magasins';
 
-function chargerSection(section) {
-  section = activeSection;
-  document.getElementById('section-title').textContent =
-    'Liste des ' + section;
+// --- LOGIQUE D'AFFICHAGE ---
 
+function chargerSection(section) {
+  activeSection = section;
+  document.getElementById('section-title').textContent = 'Liste des ' + section;
   const container = document.querySelector('.data-container');
   container.innerHTML = '<div class="loading">Chargement...</div>';
 
-  fetch(routes[section])
+  const apiUrl = routes[section] || `/api/${section}`;
+
+  fetch(apiUrl)
     .then(res => res.json())
     .then(data => {
       container.innerHTML = '';
-      if (!data.length) {
+      if (!data || !data.length) {
         container.innerHTML = '<div class="loading">Aucune donnée</div>';
         return;
       }
       const keys = Object.keys(data[0]);
       const table = document.createElement('table');
-      table.classList.add('table');
+      table.className = 'table';
       table.innerHTML = `
-        <thead>
-          <tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr>
-        </thead>
+        <thead><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr></thead>
         <tbody>
-          ${data.map(row => `
-            <tr>${keys.map(k => `<td>${row[k]}</td>`).join('')}</tr>
-          `).join('')}
-        </tbody>
-      `;
+          ${data.map(row => `<tr>${keys.map(k => `<td>${row[k] ?? ''}</td>`).join('')}</tr>`).join('')}
+        </tbody>`;
       container.appendChild(table);
     })
     .catch(err => {
-      container.innerHTML = '<div class="loading">Erreur de connexion à la base</div>';
+      container.innerHTML = '<div class="loading">Erreur de connexion</div>';
       console.error(err);
     });
 }
 
-// Navigation verticale
+// --- LOGIQUE FORMULAIRE DYNAMIQUE ---
+
+function ouvrirFormulaire(section) {
+  const container = document.querySelector('.data-container');
+  const fields = schemas[section];
+  if (!fields) return;
+
+  let html = `<div class="form-container">
+    <h4>Nouveau ${section}</h4>
+    <form id="dynamic-form" class="form-grid">`;
+
+  fields.forEach(f => {
+    html += `<div class="form-group"><label>${f.label}</label>`;
+    if (f.type === 'select') {
+      html += `<select name="${f.name}">${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
+    } else if (f.type === 'checkbox') {
+      html += `<input type="checkbox" name="${f.name}">`;
+    } else {
+      html += `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} value="${f.value ?? ''}">`;
+    }
+    html += `</div>`;
+  });
+
+  html += `</div><button type="submit" class="btn-save">Enregistrer</button></form></div>`;
+  container.innerHTML = html;
+
+  document.getElementById('dynamic-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+
+    // Fix pour les checkboxes
+    fields.filter(f => f.type === 'checkbox').forEach(f => {
+      data[f.name] = e.target[f.name].checked;
+    });
+
+    try {
+      const res = await fetch(`/api/${section}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!res.ok) throw new Error('Erreur serveur');
+      alert('Succès !');
+      chargerSection(section);
+    } catch (err) {
+      alert('Erreur lors de l’enregistrement');
+    }
+  });
+}
+
+// --- ÉVÉNEMENTS ---
+
 document.querySelectorAll('.admin-nav button').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.admin-nav button').forEach(b => b.classList.remove('active'));
@@ -273,308 +358,11 @@ document.querySelectorAll('.admin-nav button').forEach(btn => {
   });
 });
 
-// Bouton Actualiser
-document.querySelector('.btn-refresh').addEventListener('click', () => {
-  chargerSection(activeSection);
-});
+document.querySelector('.btn-refresh').addEventListener('click', () => chargerSection(activeSection));
+document.querySelector('.btn-new').addEventListener('click', () => ouvrirFormulaire(activeSection));
 
-// Bouton Nouveau
-document.querySelector('.btn-new').addEventListener('click', () => {
-  ouvrirFormulaire(activeSection);
-});
-
-function ouvrirFormulaire(section) {
-  const container = document.querySelector('.data-container');
-  container.innerHTML = `<form>
-    <h4>Nouveau ${section}</h4>
-    <!-- champs selon le schéma de ${section} -->
-    <button type="submit">Enregistrer</button>
-  </form>`;
-}
-
-// Charger la section par défaut
+// Lancement initial
 chargerSection(activeSection);
-
-// Charger au premier affichage
-chargerMagasins();
-/* ----------- data formatées avant insert -------
-                                  -------------- */
-    // ----------- employés ----------------
-    const schemas = {
-  employers: [
-    { name: 'magasin_id', label: 'Magasin ID', type: 'number' },
-    { name: 'nom', label: 'Nom', type: 'text' },
-    { name: 'role', label: 'Rôle', type: 'select', options: [
-      'manutentionnaire', 'securite', 'chauffeur',
-      'caissier', 'magasinier', 'maintenance',
-      'nettoyage', 'logistique'
-    ]},
-    { name: 'contact', label: 'Contact', type: 'text' },
-    { name: 'date_embauche', label: 'Date d’embauche', type: 'date' },
-    { name: 'statut', label: 'Statut', type: 'select', options: ['actif', 'inactif'] },
-    { name: 'matricule', label: 'Matricule', type: 'text' }
-  ]
-};
-
-    // ------------  Users ---------------
-
-    const schemas = {
-  users: [
-    { name: 'username', label: 'Nom d’utilisateur', type: 'text' },
-    { name: 'password_hash', label: 'Mot de passe', type: 'password' }, 
-    { name: 'role', label: 'Rôle', type: 'select', options: [
-      'superadmin', 'auditeur', 'admin', 'caisse', 'stock'
-    ]},
-    { name: 'magasin_id', label: 'Magasin ID', type: 'number' },
-    { name: 'prenom', label: 'Prénom', type: 'text' },
-    { name: 'nom', label: 'Nom', type: 'text' },
-    { name: 'email', label: 'Email', type: 'email' },
-    { name: 'telephone', label: 'Téléphone', type: 'text' },
-    { name: 'statut', label: 'Statut', type: 'select', options: ['actif', 'inactif'] },
-    { name: 'avatar_url', label: 'Avatar URL', type: 'text' },
-    { name: 'matricule', label: 'Matricule', type: 'text' }
-  ]
-};
-
-// ----------------Producteurs ------------
-    const schemas = {
-  producteurs: [
-    { name: 'nom_producteur', label: 'Nom du producteur', type: 'text' },
-    { name: 'tel_producteur', label: 'Téléphone', type: 'text' },
-    { name: 'type_producteur', label: 'Type de producteur', type: 'select', options: [
-      'agriculteur', 'éleveur', 'pêcheur', 'artisan',
-      'alimentaire manufacture', 'coopérative', 'individuel', 'autre'
-    ]},
-    { name: 'carte_membre', label: 'Carte membre', type: 'checkbox' },
-    { name: 'points_fidelite', label: 'Points fidélité', type: 'number' },
-    { name: 'solde', label: 'Solde', type: 'number' },
-    { name: 'statut', label: 'Statut', type: 'select', options: ['en_attente', 'actif', 'suspendu'] },
-    { name: 'region_id', label: 'Région ID', type: 'number' },
-    { name: 'departement_id', label: 'Département ID', type: 'number' },
-    { name: 'arrondissement_id', label: 'Arrondissement ID', type: 'number' },
-    { name: 'localite', label: 'Localité', type: 'text' },
-    { name: 'matricule', label: 'Matricule', type: 'text' }
-    // ⚠️ `date_integration` est géré par la base (DEFAULT CURRENT_DATE), pas besoin de champ
-  ]
-};
-
-// --- Nouvelle entrée ---
-    function ouvrirFormulaire(section) {
-  const container = document.querySelector('.data-container');
-  const fields = schemas[section];
-  if (!fields) return;
-
-  let formHtml = `<form id="form-${section}"><h4>Nouveau ${section}</h4>`;
-  fields.forEach(f => {
-    if (f.type === 'select') {
-      formHtml += `<label>${f.label}</label><select name="${f.name}">${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
-    } else {
-      formHtml += `<label>${f.label}</label><input type="${f.type}" name="${f.name}" required>`;
-    }
-  });
-  formHtml += `<button type="submit">Enregistrer</button></form>`;
-  container.innerHTML = formHtml;
-
-  document.getElementById(`form-${section}`).addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const data = Object.fromEntries(new FormData(e.target).entries());
-    try {
-      const res = await fetch(`/api/${section}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) throw new Error('Erreur serveur');
-      await res.json();
-      e.target.reset(); // ✅ réinitialiser le formulaire
-      chargerSection(section); // ✅ recharger automatiquement l’affichage
-    } catch (err) {
-      console.error(err);
-      alert('Erreur lors de la création');
-    }
-  });
-}
-
-    
-document.querySelector('[data-id="users"] .btn-new')
-  .addEventListener('click', () => ouvrirFormulaire('users'));
-
-function ouvrirFormulaire(section) {
-  if (section === 'users') {
-    const container = document.querySelector('[data-id="users"] .data-container');
-    container.innerHTML = `
-      <form id="form-users">
-        <h4>Nouvel utilisateur</h4>
-        <label>Nom d’utilisateur</label><input type="text" name="username" required>
-        <label>Mot de passe</label><input type="password" name="password_hash" required>
-        <label>Rôle</label>
-        <select name="role" required>
-          <option value="superadmin">Superadmin</option>
-          <option value="auditeur">Auditeur</option>
-          <option value="admin">Admin</option>
-          <option value="caisse">Caisse</option>
-          <option value="stock">Stock</option>
-        </select>
-        <label>Magasin ID</label><input type="number" name="magasin_id">
-        <label>Prénom</label><input type="text" name="prenom">
-        <label>Nom</label><input type="text" name="nom">
-        <label>Email</label><input type="email" name="email">
-        <label>Téléphone</label><input type="text" name="telephone">
-        <label>Statut</label>
-        <select name="statut">
-          <option value="actif">Actif</option>
-          <option value="inactif">Inactif</option>
-        </select>
-        <label>Avatar URL</label><input type="text" name="avatar_url">
-        <label>Matricule</label><input type="text" name="matricule">
-        <button type="submit">Enregistrer</button>
-      </form>
-    `;
-
-    document.getElementById('form-users').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target).entries());
-      try {
-        const res = await fetch('/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        if (!res.ok) throw new Error('Erreur serveur');
-        await res.json();
-        e.target.reset(); // ✅ réinitialise le formulaire
-        chargerSection('users'); // ✅ recharge la liste automatiquement
-      } catch (err) {
-        console.error(err);
-        alert('Erreur lors de la création');
-      }
-    });
-  }
-}
-    // ---------------  Producteur
-    // Bouton Nouveau pour producteurs
-document.querySelector('[data-id="producteurs"] .btn-new')
-  .addEventListener('click', () => ouvrirFormulaire('producteurs'));
-
-function ouvrirFormulaire(section) {
-  if (section === 'producteurs') {
-    const container = document.querySelector('[data-id="producteurs"] .data-container');
-    container.innerHTML = `
-      <form id="form-producteurs">
-        <h4>Nouveau producteur</h4>
-        <label>Nom du producteur</label><input type="text" name="nom_producteur" required>
-        <label>Téléphone</label><input type="text" name="tel_producteur" required>
-        <label>Type de producteur</label>
-        <select name="type_producteur">
-          <option value="agriculteur">Agriculteur</option>
-          <option value="éleveur">Éleveur</option>
-          <option value="pêcheur">Pêcheur</option>
-          <option value="artisan">Artisan</option>
-          <option value="alimentaire manufacture">Alimentaire manufacture</option>
-          <option value="coopérative">Coopérative</option>
-          <option value="individuel">Individuel</option>
-          <option value="autre">Autre</option>
-        </select>
-        <label>Carte membre</label><input type="checkbox" name="carte_membre">
-        <label>Points fidélité</label><input type="number" name="points_fidelite" value="0">
-        <label>Solde</label><input type="number" step="0.01" name="solde" value="0">
-        <label>Statut</label>
-        <select name="statut">
-          <option value="en_attente">En attente</option>
-          <option value="actif">Actif</option>
-          <option value="suspendu">Suspendu</option>
-        </select>
-        <label>Région ID</label><input type="number" name="region_id">
-        <label>Département ID</label><input type="number" name="departement_id">
-        <label>Arrondissement ID</label><input type="number" name="arrondissement_id">
-        <label>Localité</label><input type="text" name="localite">
-        <label>Matricule</label><input type="text" name="matricule">
-        <button type="submit">Enregistrer</button>
-      </form>
-    `;
-
-    document.getElementById('form-producteurs').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target).entries());
-
-      // ⚠️ Checkbox → convertir en booléen
-      data.carte_membre = e.target.carte_membre.checked;
-
-      try {
-        const res = await fetch('/api/producteurs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        if (!res.ok) throw new Error('Erreur serveur');
-        await res.json();
-        e.target.reset(); // ✅ réinitialise le formulaire
-        chargerSection('producteurs'); // ✅ recharge la liste automatiquement
-      } catch (err) {
-        console.error(err);
-        alert('Erreur lors de la création');
-      }
-    });
-  }
-}
-// ---------------- employé
-
-    // Bouton Nouveau pour employés
-document.querySelector('[data-id="employers"] .btn-new')
-  .addEventListener('click', () => ouvrirFormulaire('employers'));
-
-function ouvrirFormulaire(section) {
-  if (section === 'employers') {
-    const container = document.querySelector('[data-id="employers"] .data-container');
-    container.innerHTML = `
-      <form id="form-employers">
-        <h4>Nouvel employé</h4>
-        <label>Magasin ID</label><input type="number" name="magasin_id">
-        <label>Nom</label><input type="text" name="nom" required>
-        <label>Rôle</label>
-        <select name="role" required>
-          <option value="manutentionnaire">Manutentionnaire</option>
-          <option value="securite">Sécurité</option>
-          <option value="chauffeur">Chauffeur</option>
-          <option value="caissier">Caissier</option>
-          <option value="magasinier">Magasinier</option>
-          <option value="maintenance">Maintenance</option>
-          <option value="nettoyage">Nettoyage</option>
-          <option value="logistique">Logistique</option>
-        </select>
-        <label>Contact</label><input type="text" name="contact">
-        <label>Date d’embauche</label><input type="date" name="date_embauche">
-        <label>Statut</label>
-        <select name="statut">
-          <option value="actif">Actif</option>
-          <option value="inactif">Inactif</option>
-        </select>
-        <label>Matricule</label><input type="text" name="matricule">
-        <button type="submit">Enregistrer</button>
-      </form>
-    `;
-
-    document.getElementById('form-employers').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const data = Object.fromEntries(new FormData(e.target).entries());
-
-      try {
-        const res = await fetch('/api/employers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-        if (!res.ok) throw new Error('Erreur serveur');
-        await res.json();
-        e.target.reset(); // ✅ réinitialise le formulaire
-        chargerSection('employers'); // ✅ recharge la liste automatiquement
-      } catch (err) {
-        console.error(err);
-        alert('Erreur lors de la création');
-      }
-    });
-  }
-}
 
 </script>
 </body>
