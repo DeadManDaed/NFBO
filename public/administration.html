@@ -236,6 +236,128 @@ main { flex: 1; }
     padding: 10px;
     border-bottom: 1px solid #eee;
 }
+  /* --- Conteneur Principal --- */
+.data-container {
+    background: #fff;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+/* --- Tableaux Style "Moderne" --- */
+.admin-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin-top: 15px;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.admin-table th {
+    background-color: #f8f9fc;
+    color: #4e73df;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+    padding: 15px;
+    border-bottom: 2px solid #e3e6f0;
+}
+
+.admin-table td {
+    padding: 12px 15px;
+    color: #5a5c69;
+    vertical-align: middle;
+    border-bottom: 1px solid #f1f1f1;
+    transition: background 0.2s;
+}
+
+.admin-table tbody tr:hover td {
+    background-color: #f8f9ff;
+}
+
+/* --- Badges de Statut (pour Producteurs & Users) --- */
+.badge {
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    display: inline-block;
+}
+
+.badge-actif { background: #d4edda; color: #155724; }
+.badge-attente { background: #fff3cd; color: #856404; }
+.badge-suspendu { background: #f8d7da; color: #721c24; }
+
+/* --- Barre de Recherche & Filtres --- */
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #f8f9fc;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+}
+
+.filter-group {
+    position: relative;
+    flex: 1;
+}
+
+.filter-group i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #b7b9cc;
+}
+
+.filter-group input {
+    width: 100%;
+    padding: 10px 10px 10px 35px;
+    border: 1px solid #d1d3e2;
+    border-radius: 8px;
+    outline: none;
+    transition: border 0.3s;
+}
+
+.filter-group input:focus {
+    border-color: #4e73df;
+    box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.25);
+}
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Deux colonnes */
+    gap: 20px;
+    margin-top: 15px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #4e73df;
+}
+
+.form-group input, .form-group select {
+    padding: 10px;
+    border: 1px solid #d1d3e2;
+    border-radius: 5px;
+}
+
+/* Les boutons en bas prennent toute la largeur */
+.form-footer {
+    grid-column: span 2; 
+    margin-top: 20px;
+    text-align: right;
+}
+  
 </style>
 </head>
 <body>
@@ -364,7 +486,25 @@ async function chargerSection(section) {
     let tableHtml = `<table class="admin-table">
       <thead>
         <tr>
-          ${keys.map(k => `<th>${k}</th>`).join('')}
+          // Remplace le mappage des colonnes par ceci
+${keys.map(k => {
+    let value = row[k] ?? '';
+    
+    // Si c'est la colonne statut, on met un badge
+    if (k === 'statut') {
+        let badgeClass = 'badge-attente';
+        if (value === 'actif') badgeClass = 'badge-actif';
+        if (value === 'suspendu') badgeClass = 'badge-suspendu';
+        return `<td><span class="badge ${badgeClass}">${value}</span></td>`;
+    }
+    
+    // Si c'est un prix ou un solde, on formate en FCFA
+    if (k === 'solde') {
+        return `<td style="font-weight:bold; color:#2e7d32">${value.toLocaleString()} FCFA</td>`;
+    }
+
+    return `<td>${value}</td>`;
+}).join('')}
           <th>Actions</th>
         </tr>
       </thead>
