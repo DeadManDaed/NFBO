@@ -441,16 +441,21 @@ let activeSection = 'magasins';
 async function chargerSection(section) {
   activeSection = section;
   const container = document.querySelector('.data-container');
+  const title = document.getElementById('section-title');
+  
   container.innerHTML = '<div class="loading">Chargement...</div>';
+  title.textContent = `Liste des ${section}`;
 
   try {
     const response = await fetch(routes[section] || `/api/${section}`);
+    
+    if (!response.ok) {
+      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+    }
+    
     const data = await response.json();
-
-    // 1. Vider le container pour commencer la construction
     container.innerHTML = '';
 
-    // 2. Si c'est la section producteurs, on injecte la barre de filtres EN PREMIER
     if (section === 'producteurs') {
       container.innerHTML = `
         <div class="filter-bar">
@@ -467,69 +472,76 @@ async function chargerSection(section) {
         </div>
         <div id="table-wrapper"></div>`;
       
-      // On peuple la liste des régions pour le filtre
-      peuplerFiltreRegions();
-      // On active la recherche temps réel
+      await peuplerFiltreRegions();
       activerRechercheInstantanee();
     } else {
       container.innerHTML = '<div id="table-wrapper"></div>';
     }
 
-    // 3. Construction du tableau (dans le wrapper dédié)
+    construireTableau(data, section);
+    
+  } catch (err) {
+    console.error('Erreur chargement section:', err);
+    container.innerHTML = `<p class="error-msg">❌ Erreur: ${err.message}</p>`;
+  }
+}
+    
    // 3. Construction du tableau (dans le wrapper dédié)
-const wrapper = document.getElementById('table-wrapper');
-if (!data || data.length === 0) {
+function construireTableau(data, section) {
+  const wrapper = document.getElementById('table-wrapper');
+  
+  if (!data || data.length === 0) {
     wrapper.innerHTML = '<p class="empty-msg">Aucune donnée trouvée.</p>';
     return;
-}
+  }
 
-const keys = Object.keys(data[0]);
+  const keys = Object.keys(data[0]);
 
-let tableHtml = `<table class="admin-table">
+  let tableHtml = `<table class="admin-table">
     <thead>
-        <tr>
-            ${keys.map(k => `<th>${k.replace('_', ' ')}</th>`).join('')}
-            <th style="text-align:center">Actions</th>
-        </tr>
+      <tr>
+        ${keys.map(k => `<th>${k.replace(/_/g, ' ')}</th>`).join('')}
+        <th style="text-align:center">Actions</th>
+      </tr>
     </thead>
     <tbody>
-        ${data.map(row => `
-            <tr>
-                ${keys.map(k => {
-                    let value = row[k] ?? '';
-                    
-                    // --- Style pour le STATUT ---
-                    if (k === 'statut') {
-                        let badgeClass = 'badge-attente';
-                        if (value === 'actif') badgeClass = 'badge-actif';
-                        if (value === 'suspendu') badgeClass = 'badge-suspendu';
-                        return `<td><span class="badge ${badgeClass}">${value}</span></td>`;
-                    }
-                    
-                    // --- Style pour le SOLDE ---
-                    if (k === 'solde' || k === 'points_fidelite') {
-                        return `<td style="font-weight:bold; color:#2e7d32">
-                            ${Number(value).toLocaleString()} ${k === 'solde' ? 'FCFA' : 'Pts'}
-                        </td>`;
-                    }
+      ${data.map(row => `
+        <tr>
+          ${keys.map(k => {
+            let value = row[k] ?? '';
+            
+            if (k === 'statut' || k === 'statut_validation') {
+              let badgeClass = 'badge-attente';
+              if (value === 'actif' || value === 'approuve') badgeClass = 'badge-actif';
+              if (value === 'suspendu' || value === 'rejete') badgeClass = 'badge-suspendu';
+              return `<td><span class="badge ${badgeClass}">${value}</span></td>`;
+            }
+            
+            if (k === 'solde' || k === 'points_fidelite') {
+              return `<td style="font-weight:bold; color:#2e7d32">
+                ${Number(value).toLocaleString()} ${k === 'solde' ? 'FCFA' : 'Pts'}
+              </td>`;
+            }
 
-                    return `<td>${value}</td>`;
-                }).join('')}
+            return `<td>${value}</td>`;
+          }).join('')}
 
-                <td class="actions-cell">
-                    <button class="btn-edit" title="Modifier" onclick="ouvrirFormulaireEditer('${section}', ${row.id})">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button class="btn-delete" title="Supprimer" onclick="confirmerSuppression('${section}', ${row.id})">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
-                </td>
-            </tr>
-        `).join('')}
+          <td class="actions-cell">
+            <button class="btn-edit" title="Modifier" onclick='ouvrirFormulaireEditer(${JSON.stringify(section)}, ${row.id})'>
+              <i class="fa-solid fa-pen-to-square"></i>
+            </button>
+            <button class="btn-delete" title="Supprimer" onclick='confirmerSuppression(${JSON.stringify(section)}, ${row.id})'>
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('')}
     </tbody>
-</table>`;
+  </table>`;
 
-wrapper.innerHTML = tableHtml;
+  wrapper.innerHTML = tableHtml;
+}
+
 // --- LOGIQUE FORMULAIRE DYNAMIQUE ---
 
 async function ouvrirFormulaire(section) {
@@ -612,6 +624,125 @@ async function ouvrirFormulaire(section) {
         }
     });
 }
+    async function ouvrirFormulaireEditer(section, id) {
+  const container = document.querySelector('.data-container');
+  
+  const response = await fetch(`/api/${section}/${id}`);
+  if (!response.ok) {
+    alert("Erreur lors du chargement des données");
+    return;
+  }
+  
+  const item = await response.json();
+  const fields = schemas[section];
+  
+  let html = `<div class="form-container">
+    <h4>Modifier ${section} (ID: ${id})</h4>
+    <form id="dynamic-form" class="form-grid">`;
+  
+  for (const f of fields) {
+    const value = item[f.name] || '';
+    html += `<div class="form-group"><label>${f.label}</label>`;
+    
+    if (f.type === 'select-fetch') {
+      html += `<select name="${f.name}" id="field-${f.name}" ${f.parent ? 'disabled' : ''}>
+                  <option value="">-- Choisir --</option>
+              </select>`;
+    } else if (f.type === 'select') {
+      html += `<select name="${f.name}">`;
+      f.options.forEach(o => {
+        html += `<option value="${o}" ${value === o ? 'selected' : ''}>${o}</option>`;
+      });
+      html += `</select>`;
+    } else if (f.type === 'password') {
+      html += `<input type="${f.type}" name="${f.name}" placeholder="Laisser vide pour ne pas changer">`;
+    } else {
+      html += `<input type="${f.type}" name="${f.name}" value="${value}" ${f.required ? 'required' : ''}>`;
+    }
+    html += `</div>`;
+  }
+  
+  html += `<button type="submit" class="btn-save">Mettre à jour</button>
+           <button type="button" class="btn-cancel" onclick="chargerSection('${section}')">Annuler</button>
+         </form></div>`;
+  
+  container.innerHTML = html;
+      const regionEl = document.getElementById('field-region_id');
+  if (regionEl) {
+    const regions = await fetch('/api/regions').then(r => r.json());
+    regions.forEach(reg => {
+      regionEl.innerHTML += `<option value="${reg.id}" ${item.region_id == reg.id ? 'selected' : ''}>${reg.nom}</option>`;
+    });
+
+    if (item.region_id) {
+      const depEl = document.getElementById('field-departement_id');
+      const deps = await fetch(`/api/departements?region_id=${item.region_id}`).then(r => r.json());
+      deps.forEach(d => {
+        depEl.innerHTML += `<option value="${d.id}" ${item.departement_id == d.id ? 'selected' : ''}>${d.nom}</option>`;
+      });
+      depEl.disabled = false;
+
+      if (item.departement_id) {
+        const arrEl = document.getElementById('field-arrondissement_id');
+        const arrs = await fetch(`/api/arrondissements?departement_id=${item.departement_id}`).then(r => r.json());
+        arrs.forEach(a => {
+          arrEl.innerHTML += `<option value="${a.id}" ${item.arrondissement_id == a.id ? 'selected' : ''}>${a.nom}</option>`;
+        });
+        arrEl.disabled = false;
+      }
+    }
+
+    regionEl.addEventListener('change', async (e) => {
+      const depEl = document.getElementById('field-departement_id');
+      const arrEl = document.getElementById('field-arrondissement_id');
+      if (!e.target.value) return;
+
+      const deps = await fetch(`/api/departements?region_id=${e.target.value}`).then(r => r.json());
+      depEl.innerHTML = '<option value="">-- Département --</option>';
+      deps.forEach(d => depEl.innerHTML += `<option value="${d.id}">${d.nom}</option>`);
+      depEl.disabled = false;
+      if (arrEl) { arrEl.innerHTML = '<option value="">-- Arrondissement --</option>'; arrEl.disabled = true; }
+    });
+
+    document.getElementById('field-departement_id')?.addEventListener('change', async (e) => {
+      const arrEl = document.getElementById('field-arrondissement_id');
+      if (!e.target.value) return;
+
+      const arrs = await fetch(`/api/arrondissements?departement_id=${e.target.value}`).then(r => r.json());
+      arrEl.innerHTML = '<option value="">-- Arrondissement --</option>';
+      arrs.forEach(a => arrEl.innerHTML += `<option value="${a.id}">${a.nom}</option>`);
+      arrEl.disabled = false;
+    });
+  }
+
+  document.getElementById('dynamic-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const formData = Object.fromEntries(new FormData(e.target));
+    
+    if (formData.password_hash === '') {
+      delete formData.password_hash;
+    }
+    
+    ['region_id', 'departement_id', 'arrondissement_id', 'magasin_id', 'producteur_id', 'expediteur_id', 'destinataire_id'].forEach(key => {
+      if (formData[key]) formData[key] = parseInt(formData[key]);
+    });
+
+    const res = await fetch(`/api/${section}/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+
+    if (res.ok) {
+      alert("Mise à jour réussie");
+      chargerSection(section);
+    } else {
+      const err = await res.json();
+      alert("Erreur: " + err.error);
+    }
+  });
+}
+    
 // Fonction pour peupler le select des régions dans le filtre
 async function peuplerFiltreRegions() {
   const select = document.getElementById('filter-region-list');
@@ -661,16 +792,19 @@ async function confirmerSuppression(section, id) {
 function activerRechercheInstantanee() {
   const input = document.getElementById('search-name');
   input?.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase();
+    const term = e.target.value.toLowerCase().trim();
     const rows = document.querySelectorAll('.admin-table tbody tr');
     
     rows.forEach(row => {
-      // On cible la première ou deuxième colonne (le nom)
-      const nom = row.cells[1].textContent.toLowerCase(); 
-      row.style.display = nom.includes(term) ? '' : 'none';
+      const cells = Array.from(row.cells).slice(0, -1); // Toutes sauf Actions
+      const found = cells.some(cell => 
+        cell.textContent.toLowerCase().includes(term)
+      );
+      row.style.display = found ? '' : 'none';
     });
   });
 }
+
 // --- ÉVÉNEMENTS ---
 
 document.querySelectorAll('.admin-nav button').forEach(btn => {
