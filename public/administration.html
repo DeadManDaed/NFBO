@@ -183,6 +183,59 @@ main { flex: 1; }
   .section.active { flex-direction: column; }
   .admin-nav { flex-direction: row; flex-wrap: wrap; justify-content: center; }
 }
+  .actions-cell {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+}
+
+.btn-edit, .btn-delete {
+    border: none;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: transform 0.2s, background 0.2s;
+}
+
+/* Bouton Éditer (Orange/Ambre) */
+.btn-edit {
+    background-color: #f39c12;
+    color: white;
+}
+.btn-edit:hover {
+    background-color: #d35400;
+    transform: scale(1.1);
+}
+
+/* Bouton Supprimer (Rouge) */
+.btn-delete {
+    background-color: #e74c3c;
+    color: white;
+}
+.btn-delete:hover {
+    background-color: #c0392b;
+    transform: scale(1.1);
+}
+
+/* Style spécifique pour la table admin */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.admin-table th {
+    background-color: #2c3e50;
+    color: white;
+    padding: 12px;
+    text-align: left;
+}
+
+.admin-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+}
 </style>
 </head>
 <body>
@@ -263,38 +316,87 @@ let activeSection = 'magasins';
 
 // --- LOGIQUE D'AFFICHAGE ---
 
-function chargerSection(section) {
+async function chargerSection(section) {
   activeSection = section;
-  document.getElementById('section-title').textContent = 'Liste des ' + section;
   const container = document.querySelector('.data-container');
   container.innerHTML = '<div class="loading">Chargement...</div>';
 
-  const apiUrl = routes[section] || `/api/${section}`;
+  try {
+    const response = await fetch(routes[section] || `/api/${section}`);
+    const data = await response.json();
 
-  fetch(apiUrl)
-    .then(res => res.json())
-    .then(data => {
-      container.innerHTML = '';
-      if (!data || !data.length) {
-        container.innerHTML = '<div class="loading">Aucune donnée</div>';
-        return;
-      }
-      const keys = Object.keys(data[0]);
-      const table = document.createElement('table');
-      table.className = 'table';
-      table.innerHTML = `
-        <thead><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr></thead>
-        <tbody>
-          ${data.map(row => `<tr>${keys.map(k => `<td>${row[k] ?? ''}</td>`).join('')}</tr>`).join('')}
-        </tbody>`;
-      container.appendChild(table);
-    })
-    .catch(err => {
-      container.innerHTML = '<div class="loading">Erreur de connexion</div>';
-      console.error(err);
-    });
+    // 1. Vider le container pour commencer la construction
+    container.innerHTML = '';
+
+    // 2. Si c'est la section producteurs, on injecte la barre de filtres EN PREMIER
+    if (section === 'producteurs') {
+      container.innerHTML = `
+        <div class="filter-bar">
+          <div class="filter-group">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="search-name" placeholder="Rechercher par nom...">
+          </div>
+          <select id="filter-region-list">
+            <option value="">Toutes les Régions</option>
+          </select>
+          <button class="btn-refresh" onclick="chargerSection('producteurs')">
+            <i class="fa-solid fa-sync"></i>
+          </button>
+        </div>
+        <div id="table-wrapper"></div>`;
+      
+      // On peuple la liste des régions pour le filtre
+      peuplerFiltreRegions();
+      // On active la recherche temps réel
+      activerRechercheInstantanee();
+    } else {
+      container.innerHTML = '<div id="table-wrapper"></div>';
+    }
+
+    // 3. Construction du tableau (dans le wrapper dédié)
+    const wrapper = document.getElementById('table-wrapper');
+    if (!data || data.length === 0) {
+      wrapper.innerHTML = '<p class="empty-msg">Aucune donnée trouvée.</p>';
+      return;
+    }
+
+    const keys = Object.keys(data[0]);
+    let tableHtml = `<table class="admin-table">
+      <thead>
+        <tr>
+          ${keys.map(k => `<th>${k}</th>`).join('')}
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.map(row => `
+          <tr>
+            ${keys.map(k => `<td>${row[k] ?? ''}</td>`).join('')}
+            <td class="actions-cell">
+              <button class="btn-edit" onclick="ouvrirFormulaireEditer('${section}', ${row.id})">
+                <i class="fa-solid fa-pen-to-square"></i>
+              </button>
+            </td>
+            // Dans la boucle data.map de chargerSection
+            <td class="actions-cell">
+                <button class="btn-edit" title="Modifier" onclick="ouvrirFormulaireEditer('${section}', ${row.id})">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                </button>
+                <button class="btn-delete" title="Supprimer" onclick="confirmerSuppression('${section}', ${row.id})">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+
+    wrapper.innerHTML = tableHtml;
+
+  } catch (err) {
+    container.innerHTML = '<div class="error">Erreur lors du chargement des données.</div>';
+    console.error(err);
+  }
 }
-
 // --- LOGIQUE FORMULAIRE DYNAMIQUE ---
 
 async function ouvrirFormulaire(section) {
@@ -377,7 +479,65 @@ async function ouvrirFormulaire(section) {
         }
     });
 }
+// Fonction pour peupler le select des régions dans le filtre
+async function peuplerFiltreRegions() {
+  const select = document.getElementById('filter-region-list');
+  if (!select) return;
+  const regions = await fetch('/api/regions').then(r => r.json());
+  regions.forEach(r => {
+    select.innerHTML += `<option value="${r.nom}">${r.nom}</option>`;
+  });
 
+  // Filtre le tableau quand on change de région
+  select.addEventListener('change', (e) => {
+    const val = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('.admin-table tbody tr');
+    rows.forEach(row => {
+      // On suppose que la colonne région est à l'index 7 ou 8 (à ajuster selon ta table)
+      // Ou plus simple : on cherche dans toute la ligne
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(val) ? '' : 'none';
+    });
+  });
+}
+async function confirmerSuppression(section, id) {
+    // 1. Demander confirmation à l'utilisateur
+    const confirmation = confirm(`Êtes-vous sûr de vouloir supprimer cet élément (ID: ${id}) ? Cette action est irréversible.`);
+    
+    if (!confirmation) return;
+
+    try {
+        const response = await fetch(`/api/${section}/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            alert("Suppression effectuée avec succès.");
+            // 2. Rafraîchir la liste sans recharger toute la page
+            chargerSection(section);
+        } else {
+            const errorData = await response.json();
+            alert(`Erreur lors de la suppression : ${errorData.error || 'Erreur inconnue'}`);
+        }
+    } catch (err) {
+        console.error("Erreur DELETE:", err);
+        alert("Impossible de contacter le serveur.");
+    }
+}
+// Fonction de recherche par nom
+function activerRechercheInstantanee() {
+  const input = document.getElementById('search-name');
+  input?.addEventListener('input', (e) => {
+    const term = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('.admin-table tbody tr');
+    
+    rows.forEach(row => {
+      // On cible la première ou deuxième colonne (le nom)
+      const nom = row.cells[1].textContent.toLowerCase(); 
+      row.style.display = nom.includes(term) ? '' : 'none';
+    });
+  });
+}
 // --- ÉVÉNEMENTS ---
 
 document.querySelectorAll('.admin-nav button').forEach(btn => {
