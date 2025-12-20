@@ -3,6 +3,15 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db'); // module de connexion PostgreSQL
 
+// À placer AVANT la route /magasin/:magasinId
+router.get('/', async (req, res) => {
+  try {
+    const result = await db.query('SELECT * FROM ' + (req.baseUrl.includes('users') ? 'users' : 'employers') + ' ORDER BY id DESC');
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 // GET tous les employés d’un magasin
 router.get('/magasin/:magasinId', async (req, res) => {
   try {
