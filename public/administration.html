@@ -249,16 +249,14 @@ const schemas = {
     { name: 'date_embauche', label: 'Date d’embauche', type: 'date' },
     { name: 'statut', label: 'Statut', type: 'select', options: ['actif', 'inactif'] }
   ],
-  producteurs: [
-    { name: 'nom_producteur', label: 'Nom du producteur', type: 'text', required: true },
-    { name: 'tel_producteur', label: 'Téléphone', type: 'text', required: true },
-    { name: 'type_producteur', label: 'Type', type: 'select', options: ['agriculteur', 'éleveur', 'pêcheur', 'artisan', 'coopérative', 'individuel', 'autre'] },
-    { name: 'carte_membre', label: 'Carte membre', type: 'checkbox' },
-    { name: 'points_fidelite', label: 'Points', type: 'number', value: 0 },
-    { name: 'solde', label: 'Solde initial', type: 'number', value: 0 },
-    { name: 'region_id', label: 'Région ID', type: 'number' },
-    { name: 'localite', label: 'Localité', type: 'text' }
-  ]
+ producteurs: [
+  { name: 'nom_producteur', label: 'Nom du producteur', type: 'text', required: true },
+  { name: 'tel_producteur', label: 'Téléphone', type: 'text', required: true },
+  { name: 'region_id', label: 'Région', type: 'select-fetch', endpoint: '/api/regions' },
+  { name: 'departement_id', label: 'Département', type: 'select-fetch', endpoint: '/api/departements', parent: 'region_id' },
+  { name: 'arrondissement_id', label: 'Arrondissement', type: 'select-fetch', endpoint: '/api/arrondissements', parent: 'departement_id' },
+  { name: 'statut', label: 'Statut', type: 'select', options: ['en_attente', 'actif', 'suspendu'] }
+]
 };
 
 let activeSection = 'magasins';
@@ -299,53 +297,85 @@ function chargerSection(section) {
 
 // --- LOGIQUE FORMULAIRE DYNAMIQUE ---
 
-function ouvrirFormulaire(section) {
-  const container = document.querySelector('.data-container');
-  const fields = schemas[section];
-  if (!fields) return;
+async function ouvrirFormulaire(section) {
+    const container = document.querySelector('.data-container');
+    const fields = schemas[section];
+    
+    let html = `<div class="form-container"><h4>Nouveau ${section}</h4><form id="dynamic-form" class="form-grid">`;
+    
+    fields.forEach(f => {
+        html += `<div class="form-group"><label>${f.label}</label>`;
+        if (f.type === 'select-fetch') {
+            html += `<select name="${f.name}" id="field-${f.name}" ${f.parent ? 'disabled' : ''}>
+                        <option value="">-- Choisir --</option>
+                    </select>`;
+        } else if (f.type === 'select') {
+            html += `<select name="${f.name}">${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
+        } else {
+            html += `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''}>`;
+        }
+        html += `</div>`;
+    });
+    html += `</div><button type="submit" class="btn-save">Enregistrer</button></form></div>`;
+    container.innerHTML = html;
 
-  let html = `<div class="form-container">
-    <h4>Nouveau ${section}</h4>
-    <form id="dynamic-form" class="form-grid">`;
+    // --- LOGIQUE DE CASCADE ---
 
-  fields.forEach(f => {
-    html += `<div class="form-group"><label>${f.label}</label>`;
-    if (f.type === 'select') {
-      html += `<select name="${f.name}">${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
-    } else if (f.type === 'checkbox') {
-      html += `<input type="checkbox" name="${f.name}">`;
-    } else {
-      html += `<input type="${f.type}" name="${f.name}" ${f.required ? 'required' : ''} value="${f.value ?? ''}">`;
+    // 1. Charger les régions au démarrage
+    const regionEl = document.getElementById('field-region_id');
+    if (regionEl) {
+        const regions = await fetch('/api/regions').then(r => r.json());
+        regions.forEach(reg => regionEl.innerHTML += `<option value="${reg.id}">${reg.nom}</option>`);
     }
-    html += `</div>`;
-  });
 
-  html += `</div><button type="submit" class="btn-save">Enregistrer</button></form></div>`;
-  container.innerHTML = html;
+    // 2. Cascade Région -> Département
+    regionEl?.addEventListener('change', async (e) => {
+        const depEl = document.getElementById('field-departement_id');
+        const arrEl = document.getElementById('field-arrondissement_id');
+        if (!e.target.value) return;
 
-  document.getElementById('dynamic-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const data = Object.fromEntries(formData.entries());
-
-    // Fix pour les checkboxes
-    fields.filter(f => f.type === 'checkbox').forEach(f => {
-      data[f.name] = e.target[f.name].checked;
+        const deps = await fetch(`/api/departements?region_id=${e.target.value}`).then(r => r.json());
+        depEl.innerHTML = '<option value="">-- Département --</option>';
+        deps.forEach(d => depEl.innerHTML += `<option value="${d.id}">${d.nom}</option>`);
+        depEl.disabled = false;
+        if (arrEl) { arrEl.innerHTML = '<option value="">-- Arrondissement --</option>'; arrEl.disabled = true; }
     });
 
-    try {
-      const res = await fetch(`/api/${section}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!res.ok) throw new Error('Erreur serveur');
-      alert('Succès !');
-      chargerSection(section);
-    } catch (err) {
-      alert('Erreur lors de l’enregistrement');
-    }
-  });
+    // 3. Cascade Département -> Arrondissement
+    document.getElementById('field-departement_id')?.addEventListener('change', async (e) => {
+        const arrEl = document.getElementById('field-arrondissement_id');
+        if (!e.target.value) return;
+
+        const arrs = await fetch(`/api/arrondissements?departement_id=${e.target.value}`).then(r => r.json());
+        arrEl.innerHTML = '<option value="">-- Arrondissement --</option>';
+        arrs.forEach(a => arrEl.innerHTML += `<option value="${a.id}">${a.nom}</option>`);
+        arrEl.disabled = false;
+    });
+
+    // 4. Soumission du formulaire
+    document.getElementById('dynamic-form').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        
+        // Conversion forcée en nombres pour les clés étrangères
+        ['region_id', 'departement_id', 'arrondissement_id', 'magasin_id'].forEach(key => {
+            if (data[key]) data[key] = parseInt(data[key]);
+        });
+
+        const res = await fetch(`/api/${section}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (res.ok) {
+            alert("Enregistré avec succès");
+            chargerSection(section);
+        } else {
+            const err = await res.json();
+            alert("Erreur: " + err.error);
+        }
+    });
 }
 
 // --- ÉVÉNEMENTS ---
