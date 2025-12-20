@@ -1,574 +1,213 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Administration</title>
-<style>
-:root {
-  --muted: #aaa;
-  --border: #333;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administration NFBO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* --- Tes styles existants optimisés --- */
+        :root {
+            --primary: #4e73df;
+            --success: #28a745;
+            --info: #17a2b8;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --dark: #2c3e50;
+            --muted: #858796;
+            --bg: #f8f9fc;
+        }
 
-/* Layout global */
-html, body {
-  height: 100%;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  font-family: "Segoe UI", sans-serif;
-}
-main { flex: 1; }
+        body { font-family: "Segoe UI", Tahoma, sans-serif; background-color: var(--bg); margin: 0; display: flex; flex-direction: column; min-height: 100vh; }
+        main { flex: 1; padding: 20px; display: flex; gap: 20px; }
 
-/* Onglets principaux */
-.main-tabs {
-  display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin: 1rem 0;
-  flex-wrap: wrap;
-}
-.main-tabs button {
-  padding: 10px 20px;
-  border: none;
-  background: #eee;
-  cursor: pointer;
-  border-radius: 25px;
-  font-size: 1rem;
-}
-.main-tabs button.active {
-  background: #007bff;
-  color: #fff;
-}
+        /* Navigation */
+        .admin-nav { flex: 0 0 220px; display: flex; flex-direction: column; gap: 8px; }
+        .admin-nav button { 
+            padding: 12px 15px; border: none; background: white; text-align: left;
+            cursor: pointer; border-radius: 8px; font-weight: 600; color: var(--dark);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.2s;
+        }
+        .admin-nav button.active { background: var(--primary); color: white; }
 
-/* Sections */
-.section { display: none; }
-.section.active { display: flex; gap: 1rem; }
+        /* Content Area */
+        .admin-content { flex: 1; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); position: relative; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; margin-bottom: 20px; padding-bottom: 10px; }
+        
+        /* Table Style */
+        .admin-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .admin-table th { background: #f8f9fc; color: var(--primary); text-transform: uppercase; font-size: 0.75rem; padding: 12px; border-bottom: 2px solid #e3e6f0; text-align: left; }
+        .admin-table td { padding: 12px; border-bottom: 1px solid #f1f1f1; font-size: 0.9rem; }
+        .admin-table tr:hover { background-color: #fcfdff; }
 
-/* Nav verticale */
-.admin-nav {
-  flex: 0 0 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.admin-nav button {
-  padding: 10px;
-  border: none;
-  background: #f0f0f0;
-  cursor: pointer;
-  border-radius: 8px;
-}
-.admin-nav button.active {
-  background: #28a745;
-  color: #fff;
-}
+        /* Badges & Buttons */
+        .badge { padding: 4px 8px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+        .badge-actif { background: #d4edda; color: #155724; }
+        .badge-attente { background: #fff3cd; color: #856404; }
+        .badge-suspendu { background: #f8d7da; color: #721c24; }
 
-/* Contenu admin */
-.admin-content {
-  flex: 1;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 1rem;
-  background: #fff;
-  position: relative;
-}
+        .actions-cell { display: flex; gap: 8px; }
+        .btn-edit { background: var(--warning); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-delete { background: var(--danger); color: white; border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; }
+        .btn-new { position: fixed; bottom: 30px; right: 30px; padding: 12px 24px; background: var(--primary); color: white; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
 
-/* Data sections */
-.data-section { display: none; }
-.data-section.active { display: block; margin-bottom: 1rem; }
+        /* Filtres */
+        .filter-bar { display: flex; gap: 10px; margin-bottom: 15px; background: #f1f3f9; padding: 10px; border-radius: 8px; }
+        .filter-group { position: relative; flex: 1; }
+        .filter-group input { width: 100%; padding: 8px 10px 8px 30px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        .filter-group i { position: absolute; left: 10px; top: 10px; color: #aaa; }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.btn-refresh {
-  padding: 6px 12px;
-  border: none;
-  background: #17a2b8;
-  color: #fff;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-.loading {
-  text-align: center;
-  padding: 20px;
-  font-style: italic;
-  color: #666;
-}
-.spinner {
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #007bff;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 10px;
-}
-@keyframes spin { 0% { transform: rotate(0deg);} 100% { transform: rotate(360deg);} }
-
-.btn-new {
-  position: absolute;
-  bottom: 1rem;
-  right: 1rem;
-  padding: 10px 18px;
-  background: #007bff;
-  color: #fff;
-  border: none;
-  border-radius: 25px;
-  font-weight: bold;
-}
-
-/* Dashboard */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1rem;
-  width: 100%;
-}
-.card {
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 12px;
-  padding: 1rem;
-  text-align: center;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-}
-.btn-details, .btn-manage {
-  margin: 5px;
-  padding: 8px 14px;
-  border: none;
-  border-radius: 20px;
-  cursor: pointer;
-  font-weight: bold;
-}
-.btn-details { background: #6c757d; color: #fff; }
-.btn-manage { background: #28a745; color: #fff; }
-
-/* --- Utilisateurs */
-#form-user form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-#form-user input, #form-user select {
-  padding: 6px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-/* --- Formulaire nouvel employé --- */
-#form-employer form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-#form-employer input, #form-employer select {
-  padding: 6px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-}
-
-/* Footer */
-.app-footer {
-  padding:16px; text-align:center; color:var(--muted);
-  border-top:1px solid var(--border); background:#0d1424;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .section.active { flex-direction: column; }
-  .admin-nav { flex-direction: row; flex-wrap: wrap; justify-content: center; }
-}
-  .actions-cell {
-    display: flex;
-    gap: 8px;
-    justify-content: center;
-}
-
-.btn-edit, .btn-delete {
-    border: none;
-    padding: 6px 10px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: transform 0.2s, background 0.2s;
-}
-
-/* Bouton Éditer (Orange/Ambre) */
-.btn-edit {
-    background-color: #f39c12;
-    color: white;
-}
-.btn-edit:hover {
-    background-color: #d35400;
-    transform: scale(1.1);
-}
-
-/* Bouton Supprimer (Rouge) */
-.btn-delete {
-    background-color: #e74c3c;
-    color: white;
-}
-.btn-delete:hover {
-    background-color: #c0392b;
-    transform: scale(1.1);
-}
-
-/* Style spécifique pour la table admin */
-.admin-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 10px;
-}
-
-.admin-table th {
-    background-color: #2c3e50;
-    color: white;
-    padding: 12px;
-    text-align: left;
-}
-
-.admin-table td {
-    padding: 10px;
-    border-bottom: 1px solid #eee;
-}
-  /* --- Conteneur Principal --- */
-.data-container {
-    background: #fff;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
-}
-
-/* --- Tableaux Style "Moderne" --- */
-.admin-table {
-    width: 100%;
-    border-collapse: separate;
-    border-spacing: 0;
-    margin-top: 15px;
-    font-family: 'Segoe UI', system-ui, sans-serif;
-}
-
-.admin-table th {
-    background-color: #f8f9fc;
-    color: #4e73df;
-    font-weight: 700;
-    text-transform: uppercase;
-    font-size: 0.8rem;
-    letter-spacing: 0.5px;
-    padding: 15px;
-    border-bottom: 2px solid #e3e6f0;
-}
-
-.admin-table td {
-    padding: 12px 15px;
-    color: #5a5c69;
-    vertical-align: middle;
-    border-bottom: 1px solid #f1f1f1;
-    transition: background 0.2s;
-}
-
-.admin-table tbody tr:hover td {
-    background-color: #f8f9ff;
-}
-
-/* --- Badges de Statut (pour Producteurs & Users) --- */
-.badge {
-    padding: 5px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    display: inline-block;
-}
-
-.badge-actif { background: #d4edda; color: #155724; }
-.badge-attente { background: #fff3cd; color: #856404; }
-.badge-suspendu { background: #f8d7da; color: #721c24; }
-
-/* --- Barre de Recherche & Filtres --- */
-.filter-bar {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    background: #f8f9fc;
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 20px;
-}
-
-.filter-group {
-    position: relative;
-    flex: 1;
-}
-
-.filter-group i {
-    position: absolute;
-    left: 12px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #b7b9cc;
-}
-
-.filter-group input {
-    width: 100%;
-    padding: 10px 10px 10px 35px;
-    border: 1px solid #d1d3e2;
-    border-radius: 8px;
-    outline: none;
-    transition: border 0.3s;
-}
-
-.filter-group input:focus {
-    border-color: #4e73df;
-    box-shadow: 0 0 0 0.2rem rgba(78,115,223,0.25);
-}
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); /* Deux colonnes */
-    gap: 20px;
-    margin-top: 15px;
-}
-
-.form-group {
-    display: flex;
-    flex-direction: column;
-}
-
-.form-group label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 5px;
-    color: #4e73df;
-}
-
-.form-group input, .form-group select {
-    padding: 10px;
-    border: 1px solid #d1d3e2;
-    border-radius: 5px;
-}
-
-/* Les boutons en bas prennent toute la largeur */
-.form-footer {
-    grid-column: span 2; 
-    margin-top: 20px;
-    text-align: right;
-}
-  
-</style>
+        /* Formulaire */
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        .form-group label { font-weight: bold; font-size: 0.85rem; color: var(--dark); }
+        .form-group input, .form-group select { padding: 8px; border: 1px solid #ddd; border-radius: 6px; }
+        .btn-save { background: var(--success); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin-top: 15px; width: 100%; grid-column: span 2; }
+    </style>
 </head>
 <body>
+
 <main>
+    <nav class="admin-nav">
+        <button data-section="magasins" class="active">Magasins</button>
+        <button data-section="utilisateurs">Utilisateurs</button>
+        <button data-section="employes">Employés</button>
+        <button data-section="producteurs">Producteurs</button>
+    </nav>
 
-<div class="section administration active">
-  <nav class="admin-nav">
-    <button data-section="magasins" class="active">Magasins</button>
-    <button data-section="utilisateurs">Utilisateurs</button>
-    <button data-section="employes">Employés</button>
-    <button data-section="producteurs">Producteurs</button>
-    <button data-section="validations">Validations</button>
-    <button data-section="messages">Messages</button>
-  </nav>
-
-  <div class="admin-content">
-    <div class="header">
-      <h3 id="section-title">Liste des magasins</h3>
-      <button class="btn-refresh">Actualiser</button>
+    <div class="admin-content">
+        <div class="header">
+            <h3 id="section-title">Chargement...</h3>
+            <button class="btn-refresh" style="padding: 8px 15px; border-radius: 20px; border: none; background: var(--info); color: white; cursor: pointer;">
+                <i class="fa-solid fa-rotate"></i> Actualiser
+            </button>
+        </div>
+        
+        <div class="data-container">
+            </div>
     </div>
-    <div class="data-container">
-      <div class="loading">Chargement...</div>
-    </div>
-    <button class="btn-new">Nouveau</button>
-  </div>
-</div>
 </main>
-<footer class="app-footer">
-  <p>NFBO © 2025 — Khepri Design</p>
+
+<button class="btn-new"><i class="fa-solid fa-plus"></i> Nouveau</button>
+
+<footer class="app-footer" style="text-align: center; padding: 15px; background: #0d1424; color: white;">
+    <p>NFBO © 2025 — Khepri Design</p>
 </footer>
 
-  <script src = '../app.js'></script>
-  <script>
+<script>
 const routes = {
-  magasins: '/api/magasins',
-  utilisateurs: '/api/utilisateurs',
-  employes: '/api/employers',
-  producteurs: '/api/producteurs',
-  validations: '/api/validations',
-  messages: '/api/messages'
+    magasins: '/api/magasins',
+    utilisateurs: '/api/users', // Corrigé selon ton router
+    employes: '/api/employers',
+    producteurs: '/api/producteurs'
 };
 
 const schemas = {
-  magasins: [
-    { name: 'nom', label: 'Nom du magasin', type: 'text', required: true },
-    { name: 'code', label: 'Code (ex: CE01)', type: 'text', required: true },
-    { name: 'region_id', label: 'ID Région', type: 'number', required: false }
-  ],
-  users: [
-    { name: 'username', label: 'Nom d’utilisateur', type: 'text', required: true },
-    { name: 'password_hash', label: 'Mot de passe', type: 'password', required: true },
-    { name: 'role', label: 'Rôle', type: 'select', options: ['superadmin', 'auditeur', 'admin', 'caisse', 'stock'], required: true },
-    { name: 'magasin_id', label: 'Magasin ID', type: 'number' },
-    { name: 'prenom', label: 'Prénom', type: 'text' },
-    { name: 'nom', label: 'Nom', type: 'text' },
-    { name: 'email', label: 'Email', type: 'email' },
-    { name: 'statut', label: 'Statut', type: 'select', options: ['actif', 'inactif'] }
-  ],
-  employers: [
-    { name: 'magasin_id', label: 'Magasin ID', type: 'number', required: true },
-    { name: 'nom', label: 'Nom complet', type: 'text', required: true },
-    { name: 'role', label: 'Rôle', type: 'select', options: ['manutentionnaire', 'securite', 'chauffeur', 'caissier', 'magasinier', 'maintenance', 'nettoyage', 'logistique'], required: true },
-    { name: 'contact', label: 'Contact', type: 'text' },
-    { name: 'date_embauche', label: 'Date d’embauche', type: 'date' },
-    { name: 'statut', label: 'Statut', type: 'select', options: ['actif', 'inactif'] }
-  ],
- producteurs: [
-  { name: 'nom_producteur', label: 'Nom du producteur', type: 'text', required: true },
-  { name: 'tel_producteur', label: 'Téléphone', type: 'text', required: true },
-  { name: 'region_id', label: 'Région', type: 'select-fetch', endpoint: '/api/regions' },
-  { name: 'departement_id', label: 'Département', type: 'select-fetch', endpoint: '/api/departements', parent: 'region_id' },
-  { name: 'arrondissement_id', label: 'Arrondissement', type: 'select-fetch', endpoint: '/api/arrondissements', parent: 'departement_id' },
-  { name: 'statut', label: 'Statut', type: 'select', options: ['en_attente', 'actif', 'suspendu'] }
-]
+    magasins: [
+        { name: 'nom', label: 'Nom du magasin', type: 'text', required: true },
+        { name: 'code', label: 'Code', type: 'text', required: true }
+    ],
+    utilisateurs: [
+        { name: 'nom', label: 'Nom complet', type: 'text', required: true },
+        { name: 'email', label: 'Email', type: 'email', required: true },
+        { name: 'role', label: 'Rôle', type: 'select', options: ['admin', 'caisse', 'stock'] }
+    ],
+    producteurs: [
+        { name: 'nom_producteur', label: 'Nom du producteur', type: 'text', required: true },
+        { name: 'tel_producteur', label: 'Téléphone', type: 'text', required: true },
+        { name: 'region_id', label: 'Région', type: 'select-fetch', endpoint: '/api/regions' },
+        { name: 'departement_id', label: 'Département', type: 'select-fetch', endpoint: '/api/departements', parent: 'region_id' },
+        { name: 'arrondissement_id', label: 'Arrondissement', type: 'select-fetch', endpoint: '/api/arrondissements', parent: 'departement_id' },
+        { name: 'statut', label: 'Statut', type: 'select', options: ['en_attente', 'actif', 'suspendu'] }
+    ]
 };
 
 let activeSection = 'magasins';
 
-// --- LOGIQUE D'AFFICHAGE ---
+// --- FONCTIONS COEUR ---
 
 async function chargerSection(section) {
-  activeSection = section;
-  const container = document.querySelector('.data-container');
-  const title = document.getElementById('section-title');
-  
-  container.innerHTML = '<div class="loading">Chargement...</div>';
-  title.textContent = `Liste des ${section}`;
-
-  try {
-    const response = await fetch(routes[section] || `/api/${section}`);
+    activeSection = section;
+    const container = document.querySelector('.data-container');
+    const title = document.getElementById('section-title');
     
-    if (!response.ok) {
-      throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+    container.innerHTML = '<div style="text-align:center; padding:50px;"><i class="fa-solid fa-spinner fa-spin fa-2x"></i><p>Chargement des données...</p></div>';
+    title.textContent = `Gestion des ${section}`;
+
+    try {
+        const response = await fetch(routes[section]);
+        const data = await response.json();
+        
+        container.innerHTML = '';
+
+        // Barre de filtres (Toujours utile)
+        container.innerHTML = `
+            <div class="filter-bar">
+                <div class="filter-group">
+                    <i class="fa-solid fa-search"></i>
+                    <input type="text" id="search-name" placeholder="Rechercher dans la liste...">
+                </div>
+                ${section === 'producteurs' ? '<select id="filter-region-list"><option value="">Toutes Régions</option></select>' : ''}
+            </div>
+            <div id="table-wrapper"></div>
+        `;
+
+        if(section === 'producteurs') await peuplerFiltreRegions();
+        activerRechercheInstantanee();
+        construireTableau(data, section);
+        
+    } catch (err) {
+        container.innerHTML = `<p style="color:red">Erreur: ${err.message}</p>`;
     }
-    
-    const data = await response.json();
-    container.innerHTML = '';
-
-    if (section === 'producteurs') {
-      container.innerHTML = `
-        <div class="filter-bar">
-          <div class="filter-group">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="text" id="search-name" placeholder="Rechercher par nom...">
-          </div>
-          <select id="filter-region-list">
-            <option value="">Toutes les Régions</option>
-          </select>
-          <button class="btn-refresh" onclick="chargerSection('producteurs')">
-            <i class="fa-solid fa-sync"></i>
-          </button>
-        </div>
-        <div id="table-wrapper"></div>`;
-      
-      await peuplerFiltreRegions();
-      activerRechercheInstantanee();
-    } else {
-      container.innerHTML = '<div id="table-wrapper"></div>';
-    }
-
-    construireTableau(data, section);
-    
-  } catch (err) {
-    console.error('Erreur chargement section:', err);
-    container.innerHTML = `<p class="error-msg">❌ Erreur: ${err.message}</p>`;
-  }
 }
-    
-   // 3. Construction du tableau (dans le wrapper dédié)
+
 function construireTableau(data, section) {
-  const wrapper = document.getElementById('table-wrapper');
-  
-  if (!data || data.length === 0) {
-    wrapper.innerHTML = '<p class="empty-msg">Aucune donnée trouvée.</p>';
-    return;
-  }
+    const wrapper = document.getElementById('table-wrapper');
+    if (!data || data.length === 0) {
+        wrapper.innerHTML = '<p>Aucun enregistrement trouvé.</p>';
+        return;
+    }
 
-  const keys = Object.keys(data[0]);
+    const keys = Object.keys(data[0]);
+    let html = `<table class="admin-table"><thead><tr>`;
+    keys.forEach(k => html += `<th>${k.replace(/_/g, ' ')}</th>`);
+    html += `<th style="text-align:center">Actions</th></tr></thead><tbody>`;
 
-  let tableHtml = `<table class="admin-table">
-    <thead>
-      <tr>
-        ${keys.map(k => `<th>${k.replace(/_/g, ' ')}</th>`).join('')}
-        <th style="text-align:center">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${data.map(row => `
-        <tr>
-          ${keys.map(k => {
-            let value = row[k] ?? '';
-            
-            if (k === 'statut' || k === 'statut_validation') {
-              let badgeClass = 'badge-attente';
-              if (value === 'actif' || value === 'approuve') badgeClass = 'badge-actif';
-              if (value === 'suspendu' || value === 'rejete') badgeClass = 'badge-suspendu';
-              return `<td><span class="badge ${badgeClass}">${value}</span></td>`;
+    data.forEach(row => {
+        html += `<tr>`;
+        keys.forEach(k => {
+            let val = row[k] ?? '';
+            if (k === 'statut') {
+                let cl = val === 'actif' ? 'badge-actif' : (val === 'en_attente' ? 'badge-attente' : 'badge-suspendu');
+                html += `<td><span class="badge ${cl}">${val}</span></td>`;
+            } else {
+                html += `<td>${val}</td>`;
             }
-            
-            if (k === 'solde' || k === 'points_fidelite') {
-              return `<td style="font-weight:bold; color:#2e7d32">
-                ${Number(value).toLocaleString()} ${k === 'solde' ? 'FCFA' : 'Pts'}
-              </td>`;
-            }
-
-            return `<td>${value}</td>`;
-          }).join('')}
-
-          <td class="actions-cell">
-    <button class="btn-edit" title="Modifier" data-section="${section}" data-id="${row.id}">
-        <i class="fa-solid fa-pen-to-square"></i>
-    </button>
-    <button class="btn-delete" title="Supprimer" data-section="${section}" data-id="${row.id}">
-        <i class="fa-solid fa-trash"></i>
-    </button>
-</td>
-        </tr>
-      `).join('')}
-    </tbody>
-  </table>`;
-
-wrapper.innerHTML = tableHtml;
-
-// Ajouter les event listeners après création du tableau
-wrapper.querySelectorAll('.btn-edit').forEach(btn => {
-    btn.addEventListener('click', () => {
-        ouvrirFormulaireEditer(btn.dataset.section, parseInt(btn.dataset.id));
+        });
+        html += `<td class="actions-cell">
+            <button class="btn-edit" onclick="ouvrirFormulaireEditer('${section}', ${row.id})"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn-delete" onclick="confirmerSuppression('${section}', ${row.id})"><i class="fa-solid fa-trash"></i></button>
+        </td></tr>`;
     });
-});
 
-wrapper.querySelectorAll('.btn-delete').forEach(btn => {
-    btn.addEventListener('click', () => {
-        confirmerSuppression(btn.dataset.section, parseInt(btn.dataset.id));
-    });
-});
+    html += `</tbody></table>`;
+    wrapper.innerHTML = html;
 }
 
-// --- LOGIQUE FORMULAIRE DYNAMIQUE ---
+// --- FORMULAIRES ---
 
 async function ouvrirFormulaire(section) {
     const container = document.querySelector('.data-container');
     const fields = schemas[section];
     
-    let html = `<div class="form-container"><h4>Nouveau ${section}</h4><form id="dynamic-form" class="form-grid">`;
+    let html = `<div style="max-width:600px; margin:auto;">
+        <h4 style="margin-bottom:20px;"><i class="fa-solid fa-circle-plus"></i> Ajouter : ${section}</h4>
+        <form id="dynamic-form" class="form-grid">`;
     
     fields.forEach(f => {
         html += `<div class="form-group"><label>${f.label}</label>`;
         if (f.type === 'select-fetch') {
-            html += `<select name="${f.name}" id="field-${f.name}" ${f.parent ? 'disabled' : ''}>
-                        <option value="">-- Choisir --</option>
-                    </select>`;
+            html += `<select name="${f.name}" id="field-${f.name}" ${f.parent ? 'disabled' : ''}><option value="">-- Choisir --</option></select>`;
         } else if (f.type === 'select') {
             html += `<select name="${f.name}">${f.options.map(o => `<option value="${o}">${o}</option>`).join('')}</select>`;
         } else {
@@ -576,267 +215,105 @@ async function ouvrirFormulaire(section) {
         }
         html += `</div>`;
     });
-    html += `</div><button type="submit" class="btn-save">Enregistrer</button></form></div>`;
+    
+    html += `<button type="submit" class="btn-save">Enregistrer</button>
+             <button type="button" onclick="chargerSection('${section}')" style="grid-column: span 2; background:#ccc; border:none; padding:10px; border-radius:6px; cursor:pointer;">Annuler</button>
+             </form></div>`;
+    
     container.innerHTML = html;
-
-    // --- LOGIQUE DE CASCADE ---
-
-    // 1. Charger les régions au démarrage
-    const regionEl = document.getElementById('field-region_id');
-    if (regionEl) {
-        const regions = await fetch('/api/regions').then(r => r.json());
-        regions.forEach(reg => regionEl.innerHTML += `<option value="${reg.id}">${reg.nom}</option>`);
-    }
-
-    // 2. Cascade Région -> Département
-    regionEl?.addEventListener('change', async (e) => {
-        const depEl = document.getElementById('field-departement_id');
-        const arrEl = document.getElementById('field-arrondissement_id');
-        if (!e.target.value) return;
-
-        const deps = await fetch(`/api/departements?region_id=${e.target.value}`).then(r => r.json());
-        depEl.innerHTML = '<option value="">-- Département --</option>';
-        deps.forEach(d => depEl.innerHTML += `<option value="${d.id}">${d.nom}</option>`);
-        depEl.disabled = false;
-        if (arrEl) { arrEl.innerHTML = '<option value="">-- Arrondissement --</option>'; arrEl.disabled = true; }
-    });
-
-    // 3. Cascade Département -> Arrondissement
-    document.getElementById('field-departement_id')?.addEventListener('change', async (e) => {
-        const arrEl = document.getElementById('field-arrondissement_id');
-        if (!e.target.value) return;
-
-        const arrs = await fetch(`/api/arrondissements?departement_id=${e.target.value}`).then(r => r.json());
-        arrEl.innerHTML = '<option value="">-- Arrondissement --</option>';
-        arrs.forEach(a => arrEl.innerHTML += `<option value="${a.id}">${a.nom}</option>`);
-        arrEl.disabled = false;
-    });
-
-    // 4. Soumission du formulaire
-    document.getElementById('dynamic-form').addEventListener('submit', async (e) => {
+    if(section === 'producteurs') gererCascadeZones();
+    
+    document.getElementById('dynamic-form').onsubmit = async (e) => {
         e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target));
-        
-        // Conversion forcée en nombres pour les clés étrangères
-        ['region_id', 'departement_id', 'arrondissement_id', 'magasin_id'].forEach(key => {
-            if (data[key]) data[key] = parseInt(data[key]);
-        });
-
-        const res = await fetch(`/api/${section}`, {
+        const body = Object.fromEntries(new FormData(e.target));
+        const res = await fetch(routes[section], {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
         });
-
-        if (res.ok) {
-            alert("Enregistré avec succès");
-            chargerSection(section);
-        } else {
-            const err = await res.json();
-            alert("Erreur: " + err.error);
-        }
-    });
+        if(res.ok) chargerSection(section);
+    };
 }
-    async function ouvrirFormulaireEditer(section, id) {
-  async function ouvrirFormulaireEditer(section, id) {
-    console.log('🔧 Édition:', section, id); // Debug
-    const container = document.querySelector('.data-container');
-  
-  const response = await fetch(`/api/${section}/${id}`);
-  if (!response.ok) {
-    alert("Erreur lors du chargement des données");
-    return;
-  }
-  
-  const item = await response.json();
-  const fields = schemas[section];
-  
-  let html = `<div class="form-container">
-    <h4>Modifier ${section} (ID: ${id})</h4>
-    <form id="dynamic-form" class="form-grid">`;
-  
-  for (const f of fields) {
-    const value = item[f.name] || '';
-    html += `<div class="form-group"><label>${f.label}</label>`;
+
+async function ouvrirFormulaireEditer(section, id) {
+    const response = await fetch(`${routes[section]}/${id}`);
+    const item = await response.json();
+    await ouvrirFormulaire(section); // On génère la structure
     
-    if (f.type === 'select-fetch') {
-      html += `<select name="${f.name}" id="field-${f.name}" ${f.parent ? 'disabled' : ''}>
-                  <option value="">-- Choisir --</option>
-              </select>`;
-    } else if (f.type === 'select') {
-      html += `<select name="${f.name}">`;
-      f.options.forEach(o => {
-        html += `<option value="${o}" ${value === o ? 'selected' : ''}>${o}</option>`;
-      });
-      html += `</select>`;
-    } else if (f.type === 'password') {
-      html += `<input type="${f.type}" name="${f.name}" placeholder="Laisser vide pour ne pas changer">`;
-    } else {
-      html += `<input type="${f.type}" name="${f.name}" value="${value}" ${f.required ? 'required' : ''}>`;
-    }
-    html += `</div>`;
-  }
-  
-  html += `<button type="submit" class="btn-save">Mettre à jour</button>
-           <button type="button" class="btn-cancel" onclick="chargerSection('${section}')">Annuler</button>
-         </form></div>`;
-  
-  container.innerHTML = html;
-      const regionEl = document.getElementById('field-region_id');
-  if (regionEl) {
-    const regions = await fetch('/api/regions').then(r => r.json());
-    regions.forEach(reg => {
-      regionEl.innerHTML += `<option value="${reg.id}" ${item.region_id == reg.id ? 'selected' : ''}>${reg.nom}</option>`;
+    const form = document.getElementById('dynamic-form');
+    document.querySelector('h4').textContent = `Modifier : ${section} #${id}`;
+    
+    // Remplissage
+    Object.keys(item).forEach(key => {
+        if(form.elements[key]) form.elements[key].value = item[key];
     });
 
-    if (item.region_id) {
-      const depEl = document.getElementById('field-departement_id');
-      const deps = await fetch(`/api/departements?region_id=${item.region_id}`).then(r => r.json());
-      deps.forEach(d => {
-        depEl.innerHTML += `<option value="${d.id}" ${item.departement_id == d.id ? 'selected' : ''}>${d.nom}</option>`;
-      });
-      depEl.disabled = false;
-
-      if (item.departement_id) {
-        const arrEl = document.getElementById('field-arrondissement_id');
-        const arrs = await fetch(`/api/arrondissements?departement_id=${item.departement_id}`).then(r => r.json());
-        arrs.forEach(a => {
-          arrEl.innerHTML += `<option value="${a.id}" ${item.arrondissement_id == a.id ? 'selected' : ''}>${a.nom}</option>`;
+    form.onsubmit = async (e) => {
+        e.preventDefault();
+        const body = Object.fromEntries(new FormData(form));
+        await fetch(`${routes[section]}/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(body)
         });
-        arrEl.disabled = false;
-      }
-    }
-
-    regionEl.addEventListener('change', async (e) => {
-      const depEl = document.getElementById('field-departement_id');
-      const arrEl = document.getElementById('field-arrondissement_id');
-      if (!e.target.value) return;
-
-      const deps = await fetch(`/api/departements?region_id=${e.target.value}`).then(r => r.json());
-      depEl.innerHTML = '<option value="">-- Département --</option>';
-      deps.forEach(d => depEl.innerHTML += `<option value="${d.id}">${d.nom}</option>`);
-      depEl.disabled = false;
-      if (arrEl) { arrEl.innerHTML = '<option value="">-- Arrondissement --</option>'; arrEl.disabled = true; }
-    });
-
-    document.getElementById('field-departement_id')?.addEventListener('change', async (e) => {
-      const arrEl = document.getElementById('field-arrondissement_id');
-      if (!e.target.value) return;
-
-      const arrs = await fetch(`/api/arrondissements?departement_id=${e.target.value}`).then(r => r.json());
-      arrEl.innerHTML = '<option value="">-- Arrondissement --</option>';
-      arrs.forEach(a => arrEl.innerHTML += `<option value="${a.id}">${a.nom}</option>`);
-      arrEl.disabled = false;
-    });
-  }
-
-  document.getElementById('dynamic-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const formData = Object.fromEntries(new FormData(e.target));
-    
-    if (formData.password_hash === '') {
-      delete formData.password_hash;
-    }
-    
-    ['region_id', 'departement_id', 'arrondissement_id', 'magasin_id', 'producteur_id', 'expediteur_id', 'destinataire_id'].forEach(key => {
-      if (formData[key]) formData[key] = parseInt(formData[key]);
-    });
-
-    const res = await fetch(`/api/${section}/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(formData)
-    });
-
-    if (res.ok) {
-      alert("Mise à jour réussie");
-      chargerSection(section);
-    } else {
-      const err = await res.json();
-      alert("Erreur: " + err.error);
-    }
-  });
+        chargerSection(section);
+    };
 }
-    
-// Fonction pour peupler le select des régions dans le filtre
-async function peuplerFiltreRegions() {
-  const select = document.getElementById('filter-region-list');
-  if (!select) return;
-  const regions = await fetch('/api/regions').then(r => r.json());
-  regions.forEach(r => {
-    select.innerHTML += `<option value="${r.nom}">${r.nom}</option>`;
-  });
 
-  // Filtre le tableau quand on change de région
-  select.addEventListener('change', (e) => {
-    const val = e.target.value.toLowerCase();
-    const rows = document.querySelectorAll('.admin-table tbody tr');
-    rows.forEach(row => {
-      // On suppose que la colonne région est à l'index 7 ou 8 (à ajuster selon ta table)
-      // Ou plus simple : on cherche dans toute la ligne
-      const text = row.textContent.toLowerCase();
-      row.style.display = text.includes(val) ? '' : 'none';
-    });
-  });
-}
 async function confirmerSuppression(section, id) {
-    console.log('🗑️ Suppression:', section, id); // Debug
-    // 1. Demander confirmation à l'utilisateur
-    const confirmation = confirm(`Êtes-vous sûr de vouloir supprimer cet élément (ID: ${id}) ? Cette action est irréversible.`);
-    
-    if (!confirmation) return;
-
-    try {
-        const response = await fetch(`/api/${section}/${id}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            alert("Suppression effectuée avec succès.");
-            // 2. Rafraîchir la liste sans recharger toute la page
-            chargerSection(section);
-        } else {
-            const errorData = await response.json();
-            alert(`Erreur lors de la suppression : ${errorData.error || 'Erreur inconnue'}`);
-        }
-    } catch (err) {
-        console.error("Erreur DELETE:", err);
-        alert("Impossible de contacter le serveur.");
+    if(confirm("Supprimer définitivement cet élément ?")) {
+        await fetch(`${routes[section]}/${id}`, { method: 'DELETE' });
+        chargerSection(section);
     }
 }
-// Fonction de recherche par nom
+
+// --- UTILITAIRES ---
+
 function activerRechercheInstantanee() {
-  const input = document.getElementById('search-name');
-  input?.addEventListener('input', (e) => {
-    const term = e.target.value.toLowerCase().trim();
-    const rows = document.querySelectorAll('.admin-table tbody tr');
-    
-    rows.forEach(row => {
-      const cells = Array.from(row.cells).slice(0, -1); // Toutes sauf Actions
-      const found = cells.some(cell => 
-        cell.textContent.toLowerCase().includes(term)
-      );
-      row.style.display = found ? '' : 'none';
+    document.getElementById('search-name')?.addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('.admin-table tbody tr').forEach(tr => {
+            tr.style.display = tr.textContent.toLowerCase().includes(term) ? '' : 'none';
+        });
     });
-  });
 }
 
-// --- ÉVÉNEMENTS ---
+async function gererCascadeZones() {
+    const reg = document.getElementById('field-region_id');
+    const dep = document.getElementById('field-departement_id');
+    const arr = document.getElementById('field-arrondissement_id');
 
+    const regions = await fetch('/api/regions').then(r => r.json());
+    regions.forEach(r => reg.innerHTML += `<option value="${r.id}">${r.nom}</option>`);
+
+    reg.onchange = async () => {
+        const data = await fetch(`/api/departements?region_id=${reg.value}`).then(r => r.json());
+        dep.innerHTML = '<option value="">-- Choisir --</option>';
+        data.forEach(d => dep.innerHTML += `<option value="${d.id}">${d.nom}</option>`);
+        dep.disabled = false;
+    };
+
+    dep.onchange = async () => {
+        const data = await fetch(`/api/arrondissements?departement_id=${dep.value}`).then(r => r.json());
+        arr.innerHTML = '<option value="">-- Choisir --</option>';
+        data.forEach(a => arr.innerHTML += `<option value="${a.id}">${a.nom}</option>`);
+        arr.disabled = false;
+    };
+}
+
+// Initialisation
 document.querySelectorAll('.admin-nav button').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.admin-nav button').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    chargerSection(btn.dataset.section);
-  });
+    btn.onclick = () => {
+        document.querySelector('.admin-nav button.active').classList.remove('active');
+        btn.classList.add('active');
+        chargerSection(btn.dataset.section);
+    };
 });
 
-document.querySelector('.btn-refresh').addEventListener('click', () => chargerSection(activeSection));
-document.querySelector('.btn-new').addEventListener('click', () => ouvrirFormulaire(activeSection));
+document.querySelector('.btn-new').onclick = () => ouvrirFormulaire(activeSection);
+document.querySelector('.btn-refresh').onclick = () => chargerSection(activeSection);
 
-// Lancement initial
-chargerSection(activeSection);
-
+chargerSection('magasins');
 </script>
 </body>
 </html>
