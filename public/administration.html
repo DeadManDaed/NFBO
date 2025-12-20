@@ -476,66 +476,60 @@ async function chargerSection(section) {
     }
 
     // 3. Construction du tableau (dans le wrapper dédié)
-    const wrapper = document.getElementById('table-wrapper');
-    if (!data || data.length === 0) {
-      wrapper.innerHTML = '<p class="empty-msg">Aucune donnée trouvée.</p>';
-      return;
-    }
-
-    const keys = Object.keys(data[0]);
-    let tableHtml = `<table class="admin-table">
-      <thead>
-        <tr>
-          // Remplace le mappage des colonnes par ceci
-${keys.map(k => {
-    let value = row[k] ?? '';
-    
-    // Si c'est la colonne statut, on met un badge
-    if (k === 'statut') {
-        let badgeClass = 'badge-attente';
-        if (value === 'actif') badgeClass = 'badge-actif';
-        if (value === 'suspendu') badgeClass = 'badge-suspendu';
-        return `<td><span class="badge ${badgeClass}">${value}</span></td>`;
-    }
-    
-    // Si c'est un prix ou un solde, on formate en FCFA
-    if (k === 'solde') {
-        return `<td style="font-weight:bold; color:#2e7d32">${value.toLocaleString()} FCFA</td>`;
-    }
-
-    return `<td>${value}</td>`;
-}).join('')}
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${data.map(row => `
-          <tr>
-            ${keys.map(k => `<td>${row[k] ?? ''}</td>`).join('')}
-            <td class="actions-cell">
-              <button class="btn-edit" onclick="ouvrirFormulaireEditer('${section}', ${row.id})">
-                <i class="fa-solid fa-pen-to-square"></i>
-              </button>
-            </td>
-            <td class="actions-cell">
-                <button class="btn-edit" title="Modifier" onclick="ouvrirFormulaireEditer('${section}', ${row.id})">
-                    <i class="fa-solid fa-pen-to-square"></i>
-                </button>
-                <button class="btn-delete" title="Supprimer" onclick="confirmerSuppression('${section}', ${row.id})">
-                    <i class="fa-solid fa-trash"></i>
-                </button>
-            </td>
-          </tr>`).join('')}
-      </tbody>
-    </table>`;
-
-    wrapper.innerHTML = tableHtml;
-
-  } catch (err) {
-    container.innerHTML = '<div class="error">Erreur lors du chargement des données.</div>';
-    console.error(err);
-  }
+   // 3. Construction du tableau (dans le wrapper dédié)
+const wrapper = document.getElementById('table-wrapper');
+if (!data || data.length === 0) {
+    wrapper.innerHTML = '<p class="empty-msg">Aucune donnée trouvée.</p>';
+    return;
 }
+
+const keys = Object.keys(data[0]);
+
+let tableHtml = `<table class="admin-table">
+    <thead>
+        <tr>
+            ${keys.map(k => `<th>${k.replace('_', ' ')}</th>`).join('')}
+            <th style="text-align:center">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        ${data.map(row => `
+            <tr>
+                ${keys.map(k => {
+                    let value = row[k] ?? '';
+                    
+                    // --- Style pour le STATUT ---
+                    if (k === 'statut') {
+                        let badgeClass = 'badge-attente';
+                        if (value === 'actif') badgeClass = 'badge-actif';
+                        if (value === 'suspendu') badgeClass = 'badge-suspendu';
+                        return `<td><span class="badge ${badgeClass}">${value}</span></td>`;
+                    }
+                    
+                    // --- Style pour le SOLDE ---
+                    if (k === 'solde' || k === 'points_fidelite') {
+                        return `<td style="font-weight:bold; color:#2e7d32">
+                            ${Number(value).toLocaleString()} ${k === 'solde' ? 'FCFA' : 'Pts'}
+                        </td>`;
+                    }
+
+                    return `<td>${value}</td>`;
+                }).join('')}
+
+                <td class="actions-cell">
+                    <button class="btn-edit" title="Modifier" onclick="ouvrirFormulaireEditer('${section}', ${row.id})">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button class="btn-delete" title="Supprimer" onclick="confirmerSuppression('${section}', ${row.id})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('')}
+    </tbody>
+</table>`;
+
+wrapper.innerHTML = tableHtml;
 // --- LOGIQUE FORMULAIRE DYNAMIQUE ---
 
 async function ouvrirFormulaire(section) {
