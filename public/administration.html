@@ -527,19 +527,32 @@ function construireTableau(data, section) {
           }).join('')}
 
           <td class="actions-cell">
-            <button class="btn-edit" title="Modifier" onclick='ouvrirFormulaireEditer(${JSON.stringify(section)}, ${row.id})'>
-              <i class="fa-solid fa-pen-to-square"></i>
-            </button>
-            <button class="btn-delete" title="Supprimer" onclick='confirmerSuppression(${JSON.stringify(section)}, ${row.id})'>
-              <i class="fa-solid fa-trash"></i>
-            </button>
-          </td>
+    <button class="btn-edit" title="Modifier" data-section="${section}" data-id="${row.id}">
+        <i class="fa-solid fa-pen-to-square"></i>
+    </button>
+    <button class="btn-delete" title="Supprimer" data-section="${section}" data-id="${row.id}">
+        <i class="fa-solid fa-trash"></i>
+    </button>
+</td>
         </tr>
       `).join('')}
     </tbody>
   </table>`;
 
-  wrapper.innerHTML = tableHtml;
+wrapper.innerHTML = tableHtml;
+
+// Ajouter les event listeners après création du tableau
+wrapper.querySelectorAll('.btn-edit').forEach(btn => {
+    btn.addEventListener('click', () => {
+        ouvrirFormulaireEditer(btn.dataset.section, parseInt(btn.dataset.id));
+    });
+});
+
+wrapper.querySelectorAll('.btn-delete').forEach(btn => {
+    btn.addEventListener('click', () => {
+        confirmerSuppression(btn.dataset.section, parseInt(btn.dataset.id));
+    });
+});
 }
 
 // --- LOGIQUE FORMULAIRE DYNAMIQUE ---
@@ -625,7 +638,9 @@ async function ouvrirFormulaire(section) {
     });
 }
     async function ouvrirFormulaireEditer(section, id) {
-  const container = document.querySelector('.data-container');
+  async function ouvrirFormulaireEditer(section, id) {
+    console.log('🔧 Édition:', section, id); // Debug
+    const container = document.querySelector('.data-container');
   
   const response = await fetch(`/api/${section}/${id}`);
   if (!response.ok) {
@@ -765,6 +780,7 @@ async function peuplerFiltreRegions() {
   });
 }
 async function confirmerSuppression(section, id) {
+    console.log('🗑️ Suppression:', section, id); // Debug
     // 1. Demander confirmation à l'utilisateur
     const confirmation = confirm(`Êtes-vous sûr de vouloir supprimer cet élément (ID: ${id}) ? Cette action est irréversible.`);
     
