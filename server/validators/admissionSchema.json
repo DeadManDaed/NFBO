@@ -8,7 +8,7 @@
   "properties": {
     "nom_producteur": { "type": "string", "minLength": 1 },
     "tel_producteur": { "type": "string", "minLength": 7 },
-    "producteur_id": { "type": "integer", "minimum": 1 },
+    "producteur_id": { "type": "string", "minimum": 1 },
     "type_producteur": { "type": "string" },
     "categorie": { "type": "string", "minLength": 1 },
     "description": { "type": "string" },
@@ -25,7 +25,7 @@
     "caisse_id": { "type": "integer", "minimum": 1 }
   },
   "oneOf": [
-    { "required": ["producteur_id"] },
-    { "required": ["nom_producteur", "tel_producteur"] }
+    { "required": ["nom_producteur", "tel_producteur"]},
+      { "required": ["lot_id", "producteur_id", "quantite"]}
   ]
 }
