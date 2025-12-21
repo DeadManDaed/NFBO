@@ -590,12 +590,7 @@
     admissions: '/api/admissions', // Corrigé selon ton router
     producteurs: '/api/producteurs'
 };
-    // ============ CONFIGURATION ============
-    const API_BASE = '/api';
-    let CURRENT_USER = 'admin'; // À remplacer par la session
-    let CURRENT_MAGASIN_ID = 1; // À remplacer par la session
-
-  // ============ CONFIGURATION ============
+   // ============ CONFIGURATION ============
     const API_BASE = '/api';
     let CURRENT_USER = 'admin';
     let CURRENT_MAGASIN_ID = 1;
@@ -692,13 +687,7 @@
       document.getElementById('motifGroup').style.display = type === 'destruction' ? 'block' : 'none';
     });
 
-    // Initialisation
-    document.addEventListener("DOMContentLoaded", () => {
-      loadLots();
-      loadProducers();
-      loadMagasins();
-    });
-    // ============ FORMULAIRE : CRÉATION DE LOT ============
+// ============ FORMULAIRE : CRÉATION DE LOT ============
     document.getElementById('newLotForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
@@ -825,6 +814,7 @@
     document.getElementById('cancelRetraitBtn').addEventListener('click', () => {
       document.getElementById('retraitForm').style.display = 'none';
     });
+
     // ============ AFFICHAGE : LISTE DES ADMISSIONS ============
     async function loadAdmissions() {
       try {
@@ -880,7 +870,6 @@
       loadAdmissions();
       loadRetraits();
     });
-    
   </script>
 </body>
 </html>
