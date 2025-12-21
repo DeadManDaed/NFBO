@@ -595,19 +595,11 @@
     let CURRENT_USER = 'admin'; // À remplacer par la session
     let CURRENT_MAGASIN_ID = 1; // À remplacer par la session
 
-    // ============ UTILITAIRES ============
-    function showAlert(message, type = 'success') {
-      const container = document.getElementById('alertContainer');
-      const alert = document.createElement('div');
-      alert.className = `alert ${type} show`;
-      alert.textContent = message;
-      container.appendChild(alert);
-      setTimeout(() => {
-        alert.remove();
-      }, 3000);
-    }
+  // ============ CONFIGURATION ============
+    const API_BASE = '/api';
+    let CURRENT_USER = 'admin';
+    let CURRENT_MAGASIN_ID = 1;
 
-    // ============ CRITÈRES PAR CATÉGORIE ============
     const defaultCriteria = {
       frais: ["Fraîcheur", "Calibre minimum", "Absence de pesticides", "Présentation propre"],
       court: ["Date récente", "Durée ≤ 7 jours", "Chaîne de froid", "Emballage adapté"],
@@ -617,151 +609,37 @@
       sensible: ["Stockage contrôlé", "Traçabilité stricte", "Emballage sécurisé", "Autorisation réglementaire"]
     };
 
-    function loadCriteria() {
-      const cat = document.getElementById('categorieLot').value;
-      const list = document.getElementById('criteriaList');
-      list.innerHTML = "";
-      if (defaultCriteria[cat]) {
-        defaultCriteria[cat].forEach(c => {
-          const li = document.createElement('li');
-          li.textContent = c;
-          list.appendChild(li);
-        });
-        document.getElementById('addCriteriaBtn').style.display = 'inline-block';
-      }
+    // ============ UTILITAIRES ============
+    function showAlert(message, type = 'success') {
+      const container = document.getElementById('alertContainer');
+      const alert = document.createElement('div');
+      alert.className = `alert ${type} show`;
+      alert.textContent = message;
+      container.appendChild(alert);
+      setTimeout(() => alert.remove(), 3000);
     }
 
-    document.getElementById('categorieLot').addEventListener('change', loadCriteria);
-
-    document.getElementById('addCriteriaBtn').addEventListener('click', () => {
-      const newCritere = prompt("Entrez un nouveau critère d'admission :");
-      if (newCritere && newCritere.trim() !== "") {
-        const li = document.createElement('li');
-        li.textContent = newCritere.trim();
-        document.getElementById('criteriaList').appendChild(li);
-      }
-    });
-
-    // ============ GESTION DES ONGLETS ============
+    // ============ GESTION DES ONGLETS (Placée en haut pour priorité) ============
     document.querySelectorAll('.nav-tab').forEach(tab => {
       tab.addEventListener('click', () => {
         document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
         document.querySelectorAll('.tab-content').forEach(tc => tc.classList.remove('active'));
         tab.classList.add('active');
-        document.getElementById(tab.dataset.tab).classList.add('active');
+        const target = document.getElementById(tab.dataset.tab);
+        if (target) target.classList.add('active');
       });
     });
 
-    // ============ CHARGEMENT DES DONNÉES ============
+    // ============ FONCTIONS DE CHARGEMENT ============
     async function loadLots() {
       try {
-        const response = await fetch(`${API_BASE}/admissions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lot_id, producteur_id, quantite, unite, prix_ref,
-            date_reception, date_expiration, magasin_id, 
-            utilisateur: CURRENT_USER,
-            coef_qualite
-          })
-        });
-
-        if (response.ok) {
-          showAlert('Admission enregistrée ✅', 'success');
-          document.getElementById('admissionForm').reset();
-          loadAdmissions();
-          loadLots(); // Rafraîchir pour mettre à jour les stocks
-        } else {
-          throw new Error('Erreur API');
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert('Erreur lors de l'enregistrement ❌', 'error');
-      }
-    });
-
-    // ============ FORMULAIRE RETRAIT ============
-    document.getElementById('typeRetrait').addEventListener('change', function() {
-      const type = this.value;
-      document.getElementById('destProducteurGroup').style.display = type === 'producteur' ? 'block' : 'none';
-      document.getElementById('destMagasinGroup').style.display = type === 'magasin' ? 'block' : 'none';
-      document.getElementById('motifGroup').style.display = type === 'destruction' ? 'block' : 'none';
-    });
-
-    document.getElementById('newRetraitBtn').addEventListener('click', () => {
-      document.getElementById('retraitForm').style.display = 'block';
-    });
-
-    document.getElementById('cancelRetraitBtn').addEventListener('click', () => {
-      document.getElementById('retraitForm').style.display = 'none';
-      document.getElementById('retraitForm').reset();
-    });
-
-    document.getElementById('retraitForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const lot_id = parseInt(document.getElementById('retraitLot').value);
-      const quantite = parseFloat(document.getElementById('retraitQuantity').value);
-      const unite = document.getElementById('retraitUnite').value;
-      const type_retrait = document.getElementById('typeRetrait').value;
-      
-      const body = {
-        lot_id,
-        quantite,
-        unite,
-        type_retrait,
-        utilisateur: CURRENT_USER,
-        magasin_id: CURRENT_MAGASIN_ID,
-        prix_ref: 0 // Sera calculé côté serveur si nécessaire
-      };
-
-      if (type_retrait === 'producteur') {
-        body.destination_producteur_id = parseInt(document.getElementById('destProducteur').value);
-      } else if (type_retrait === 'magasin') {
-        body.destination_magasin_id = parseInt(document.getElementById('destMagasinRetrait').value);
-      } else if (type_retrait === 'destruction') {
-        body.motif = document.getElementById('motif').value;
-      }
-
-      try {
-        const response = await fetch(`${API_BASE}/retraits`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-
-        if (response.ok) {
-          showAlert('Retrait enregistré ✅', 'success');
-          document.getElementById('retraitForm').reset();
-          document.getElementById('retraitForm').style.display = 'none';
-          loadRetraits();
-          loadLots(); // Rafraîchir pour mettre à jour les stocks
-        } else {
-          throw new Error('Erreur API');
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert('Erreur lors du retrait ❌', 'error');
-      }
-    });
-
-    // ============ INITIALISATION ============
-    document.addEventListener("DOMContentLoaded", () => {
-      loadLots();
-      loadProducers();
-      loadMagasins();
-      loadAdmissions();
-      loadRetraits();
-    });
-response = await fetch(`${API_BASE}/lots`);
+        const response = await fetch(`${API_BASE}/lots`);
         const lots = await response.json();
         
-        // Pour le formulaire d'admission
         const select = document.getElementById('lotSelect');
         select.innerHTML = '<option value="">Sélectionner un lot</option>' +
           lots.map(l => `<option value="${l.id}" data-unites='${JSON.stringify(l.unites_admises)}' data-prix="${l.prix_ref}">${l.description} (${l.categorie})</option>`).join('');
         
-        // Pour le formulaire de retrait
         const retraitSelect = document.getElementById('retraitLot');
         retraitSelect.innerHTML = '<option value="">Sélectionner un lot</option>' +
           lots.map(l => `<option value="${l.id}" data-unites='${JSON.stringify(l.unites_admises)}'>${l.description} - Stock: ${l.stock_disponible}</option>`).join('');
@@ -774,195 +652,39 @@ response = await fetch(`${API_BASE}/lots`);
       try {
         const response = await fetch(`${API_BASE}/producteurs`);
         const producers = await response.json();
-        
-        const select = document.getElementById('producerSelect');
-        select.innerHTML = '<option value="">Sélectionner un producteur</option>' +
-          producers.map(p => `<option value="${p.id}">${p.nom_producteur} - ${p.tel_producteur || ''}</option>`).join('');
-        
-        const destSelect = document.getElementById('destProducteur');
-        destSelect.innerHTML = '<option value="">Sélectionner</option>' + select.innerHTML;
-      } catch (err) {
-        console.error('Erreur chargement producteurs:', err);
-      }
+        const options = '<option value="">Sélectionner un producteur</option>' +
+          producers.map(p => `<option value="${p.id}">${p.nom_producteur}</option>`).join('');
+        document.getElementById('producerSelect').innerHTML = options;
+        document.getElementById('destProducteur').innerHTML = options;
+      } catch (err) { console.error(err); }
     }
 
     async function loadMagasins() {
       try {
         const response = await fetch(`${API_BASE}/magasins`);
         const magasins = await response.json();
-        
-        const select = document.getElementById('magasinSelect');
-        select.innerHTML = '<option value="">Sélectionner un magasin</option>' +
+        const options = '<option value="">Sélectionner un magasin</option>' +
           magasins.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
-        
-        const destSelect = document.getElementById('destMagasinRetrait');
-        destSelect.innerHTML = '<option value="">Sélectionner</option>' + select.innerHTML;
-      } catch (err) {
-        console.error('Erreur chargement magasins:', err);
-      }
+        document.getElementById('magasinSelect').innerHTML = options;
+        document.getElementById('destMagasinRetrait').innerHTML = options;
+      } catch (err) { console.error(err); }
     }
 
-    async function loadAdmissions() {
-      try {
-        const response = await fetch(`${API_BASE}/admissions`);
-        const admissions = await response.json();
-        
-        const tbody = document.getElementById('admissionsList');
-        tbody.innerHTML = admissions.slice(0, 10).map(a => `
-          <tr>
-            <td>${new Date(a.date_reception).toLocaleDateString()}</td>
-            <td>${a.lot_description || 'N/A'}</td>
-            <td>${a.nom_producteur || 'N/A'}</td>
-            <td>${a.quantite} ${a.unite}</td>
-            <td>${a.prix_ref} FCFA</td>
-            <td>${a.coef_qualite || 'N/A'}</td>
-          </tr>
-        `).join('');
-      } catch (err) {
-        console.error('Erreur chargement admissions:', err);
-      }
-    }
-
-    async function loadRetraits() {
-      try {
-        const response = await fetch(`${API_BASE}/retraits`);
-        const retraits = await response.json();
-        
-        const tbody = document.getElementById('retraitsList');
-        tbody.innerHTML = retraits.slice(0, 10).map(r => `
-          <tr>
-            <td>${new Date(r.date_retrait || Date.now()).toLocaleDateString()}</td>
-            <td>${r.lot_description || 'N/A'}</td>
-            <td>${r.type_retrait}</td>
-            <td>${r.quantite} ${r.unite}</td>
-            <td>${r.destination_producteur_id ? r.nom_producteur : r.destination_magasin_id ? 'Magasin' : 'Client'}</td>
-          </tr>
-        `).join('');
-      } catch (err) {
-        console.error('Erreur chargement retraits:', err);
-      }
-    }
-
-    function loadUnitsForLot(selectId, targetId) {
-      const selectLot = document.getElementById(selectId);
-      const selectedOption = selectLot.options[selectLot.selectedIndex];
-      const unites = JSON.parse(selectedOption.getAttribute('data-unites') || '[]');
-      const unitSelect = document.getElementById(targetId);
-      unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
-      
-      // Charger le prix de référence si disponible
-      if (selectId === 'lotSelect') {
-        const prixRef = selectedOption.getAttribute('data-prix');
-        if (prixRef) {
-          document.getElementById('price').value = prixRef;
-        }
-      }
-    }
-
-    document.getElementById('lotSelect').addEventListener('change', function() {
-      loadUnitsForLot('lotSelect', 'unitSelect');
-    });
-
-    document.getElementById('retraitLot').addEventListener('change', function() {
-      loadUnitsForLot('retraitLot', 'retraitUnite');
-    });
-
-    // ============ FORMULAIRE DÉFINITION LOT ============
-    document.getElementById('newLotForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const categorie = document.getElementById('categorieLot').value;
-      const description = document.getElementById('description').value;
-      const prix_ref = parseFloat(document.getElementById('prixRef').value);
-      
-      const unitesSelect = document.getElementById('unitesLot');
-      const unites_admises = Array.from(unitesSelect.selectedOptions).map(opt => opt.value);
-      
-      const criteres = Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.textContent);
-
-      try {
-        const response = await fetch(`${API_BASE}/lots`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            categorie, 
-            description, 
-            prix_ref, 
-            unites_admises,
-            criteres_admission: criteres,
-            stock_disponible: 0
-          })
+    // ============ ÉVÉNEMENTS FORMULAIRES ============
+    document.getElementById('categorieLot').addEventListener('change', function() {
+      const cat = this.value;
+      const list = document.getElementById('criteriaList');
+      list.innerHTML = "";
+      if (defaultCriteria[cat]) {
+        defaultCriteria[cat].forEach(c => {
+          const li = document.createElement('li');
+          li.textContent = c;
+          list.appendChild(li);
         });
-
-        if (!response.ok) throw new Error("Erreur API lots");
-
-        const newLot = await response.json();
-        showAlert("Lot créé ✅", 'success');
-
-        const list = document.getElementById('lotsList');
-        const li = document.createElement('li');
-        li.textContent = `${newLot.description} (${newLot.categorie}) - Prix réf: ${newLot.prix_ref} FCFA`;
-        list.appendChild(li);
-
-        document.getElementById('newLotForm').reset();
-        document.getElementById('criteriaList').innerHTML = "";
-        document.getElementById('addCriteriaBtn').style.display = 'none';
-        
-        loadLots();
-      } catch (err) {
-        console.error(err);
-        showAlert("Impossible de créer le lot ❌", 'error');
+        document.getElementById('addCriteriaBtn').style.display = 'inline-block';
       }
     });
 
-    // ============ FORMULAIRE ADMISSION ============
-    document.getElementById('admissionForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-
-      const lot_id = parseInt(document.getElementById('lotSelect').value);
-      const quantite = parseFloat(document.getElementById('quantity').value);
-      const unite = document.getElementById('unitSelect').value;
-      const prix_ref = parseFloat(document.getElementById('price').value);
-      const coef_qualite = document.getElementById('qualityCoeff').value;
-      const producteur_id = parseInt(document.getElementById('producerSelect').value);
-      const date_expiration = document.getElementById('expirationDate').value || null;
-      const magasin_id = parseInt(document.getElementById('magasinSelect').value);
-
-      const date_reception = new Date().toISOString().split('T')[0];
-
-      try {
-        const response = await fetch(`${API_BASE}/admissions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            lot_id, 
-            producteur_id, 
-            quantite, 
-            unite, 
-            prix_ref,
-            date_reception, 
-            date_expiration, 
-            magasin_id, 
-            utilisateur: CURRENT_USER,
-            coef_qualite
-          })
-        });
-
-        if (response.ok) {
-          showAlert('Admission enregistrée ✅', 'success');
-          document.getElementById('admissionForm').reset();
-          loadAdmissions();
-          loadLots(); // Rafraîchir pour mettre à jour les stocks
-        } else {
-          throw new Error('Erreur API');
-        }
-      } catch (err) {
-        console.error(err);
-        showAlert('Erreur lors de l'enregistrement ❌', 'error');
-      }
-    });
-
-    // ============ FORMULAIRE RETRAIT ============
     document.getElementById('typeRetrait').addEventListener('change', function() {
       const type = this.value;
       document.getElementById('destProducteurGroup').style.display = type === 'producteur' ? 'block' : 'none';
@@ -970,40 +692,95 @@ response = await fetch(`${API_BASE}/lots`);
       document.getElementById('motifGroup').style.display = type === 'destruction' ? 'block' : 'none';
     });
 
-    document.getElementById('newRetraitBtn').addEventListener('click', () => {
-      document.getElementById('retraitForm').style.display = 'block';
+    // Initialisation
+    document.addEventListener("DOMContentLoaded", () => {
+      loadLots();
+      loadProducers();
+      loadMagasins();
+    });
+    // ============ FORMULAIRE : CRÉATION DE LOT ============
+    document.getElementById('newLotForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const body = {
+        categorie: document.getElementById('categorieLot').value,
+        description: document.getElementById('description').value,
+        prix_ref: parseFloat(document.getElementById('prixRef').value),
+        unites_admises: Array.from(document.getElementById('unitesLot').selectedOptions).map(opt => opt.value),
+        criteres_admission: Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.textContent),
+        stock_disponible: 0
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/lots`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error("Erreur lors de la création");
+
+        showAlert("Lot créé avec succès ✅");
+        document.getElementById('newLotForm').reset();
+        document.getElementById('criteriaList').innerHTML = "";
+        loadLots(); // Actualise les listes déroulantes
+      } catch (err) {
+        showAlert("Impossible de créer le lot ❌", "error");
+      }
     });
 
-    document.getElementById('cancelRetraitBtn').addEventListener('click', () => {
-      document.getElementById('retraitForm').style.display = 'none';
-      document.getElementById('retraitForm').reset();
+    // ============ FORMULAIRE : ADMISSION EN STOCK ============
+    document.getElementById('admissionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const body = {
+        lot_id: parseInt(document.getElementById('lotSelect').value),
+        producteur_id: parseInt(document.getElementById('producerSelect').value),
+        quantite: parseFloat(document.getElementById('quantity').value),
+        unite: document.getElementById('unitSelect').value,
+        prix_ref: parseFloat(document.getElementById('price').value),
+        date_reception: new Date().toISOString().split('T')[0],
+        date_expiration: document.getElementById('expirationDate').value || null,
+        magasin_id: parseInt(document.getElementById('magasinSelect').value),
+        utilisateur: CURRENT_USER,
+        coef_qualite: document.getElementById('qualityCoeff').value
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/admissions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        if (!response.ok) throw new Error("Erreur admission");
+
+        showAlert("Admission enregistrée ✅");
+        document.getElementById('admissionForm').reset();
+        loadLots(); // Pour mettre à jour l'affichage des stocks
+      } catch (err) {
+        showAlert("Erreur lors de l'enregistrement ❌", "error");
+      }
     });
 
+    // ============ FORMULAIRE : RETRAIT DE STOCK ============
     document.getElementById('retraitForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const lot_id = parseInt(document.getElementById('retraitLot').value);
-      const quantite = parseFloat(document.getElementById('retraitQuantity').value);
-      const unite = document.getElementById('retraitUnite').value;
       const type_retrait = document.getElementById('typeRetrait').value;
-      
       const body = {
-        lot_id,
-        quantite,
-        unite,
-        type_retrait,
+        lot_id: parseInt(document.getElementById('retraitLot').value),
+        quantite: parseFloat(document.getElementById('retraitQuantity').value),
+        unite: document.getElementById('retraitUnite').value,
+        type_retrait: type_retrait,
         utilisateur: CURRENT_USER,
-        magasin_id: CURRENT_MAGASIN_ID,
-        prix_ref: 0 // Sera calculé côté serveur si nécessaire
+        magasin_id: CURRENT_MAGASIN_ID
       };
 
-      if (type_retrait === 'producteur') {
-        body.destination_producteur_id = parseInt(document.getElementById('destProducteur').value);
-      } else if (type_retrait === 'magasin') {
-        body.destination_magasin_id = parseInt(document.getElementById('destMagasinRetrait').value);
-      } else if (type_retrait === 'destruction') {
-        body.motif = document.getElementById('motif').value;
-      }
+      // Ajout des champs conditionnels
+      if (type_retrait === 'producteur') body.destination_producteur_id = parseInt(document.getElementById('destProducteur').value);
+      if (type_retrait === 'magasin') body.destination_magasin_id = parseInt(document.getElementById('destMagasinRetrait').value);
+      if (type_retrait === 'destruction') body.motif = document.getElementById('motif').value;
 
       try {
         const response = await fetch(`${API_BASE}/retraits`, {
@@ -1012,22 +789,90 @@ response = await fetch(`${API_BASE}/lots`);
           body: JSON.stringify(body)
         });
 
-        if (response.ok) {
-          showAlert('Retrait enregistré ✅', 'success');
-          document.getElementById('retraitForm').reset();
-          document.getElementById('retraitForm').style.display = 'none';
-          loadRetraits();
-          loadLots(); // Rafraîchir pour mettre à jour les stocks
-        } else {
-          throw new Error('Erreur API');
-        }
+        if (!response.ok) throw new Error("Erreur retrait");
+
+        showAlert("Retrait validé ✅");
+        document.getElementById('retraitForm').reset();
+        document.getElementById('retraitForm').style.display = 'none';
+        loadLots();
       } catch (err) {
-        console.error(err);
-        showAlert('Erreur lors du retrait ❌', 'error');
+        showAlert("Erreur lors du retrait ❌", "error");
       }
     });
 
-    // ============ INITIALISATION ============
+    // Gestion de l'affichage dynamique des unités selon le lot choisi
+    function updateUnits(sourceId, targetId) {
+        const selectLot = document.getElementById(sourceId);
+        const selectedOption = selectLot.options[selectLot.selectedIndex];
+        if (!selectedOption.value) return;
+        
+        const unites = JSON.parse(selectedOption.getAttribute('data-unites') || '[]');
+        const unitSelect = document.getElementById(targetId);
+        unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
+        
+        if (sourceId === 'lotSelect') {
+            document.getElementById('price').value = selectedOption.getAttribute('data-prix') || "";
+        }
+    }
+
+    document.getElementById('lotSelect').addEventListener('change', () => updateUnits('lotSelect', 'unitSelect'));
+    document.getElementById('retraitLot').addEventListener('change', () => updateUnits('retraitLot', 'retraitUnite'));
+
+    document.getElementById('newRetraitBtn').addEventListener('click', () => {
+      document.getElementById('retraitForm').style.display = 'block';
+    });
+
+    document.getElementById('cancelRetraitBtn').addEventListener('click', () => {
+      document.getElementById('retraitForm').style.display = 'none';
+    });
+    // ============ AFFICHAGE : LISTE DES ADMISSIONS ============
+    async function loadAdmissions() {
+      try {
+        const response = await fetch(`${API_BASE}/admissions`);
+        if (!response.ok) return;
+        const admissions = await response.json();
+        
+        const tbody = document.getElementById('admissionsList');
+        // On affiche les 10 dernières admissions
+        tbody.innerHTML = admissions.slice().reverse().slice(0, 10).map(a => `
+          <tr>
+            <td>${new Date(a.date_reception).toLocaleDateString()}</td>
+            <td>${a.lot_description || 'N/A'}</td>
+            <td>${a.nom_producteur || 'N/A'}</td>
+            <td>${a.quantite} ${a.unite}</td>
+            <td>${a.prix_ref} FCFA</td>
+            <td><span class="badge badge-entree">${a.coef_qualite || 'B'}</span></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Erreur chargement admissions:', err);
+      }
+    }
+
+    // ============ AFFICHAGE : LISTE DES RETRAITS ============
+    async function loadRetraits() {
+      try {
+        const response = await fetch(`${API_BASE}/retraits`);
+        if (!response.ok) return;
+        const retraits = await response.json();
+        
+        const tbody = document.getElementById('retraitsList');
+        tbody.innerHTML = retraits.slice().reverse().slice(0, 10).map(r => `
+          <tr>
+            <td>${new Date(r.date_retrait || Date.now()).toLocaleDateString()}</td>
+            <td>${r.lot_description || 'N/A'}</td>
+            <td><span class="badge ${r.type_retrait === 'vente' ? 'badge-entree' : 'badge-sortie'}">${r.type_retrait}</span></td>
+            <td>${r.quantite} ${r.unite}</td>
+            <td>${r.destination_producteur_id ? 'Retour Prod.' : r.destination_magasin_id ? 'Transfert' : 'Client'}</td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('Erreur chargement retraits:', err);
+      }
+    }
+
+    // ============ MISE À JOUR DE L'INITIALISATION ============
+    // Modifiez votre bloc DOMContentLoaded pour inclure ces appels
     document.addEventListener("DOMContentLoaded", () => {
       loadLots();
       loadProducers();
@@ -1035,6 +880,7 @@ response = await fetch(`${API_BASE}/lots`);
       loadAdmissions();
       loadRetraits();
     });
+    
   </script>
 </body>
 </html>
