@@ -69,11 +69,13 @@
 
 <main>
     <nav class="admin-nav">
-        <button data-section="magasins" class="active">Magasins</button>
-        <button data-section="utilisateurs">Utilisateurs</button>
-        <button data-section="employes">Employés</button>
-        <button data-section="producteurs">Producteurs</button>
-    </nav>
+    <button data-section="magasins" class="active"><i class="fa-solid fa-shop"></i> Magasins</button>
+    <button data-section="utilisateurs"><i class="fa-solid fa-users"></i> Utilisateurs</button>
+    <button data-section="employes"><i class="fa-solid fa-id-badge"></i> Employés</button>
+    <button data-section="producteurs"><i class="fa-solid fa-wheat-awn"></i> Producteurs</button>
+    <button data-section="validations"><i class="fa-solid fa-check-double"></i> Validations</button>
+    <button data-section="messages"><i class="fa-solid fa-envelope"></i> Messages</button>
+</nav>
 
     <div class="admin-content">
         <div class="header">
@@ -119,6 +121,17 @@ const schemas = {
         { name: 'departement_id', label: 'Département', type: 'select-fetch', endpoint: '/api/departements', parent: 'region_id' },
         { name: 'arrondissement_id', label: 'Arrondissement', type: 'select-fetch', endpoint: '/api/arrondissements', parent: 'departement_id' },
         { name: 'statut', label: 'Statut', type: 'select', options: ['en_attente', 'actif', 'suspendu'] }
+    ],
+    validations: [
+        { name: 'type_entite', label: 'Type d\'entité', type: 'select', options: ['producteur', 'magasin', 'stock'] },
+        { name: 'entite_id', label: 'ID de l\'entité', type: 'number', required: true },
+        { name: 'statut_validation', label: 'Décision', type: 'select', options: ['en_attente', 'approuve', 'rejete'] },
+        { name: 'commentaire', label: 'Note / Motif', type: 'text' }
+    ],
+    messages: [
+        { name: 'destinataire_id', label: 'ID Destinataire', type: 'number', required: true },
+        { name: 'objet', label: 'Objet du message', type: 'text', required: true },
+        { name: 'contenu', label: 'Message', type: 'text', required: true }
     ]
 };
 
