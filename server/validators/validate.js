@@ -1,10 +1,16 @@
 // validators/validate.js
 // ... (imports ajv et fs)
-const defSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'definitionSchema.json'), 'utf8'));
+const defSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'lotSchema.json'), 'utf8'));
 const admSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'admissionSchema.json'), 'utf8'));
 
-const validateDef = ajv.compile(defSchema);
-const validateAdm = ajv.compile(admSchema);
+const Ajv = require('ajv'); // Retrait du .default ici
+const addFormats = require('ajv-formats');
+const fs = require('fs');
+const path = require('path');
+
+// Initialisation adaptée à Ajv v6 ou v8
+const ajv = new Ajv({ allErrors: true, removeAdditional: false });
+addFormats(ajv);
 
 function validateLotDefinition(req, res, next) {
   const valid = validateDef(req.body);
@@ -19,4 +25,5 @@ function validateAdmission(req, res, next) {
 }
 
 module.exports = { validateLotDefinition, validateAdmission };
+
 
