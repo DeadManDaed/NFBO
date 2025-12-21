@@ -1,24 +1,21 @@
 // validators/validate.js
-const Ajv = require('ajv').default;
-const addFormats = require('ajv-formats');
-const fs = require('fs');
-const path = require('path');
+// ... (imports ajv et fs)
+const defSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'lotSchema.json'), 'utf8'));
+const admSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'admissionSchema.json'), 'utf8'));
 
-const ajv = new Ajv({ allErrors: true, removeAdditional: false });
-addFormats(ajv);
+const validateDef = ajv.compile(defSchema);
+const validateAdm = ajv.compile(admSchema);
 
-const schema = JSON.parse(fs.readFileSync(path.join(__dirname, 'lotSchema.json'), 'utf8'));
-const validate = ajv.compile(schema);
-
-function validateLot(req, res, next) {
-  const valid = validate(req.body);
+function validateLotDefinition(req, res, next) {
+  const valid = validateDef(req.body);
   if (valid) return next();
-
-  const errors = validate.errors.map(e => {
-    const field = e.instancePath ? e.instancePath.replace(/^\//, '') : e.params?.missingProperty || '';
-    return `${field} ${e.message}`;
-  });
-  return res.status(400).json({ message: 'Payload invalide', errors });
+  // ... renvoyer les erreurs de validateDef.errors
 }
 
-module.exports = { validateLot };
+function validateAdmission(req, res, next) {
+  const valid = validateAdm(req.body);
+  if (valid) return next();
+  // ... renvoyer les erreurs de validateAdm.errors
+}
+
+module.exports = { validateLotDefinition, validateAdmission };
