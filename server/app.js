@@ -3,7 +3,7 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 
-// Importation des routeurs
+// 1. Déclarer les routeurs
 const authRouter = require('./routes/auth');
 const lotsRouter = require('./routes/lots');
 const geoRoutes = require('./routes/geo');
@@ -15,20 +15,22 @@ const magasinsRoutes = require('./routes/magasins');
 
 const app = express();
 
-// 1. MIDDLEWARES DE BASE (Doivent être en premier)
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  next();
-});
-
+// 2. MIDDLEWARES DE CONFIGURATION (Indispensables avant les routes)
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// 2. FICHIERS STATIQUES
+// Middleware de logging pour voir ce qui arrive sur Render
+app.use((req, res, next) => {
+  console.log(`[${new Date().toLocaleString()}] ${req.method} ${req.url}`);
+  next();
+});
+
+// 3. FICHIERS STATIQUES (Sert le HTML/JS du dossier public)
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-// 3. ENREGISTREMENT DES ROUTES API
-app.use('/api/auth', authRouter); // Nettoyage du préfixe
+// 4. ENREGISTREMENT DES ROUTES API
+// Attention : authRouter gérait /api/login, on le branche sur /api
+app.use('/api', authRouter); 
 app.use('/api/lots', lotsRouter);
 app.use('/api/producteurs', producteursRouter);
 app.use('/api/admissions', admissionsRouter);
@@ -37,19 +39,22 @@ app.use('/api/employers', employersRouter);
 app.use('/api/magasins', magasinsRoutes);
 app.use('/api/geo', geoRoutes);
 
-// 4. PAGES SPÉCIFIQUES ET HEALTH CHECK
+// 5. ROUTES DE BASE
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// 5. GESTION DES ERREURS (Doit être à la fin)
+// 6. GESTION DES 404 (TOUJOURS EN DERNIER)
 app.use((req, res) => {
+  console.log(`⚠️ 404 déclenché pour : ${req.url}`);
   res.status(404).json({ message: 'Route API non trouvée', path: req.url });
 });
 
+// Gestion des erreurs fatales
 app.use((err, req, res, next) => {
-  console.error('Unhandled error', err);
+  console.error('❌ Erreur serveur:', err);
   res.status(500).json({ message: 'Erreur interne serveur' });
 });
 
