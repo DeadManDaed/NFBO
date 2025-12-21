@@ -626,21 +626,34 @@
 
     // ============ FONCTIONS DE CHARGEMENT ============
     async function loadLots() {
-      try {
-        const response = await fetch(`${API_BASE}/lots`);
-        const lots = await response.json();
-        
-        const select = document.getElementById('lotSelect');
-        select.innerHTML = '<option value="">Sélectionner un lot</option>' +
-          lots.map(l => `<option value="${l.id}" data-unites='${JSON.stringify(l.unites_admises)}' data-prix="${l.prix_ref}">${l.description} (${l.categorie})</option>`).join('');
-        
-        const retraitSelect = document.getElementById('retraitLot');
-        retraitSelect.innerHTML = '<option value="">Sélectionner un lot</option>' +
-          lots.map(l => `<option value="${l.id}" data-unites='${JSON.stringify(l.unites_admises)}'>${l.description} - Stock: ${l.stock_disponible}</option>`).join('');
-      } catch (err) {
-        console.error('Erreur chargement lots:', err);
-      }
-    }
+  try {
+    const response = await fetch(`${API_BASE}/lots`);
+    const lots = await response.json();
+    
+    const lotSelect = document.getElementById('lotSelect');
+    const retraitSelect = document.getElementById('retraitLot');
+
+    // Génération propre des options
+    const optionsHtml = lots.map(l => {
+      // On échappe les guillemets pour ne pas casser le HTML
+      const unitsData = JSON.stringify(l.unites_admises || []).replace(/'/g, "&apos;");
+      return `<option value="${l.id}" data-unites='${unitsData}' data-prix="${l.prix_ref}">
+                ${l.description} (${l.categorie})
+              </option>`;
+    }).join('');
+
+    const defaultOpt = '<option value="">Sélectionner un lot</option>';
+    lotSelect.innerHTML = defaultOpt + optionsHtml;
+    
+    // Pour le retrait, on ajoute l'affichage du stock
+    retraitSelect.innerHTML = defaultOpt + lots.map(l => 
+      `<option value="${l.id}">${l.description} - Stock: ${l.stock_disponible}</option>`
+    ).join('');
+
+  } catch (err) {
+    console.error('Erreur chargement lots:', err);
+  }
+}
 
     async function loadProducers() {
       try {
@@ -710,7 +723,7 @@
     },
     body: JSON.stringify(body) // C'est ici que l'objet est créé pour le serveur
   });
-  
+
   const result = await response.json(); // On récupère la réponse pour voir les erreurs éventuelles
 
   if (!response.ok) {
