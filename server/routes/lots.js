@@ -16,8 +16,8 @@ router.post('/', validateLotDefinition, async (req, res) => {
     const vals = [
       req.body.description,
       req.body.categorie,
-      req.body.criteres_admission || [],
-      req.body.unites_admises || [],
+      JSON.stringify(req.body.criteres_admission || []), // ✅ Convertit en chaîne JSON valide
+  JSON.stringify(req.body.unites_admises || []),    // ✅ Convertit en chaîne JSON valide
       req.body.prix_ref || 0,
       req.body.stock_disponible || 0
     ];
@@ -36,4 +36,5 @@ router.post('/', validateLotDefinition, async (req, res) => {
 
 // ... gardez vos routes GET, PUT et DELETE ...
 module.exports = router;
+
 
