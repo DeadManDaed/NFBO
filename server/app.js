@@ -2,10 +2,10 @@
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
-const lotsRouter = require('./routes/lots');
-app.use('/api/lots', lotsRouter);
 const authRouter = require('./routes/auth'); // ✅ Corrigé le chemin
 const app = express();
+const lotsRouter = require('./routes/lots');
+app.use('/api/lots', lotsRouter);
 const geoRoutes = require('./routes/geo'); // chemin adapté
 app.use('/api', geoRoutes);
 const producteursRouter = require('./routes/producteurs');
@@ -54,4 +54,5 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
 
