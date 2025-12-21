@@ -453,10 +453,13 @@
               <label for="quantity">Quantité *</label>
               <input type="number" id="quantity" min="0" step="0.01" required>
             </div>
+
             <div class="form-group">
-              <label for="unitSelect">Unité *</label>
-              <select id="unitSelect" required></select>
-            </div>
+    <label>Unité de mesure *</label>
+    <div id="unitesAdmissionContainer" required class="checkbox-group">
+        <em>Sélectionnez d'abord un lot</em>
+    </div>
+</div>            
             <div class="form-group">
               <label for="price">Prix (unité) *</label>
               <input type="number" id="price" step="0.01" required>
@@ -465,10 +468,10 @@
               <label for="qualityCoeff">Coefficient qualité *</label>
               <select id="qualityCoeff" required>
                 <option value="">Sélectionner</option>
-                <option value="A">A - Excellente (1.2)</option>
-                <option value="B">B - Bonne (1.0)</option>
-                <option value="C">C - Moyenne (0.8)</option>
-                <option value="D">D - Faible (0.6)</option>
+                <option value="A">A - Excellente (1)</option>
+                <option value="B">B - Bonne (0.9)</option>
+                <option value="C">C - Moyenne (0.85)</option>
+                <option value="D">D - Faible (0.7)</option>
               </select>
             </div>
             <div class="form-group">
@@ -685,19 +688,50 @@ async function loadLots() {
                 </tr>
             `).join('');
             
-            // Remplissage des selects des autres onglets (Admission / Retrait)
-            const lotSelects = document.querySelectorAll('#lotSelect, #retraitLot');
-            const options = '<option value="">Sélectionner un lot</option>' + 
-                lots.map(l => `<option value="${l.id}">${l.description}</option>`).join('');
-            
-            lotSelects.forEach(select => {
-                if (select) select.innerHTML = options;
-            });
+           // Remplissage des selects des autres onglets (Admission / Retrait)
+const lotSelects = document.querySelectorAll('#lotSelect, #retraitLot');
+
+// Modification ici : on ajoute l'attribut data-unites qui contient le tableau JSON
+const options = '<option value="">Sélectionner un lot</option>' + 
+    lots.map(l => {
+        // On transforme le tableau d'unités en chaîne de caractères sécurisée
+        const unitesJSON = JSON.stringify(l.unites_admises || []);
+        return `<option value="${l.id}" data-unites='${unitesJSON}'>${l.description}</option>`;
+    }).join('');
+
+lotSelects.forEach(select => {
+    if (select) select.innerHTML = options;
+});
         }
     } catch (err) {
         console.error('Erreur chargement lots:', err);
     }
 }
+    // Écouteur pour mettre à jour les unités quand on choisit un lot dans l'onglet Admission
+document.getElementById('lotSelect').addEventListener('change', function() {
+    const selectedOption = this.options[this.selectedIndex];
+    const containerUnites = document.getElementById('unitesAdmissionContainer'); 
+    
+    // Si on a choisi un lot (id non vide)
+    if (selectedOption.value && selectedOption.getAttribute('data-unites')) {
+        try {
+            const unites = JSON.parse(selectedOption.getAttribute('data-unites'));
+            
+            // On crée des boutons radio pour forcer l'utilisateur à choisir une unité valide
+            containerUnites.innerHTML = '<label style="display:block; margin-bottom:5px;">Unité pour cette admission :</label>' + 
+                unites.map(u => `
+                    <label style="margin-right:15px; cursor:pointer;">
+                        <input type="radio" name="unite_admission" value="${u}" required> ${u}
+                    </label>
+                `).join('');
+        } catch (e) {
+            console.error("Erreur de lecture des unités", e);
+            containerUnites.innerHTML = "⚠️ Erreur format unités";
+        }
+    } else {
+        containerUnites.innerHTML = "<em>Sélectionnez d'abord un lot pour voir les unités</em>";
+    }
+});
 
     async function loadProducers() {
       try {
@@ -791,7 +825,9 @@ const response = await fetch(`${API_BASE}/lots`, {
   showAlert("Lot créé avec succès ✅");
   // 1. Vider les champs texte et reset le menu déroulant
     document.getElementById('lotForm').reset(); 
-    
+    // On masque le formulaire et on réaffiche le bouton "Nouveau"
+    formContainer.style.display = 'none';
+    toggleBtn.style.display = 'block';
     // 2. Vider la liste dynamique des critères (le UL)
     document.getElementById('criteriaList').innerHTML = ''; 
     
@@ -809,38 +845,63 @@ const response = await fetch(`${API_BASE}/lots`, {
     });
 
     // ============ FORMULAIRE : ADMISSION EN STOCK ============
-    document.getElementById('admissionForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
+    // Gestion de la soumission du formulaire d'admission
+document.getElementById('admissionForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-      const body = {
-        lot_id: parseInt(document.getElementById('lotSelect').value),
-        producteur_id: parseInt(document.getElementById('producerSelect').value),
+    const btn = e.target.querySelector('button[type="submit"]');
+    if (btn.disabled) return;
+
+    // Récupération de l'unité sélectionnée (le bouton radio dynamique)
+    const selectedUnite = e.target.querySelector('input[name="unite_admission"]:checked');
+    
+    if (!selectedUnite) {
+        showAlert("Veuillez sélectionner une unité de mesure", "error");
+        return;
+    }
+
+    const body = {
+        lot_id: document.getElementById('lotSelect').value,
         quantite: parseFloat(document.getElementById('quantity').value),
-        unite: document.getElementById('unitSelect').value,
-        prix_ref: parseFloat(document.getElementById('price').value),
-        date_reception: new Date().toISOString().split('T')[0],
-        date_expiration: document.getElementById('expirationDate').value || null,
-        magasin_id: parseInt(document.getElementById('magasinSelect').value),
-        utilisateur: CURRENT_USER,
-        coef_qualite: document.getElementById('qualityCoeff').value
-      };
+        unite: selectedUnite.value,
+        prix_unitaire: parseFloat(document.getElementById('price').value),
+        qualite: document.getElementById('qualityCoeff').value,
+        producteur_id: document.getElementById('producerSelect').value,
+        magasin_id: document.getElementById('magasinSelect').value,
+        date_expiration: document.getElementById('expirationDate').value || null
+    };
 
-      try {
+    btn.disabled = true;
+    btn.innerText = "Enregistrement...";
+
+    try {
         const response = await fetch(`${API_BASE}/admissions`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
         });
 
-        if (!response.ok) throw new Error("Erreur admission");
-
-        showAlert("Admission enregistrée ✅");
-        document.getElementById('admissionForm').reset();
-        loadLots(); // Pour mettre à jour l'affichage des stocks
-      } catch (err) {
-        showAlert("Erreur lors de l'enregistrement ❌", "error");
-      }
-    });
+        if (response.ok) {
+            showAlert("Admission enregistrée avec succès ✅");
+            e.target.reset();
+            document.getElementById('unitesAdmissionContainer').innerHTML = "<em>Sélectionnez d'abord un lot</em>";
+            
+            // On rafraîchit la liste des admissions si la fonction existe
+            if (typeof loadAdmissions === 'function') await loadAdmissions();
+            // On rafraîchit les stocks car l'admission a dû augmenter le stock du lot
+            await loadLots(); 
+        } else {
+            const errData = await response.json();
+            throw new Error(errData.message || "Erreur lors de l'admission");
+        }
+    } catch (err) {
+        console.error('Erreur Admission:', err);
+        showAlert(err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "➕ Enregistrer l'admission";
+    }
+});
 
     // ============ FORMULAIRE : RETRAIT DE STOCK ============
     document.getElementById('retraitForm').addEventListener('submit', async (e) => {
@@ -951,6 +1012,35 @@ const response = await fetch(`${API_BASE}/lots`, {
       }
     }
 
+    async function deleteLot(id) {
+    // Confirmation avant suppression
+    if (!confirm("Voulez-vous vraiment supprimer ce lot ? Cette action est irréversible.")) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/lots/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            // Succès : on informe l'utilisateur et on recharge les données
+            showAlert("Lot supprimé avec succès !");
+            await loadLots(); // Met à jour le tableau et les menus Admission/Retrait
+        } else {
+            const result = await response.json();
+            // Si le lot est lié à une admission existante, la base de données bloquera la suppression
+            alert(result.message || "Erreur lors de la suppression. Le lot est peut-être utilisé ailleurs.");
+        }
+    } catch (err) {
+        console.error("Erreur lors de l'appel DELETE:", err);
+        alert("Impossible de joindre le serveur pour la suppression.");
+    }
+}
+    
     // ============ MISE À JOUR DE L'INITIALISATION ============
     // Modifiez votre bloc DOMContentLoaded pour inclure ces appels
     document.addEventListener("DOMContentLoaded", () => {
