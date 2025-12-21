@@ -444,7 +444,7 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
       // FIN ADMISSION
     
     // nouveau lot - définition et soumission
-document.getElementById('lotForm').addEventListener('submit', async (e) => {
+document.getElementById('newLotForm').addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const categorie = document.getElementById('categorie').value;
@@ -476,7 +476,7 @@ document.getElementById('lotForm').addEventListener('submit', async (e) => {
     list.appendChild(li);
 
     // Réinitialiser le formulaire
-    document.getElementById('lotForm').reset();
+    document.getElementById('newLotForm').reset();
     document.getElementById('criteriaList').innerHTML = "";
 
   } catch (err) {
