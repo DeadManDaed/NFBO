@@ -363,37 +363,40 @@
   </div>
 
   <div class="container">
-    <!-- ONGLET 1: Définition des lots -->
-    <div id="definition" class="tab-content active">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title">Définition des lots</div>
-        </div>
-        <form id="newLotForm">
-          <div class="form-grid">
-            <div class="form-group">
-              <label for="categorieLot">Catégorie *</label>
-              <select id="categorieLot" required>
-                <option value="">Sélectionner</option>
-                <option value="frais">Produits frais</option>
-                <option value="court">Cycle court</option>
-                <option value="secs">Produits secs</option>
-                <option value="manualim">Manufacturés alimentaires</option>
-                <option value="nonalim">Manufacturés non alimentaires</option>
-                <option value="sensible">Produits sensibles</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="description">Description *</label>
-              <input type="text" id="description" required>
-            </div>
-            <div class="form-group">
-              <label for="prixRef">Prix de référence *</label>
-              <input type="number" id="prixRef" required min="0" step="0.01">
-            </div>
-            <div class="form-group">
-              <label for="unitesLot">Unités admises *</label>
-             <div id="unitesCheckboxes" class="checkbox-group">
+    <!-- ONGLET : Définition des lots -->
+<div id="definition" class="tab-content active">
+  <div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="card-title">Gestion des lots</div>
+      <button id="toggleLotForm" class="btn btn-primary">＋ Nouveau Lot</button>
+    </div>
+
+    <div id="lotFormContainer" style="display: none; padding: 20px; border-bottom: 2px solid #eee; background: #fdfdfd;">
+      <form id="newLotForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="categorieLot">Catégorie *</label>
+            <select id="categorieLot" required>
+              <option value="">Sélectionner</option>
+              <option value="frais">Produits frais</option>
+              <option value="court">Cycle court</option>
+              <option value="secs">Produits secs</option>
+              <option value="manualim">Manufacturés alimentaires</option>
+              <option value="nonalim">Manufacturés non alimentaires</option>
+              <option value="sensible">Produits sensibles</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="description">Description *</label>
+            <input type="text" id="description" required>
+          </div>
+          <div class="form-group">
+            <label for="prixRef">Prix de référence *</label>
+            <input type="number" id="prixRef" required min="0" step="0.01">
+          </div>
+          <div class="form-group">
+            <label>Unités admises *</label>
+            <div id="unitesCheckboxes" class="checkbox-group">
               <label><input type="checkbox" name="unite_lot" value="kg"> Kilogrammes</label>
               <label><input type="checkbox" name="unite_lot" value="g"> Grammes</label>
               <label><input type="checkbox" name="unite_lot" value="L"> Litres</label>
@@ -402,18 +405,37 @@
               <label><input type="checkbox" name="unite_lot" value="caisse"> Caisses</label>
             </div>
           </div>
-          <div class="form-group">
-            <label>Critères d'admission</label>
-            <ul id="criteriaList"></ul>
-            <button type="button" id="addCriteriaBtn" class="btn btn-secondary" style="display:none; margin-top:10px;">➕ Nouveau critère</button>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn btn-primary">Créer le lot</button>
-          </div>
-        </form>
-        <ul id="lotsList"></ul>
-      </div>
+        </div>
+        <div class="form-group">
+          <label>Critères d'admission</label>
+          <ul id="criteriaList"></ul>
+          <button type="button" id="addCriteriaBtn" class="btn btn-secondary" style="margin-top:10px;">➕ Nouveau critère</button>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">Enregistrer le lot</button>
+          <button type="button" id="cancelLotForm" class="btn btn-secondary">Annuler</button>
+        </div>
+      </form>
     </div>
+
+    <div id="lotsListContainer" style="padding: 20px;">
+      <h4>Lots enregistrés</h4>
+      <table class="table" style="width: 100%; border-collapse: collapse;">
+        <thead>
+          <tr style="text-align: left; border-bottom: 2px solid #eee;">
+            <th>Description</th>
+            <th>Catégorie</th>
+            <th>Prix Réf.</th>
+            <th>Stock</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyLots">
+          </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
     <!-- ONGLET 2: Admission des lots -->
     <div id="admission" class="tab-content">
@@ -625,34 +647,56 @@
     });
 
     // ============ FONCTIONS DE CHARGEMENT ============
-    async function loadLots() {
-  try {
-    const response = await fetch(`${API_BASE}/lots`);
-    const lots = await response.json();
-    
-    const lotSelect = document.getElementById('lotSelect');
-    const retraitSelect = document.getElementById('retraitLot');
+    // 1. Gestion du Masquage/Démasquage
+const toggleBtn = document.getElementById('toggleLotForm');
+const formContainer = document.getElementById('lotFormContainer');
+const cancelBtn = document.getElementById('cancelLotForm');
 
-    // Génération propre des options
-    const optionsHtml = lots.map(l => {
-      // On échappe les guillemets pour ne pas casser le HTML
-      const unitsData = JSON.stringify(l.unites_admises || []).replace(/'/g, "&apos;");
-      return `<option value="${l.id}" data-unites='${unitsData}' data-prix="${l.prix_ref}">
-                ${l.description} (${l.categorie})
-              </option>`;
-    }).join('');
+toggleBtn.addEventListener('click', () => {
+    formContainer.style.display = 'block';
+    toggleBtn.style.display = 'none'; // Cache le bouton "Nouveau" pendant l'édition
+});
 
-    const defaultOpt = '<option value="">Sélectionner un lot</option>';
-    lotSelect.innerHTML = defaultOpt + optionsHtml;
-    
-    // Pour le retrait, on ajoute l'affichage du stock
-    retraitSelect.innerHTML = defaultOpt + lots.map(l => 
-      `<option value="${l.id}">${l.description} - Stock: ${l.stock_disponible}</option>`
-    ).join('');
+cancelBtn.addEventListener('click', () => {
+    formContainer.style.display = 'none';
+    toggleBtn.style.display = 'block';
+    document.getElementById('newLotForm').reset();
+    document.getElementById('criteriaList').innerHTML = '';
+});
 
-  } catch (err) {
-    console.error('Erreur chargement lots:', err);
-  }
+// 2. Mise à jour de loadLots pour remplir la table ET les selects
+async function loadLots() {
+    try {
+        const response = await fetch(`${API_BASE}/lots`);
+        const lots = await response.json();
+        
+        // Remplissage du tableau récapitulatif
+        const tbody = document.getElementById('tbodyLots');
+        if (Array.isArray(lots)) {
+            tbody.innerHTML = lots.map(l => `
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td><strong>${l.description}</strong></td>
+                    <td>${l.categorie}</td>
+                    <td>${l.prix_ref}</td>
+                    <td>${l.stock_disponible || 0}</td>
+                    <td>
+                        <button onclick="deleteLot(${l.id})" class="btn btn-danger" style="padding: 2px 8px; font-size: 12px;">Supprimer</button>
+                    </td>
+                </tr>
+            `).join('');
+            
+            // Remplissage des selects des autres onglets (Admission / Retrait)
+            const lotSelects = document.querySelectorAll('#lotSelect, #retraitLot');
+            const options = '<option value="">Sélectionner un lot</option>' + 
+                lots.map(l => `<option value="${l.id}">${l.description}</option>`).join('');
+            
+            lotSelects.forEach(select => {
+                if (select) select.innerHTML = options;
+            });
+        }
+    } catch (err) {
+        console.error('Erreur chargement lots:', err);
+    }
 }
 
     async function loadProducers() {
@@ -702,7 +746,10 @@
 // ============ FORMULAIRE : CRÉATION DE LOT ============
     document.getElementById('newLotForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-
+  // 1. Récupérer le bouton et le désactiver
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = "Création en cours...";
   // stocks.html
 const body = {
     categorie: document.getElementById('categorieLot').value,
@@ -742,11 +789,23 @@ const response = await fetch(`${API_BASE}/lots`, {
   }
 
   showAlert("Lot créé avec succès ✅");
-  // ... reste de votre code de reset
+  // 1. Vider les champs texte et reset le menu déroulant
+    document.getElementById('lotForm').reset(); 
+    
+    // 2. Vider la liste dynamique des critères (le UL)
+    document.getElementById('criteriaList').innerHTML = ''; 
+    
+    // 3. Rafraîchir les listes déroulantes pour voir le nouveau lot immédiatement
+    await loadLots();
 } catch (err) {
   console.error('Erreur:', err);
   showAlert(err.message, "error");
 }
+      finally {
+        // 4. Réactiver le bouton quoi qu'il arrive
+        btn.disabled = false;
+        btn.innerText = "Créer le lot";
+    }
     });
 
     // ============ FORMULAIRE : ADMISSION EN STOCK ============
