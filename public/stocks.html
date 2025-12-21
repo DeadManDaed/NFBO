@@ -393,14 +393,13 @@
             </div>
             <div class="form-group">
               <label for="unitesLot">Unités admises *</label>
-              <select id="unitesLot" multiple required>
-                <option value="kg">Kilogrammes</option>
-                <option value="g">Grammes</option>
-                <option value="L">Litres</option>
-                <option value="unite">Unités</option>
-                <option value="sac">Sacs</option>
-                <option value="caisse">Caisses</option>
-              </select>
+             <div id="unitesCheckboxes" class="checkbox-group">
+              <label><input type="checkbox" name="unite_lot" value="kg"> Kilogrammes</label>
+              <label><input type="checkbox" name="unite_lot" value="g"> Grammes</label>
+              <label><input type="checkbox" name="unite_lot" value="L"> Litres</label>
+              <label><input type="checkbox" name="unite_lot" value="unite"> Unités</label>
+              <label><input type="checkbox" name="unite_lot" value="sac"> Sacs</label>
+              <label><input type="checkbox" name="unite_lot" value="caisse"> Caisses</label>
             </div>
           </div>
           <div class="form-group">
@@ -692,30 +691,40 @@
       e.preventDefault();
 
       const body = {
-        categorie: document.getElementById('categorieLot').value,
-        description: document.getElementById('description').value,
-        prix_ref: parseFloat(document.getElementById('prixRef').value),
-        unites_admises: Array.from(document.getElementById('unitesLot').selectedOptions).map(opt => opt.value),
-        criteres_admission: Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.textContent),
-        stock_disponible: 0
-      };
+  categorie: document.getElementById('categorieLot').value,
+  description: document.getElementById('description').value.trim(),
+  prix_ref: parseFloat(document.getElementById('prixRef').value) || 0,
+  // Récupération simplifiée des cases à cocher
+  unites_admises: Array.from(document.querySelectorAll('input[name="unite_lot"]:checked')).map(cb => cb.value),
+  // Récupération propre du texte des critères (indispensable !)
+  criteres_admission: Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.innerText.trim()),
+  stock_disponible: 0
+};
 
-      try {
-        const response = await fetch(`${API_BASE}/lots`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
+      
+  try {
+  const response = await fetch(`${API_BASE}/lots`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body) // C'est ici que l'objet est créé pour le serveur
+  });
+  
+  const result = await response.json(); // On récupère la réponse pour voir les erreurs éventuelles
 
-        if (!response.ok) throw new Error("Erreur lors de la création");
+  if (!response.ok) {
+    // Si Ajv renvoie une erreur, on l'affiche précisément
+    console.error('Erreurs de validation:', result.errors);
+    throw new Error(result.message || 'Erreur lors de la création');
+  }
 
-        showAlert("Lot créé avec succès ✅");
-        document.getElementById('newLotForm').reset();
-        document.getElementById('criteriaList').innerHTML = "";
-        loadLots(); // Actualise les listes déroulantes
-      } catch (err) {
-        showAlert("Impossible de créer le lot ❌", "error");
-      }
+  showAlert("Lot créé avec succès ✅");
+  // ... reste de votre code de reset
+} catch (err) {
+  console.error('Erreur:', err);
+  showAlert(err.message, "error");
+}
     });
 
     // ============ FORMULAIRE : ADMISSION EN STOCK ============
