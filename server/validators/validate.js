@@ -1,6 +1,6 @@
 // validators/validate.js
 // ... (imports ajv et fs)
-const defSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'lotSchema.json'), 'utf8'));
+const defSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'definitionSchema.json'), 'utf8'));
 const admSchema = JSON.parse(fs.readFileSync(path.join(__dirname, 'admissionSchema.json'), 'utf8'));
 
 const validateDef = ajv.compile(defSchema);
@@ -19,3 +19,4 @@ function validateAdmission(req, res, next) {
 }
 
 module.exports = { validateLotDefinition, validateAdmission };
+
