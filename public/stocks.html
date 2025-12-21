@@ -703,16 +703,25 @@
     document.getElementById('newLotForm').addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const body = {
-  categorie: document.getElementById('categorieLot').value,
-  description: document.getElementById('description').value.trim(),
-  prix_ref: parseFloat(document.getElementById('prixRef').value) || 0,
-  // Récupération simplifiée des cases à cocher
-  unites_admises: Array.from(document.querySelectorAll('input[name="unite_lot"]:checked')).map(cb => cb.value),
-  // Récupération propre du texte des critères (indispensable !)
-  criteres_admission: Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.innerText.trim()),
-  stock_disponible: 0
+  // stocks.html
+const body = {
+    categorie: document.getElementById('categorieLot').value,
+    description: document.getElementById('description').value.trim(),
+    prix_ref: parseFloat(document.getElementById('prixRef').value) || 0,
+    // On s'assure d'envoyer des tableaux simples
+    unites_admises: Array.from(document.querySelectorAll('input[name="unite_lot"]:checked')).map(cb => cb.value),
+    criteres_admission: Array.from(document.querySelectorAll('#criteriaList li')).map(li => li.innerText.trim()),
+    stock_disponible: 0
 };
+
+// Loguez le body dans votre console pour vérifier avant l'envoi
+console.log("Données envoyées :", body);
+
+const response = await fetch(`${API_BASE}/lots`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+});
 
       
   try {
