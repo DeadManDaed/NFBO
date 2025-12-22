@@ -393,6 +393,26 @@
           <div class="form-group">
             <label for="prixRef">Prix de référence *</label>
             <input type="number" id="prixRef" required min="0" step="0.01">
+            <div class="form-grid">
+    <div class="form-group">
+        <label>Mode de paiement *</label>
+        <div class="radio-group">
+            <label><input type="radio" name="paiement_type" value="solde" checked> Verser sur solde</label>
+            <label><input type="radio" name="paiement_type" value="mobile_money"> Mobile Money (+ taxe)</label>
+        </div>
+    </div>
+
+    <div class="calculation-display card-sub" style="grid-column: span 2; background: #f9f9f9; padding: 15px; border-radius: 8px;">
+        <strong>Simulation du versement :</strong>
+        <div id="calculDetails" style="font-size: 0.9em; margin-top: 5px;">
+            En attente de saisie...
+        </div>
+        <div style="margin-top: 10px; border-top: 1px solid #ddd; pt: 5px;">
+            <span style="color: #2c3e50;">Dû au producteur : <b id="montantProducteur">0.00</b> FCFA</span><br>
+            <span style="color: #16a085;">Caisse virtuelle (surplus) : <b id="montantCaisse">0.00</b> FCFA</span>
+        </div>
+    </div>
+</div>
           </div>
           <div class="form-group">
             <label>Unités admises *</label>
@@ -729,7 +749,7 @@ document.getElementById('lotSelect').addEventListener('change', function() {
             containerUnites.innerHTML = "⚠️ Erreur format unités";
         }
     } else {
-        containerUnites.innerHTML = "<em>Sélectionnez d'abord un lot pour voir les unités</em>";
+        containerUnites.innerHTML = "<em>Sélectionnez un lot pour voir les unités</em>";
     }
 });
 
@@ -884,7 +904,7 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
         if (response.ok) {
             showAlert("Admission enregistrée avec succès ✅");
             e.target.reset();
-            document.getElementById('unitesAdmissionContainer').innerHTML = "<em>Sélectionnez d'abord un lot</em>";                      
+            document.getElementById('unitesAdmissionContainer').innerHTML = "<em>Sélectionnez un lot</em>";                      
           // 1. Réinitialiser le formulaire (vide les inputs quantity, price, etc.)
     const form = document.getElementById('admissionForm');
     form.reset(); 
@@ -893,7 +913,7 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
     // On remet le message d'attente pour forcer l'utilisateur à re-choisir un lot
     const unitesContainer = document.getElementById('unitesAdmissionContainer');
     if (unitesContainer) {
-        unitesContainer.innerHTML = '<em>Sélectionnez d'abord un lot</em>';
+        unitesContainer.innerHTML = '<em>Sélectionnez un lot</em>';
     }
 
     // 3. Rafraîchir les données
@@ -917,7 +937,49 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
         btn.innerText = "➕ Enregistrer l'admission";
     }
 });
+    //------ Calculs effectués pour le déposant et pour la caisse virtuelle
+function calculerAdmission() {
+    const quantite = parseFloat(document.getElementById('quantity').value) || 0;
+    const prixUnitaire = parseFloat(document.getElementById('price').value) || 0;
+    const qualiteLettre = document.getElementById('qualityCoeff').value;
+    const dateExp = document.getElementById('expirationDate').value;
+    const payeCash = document.querySelector('input[name="paiement_type"]:checked')?.value === 'mobile_money';
 
+    if (!quantite || !prixUnitaire || !qualiteLettre) return;
+
+    // A. Coefficient de qualité
+    const mapQualite = { 'A': 1.0, 'B': 0.9, 'C': 0.85, 'D': 0.7 };
+    const coefQualite = mapQualite[qualiteLettre];
+
+    // B. Calcul de la taxe temporelle (inversement prop. au délai)
+    let taxeBase = 0.05; // 5% minimum
+    if (dateExp) {
+        const joursRestants = (new Date(dateExp) - new Date()) / (1000 * 60 * 60 * 24);
+        // Exemple : si moins de 30 jours, on augmente la taxe
+        if (joursRestants < 30) {
+            taxeBase += (30 - joursRestants) * 0.005; // +0.5% par jour manquant
+        }
+    }
+
+    // C. Majoration si paiement Mobile Money
+    if (payeCash) taxeBase += 0.02; // +2% de frais de gestion monétaire
+
+    // D. Le calcul final
+    const montantBrut = quantite * (prixUnitaire * coefQualite);
+    const montantTaxe = montantBrut * taxeBase;
+    const duProducteur = montantBrut - montantTaxe;
+    const caisseVirtuelle = montantTaxe + quantite*prixUnitaire*0.5; // Le surplus va en caisse
+
+    // Affichage
+    document.getElementById('montantProducteur').innerText = duProducteur.toFixed(2);
+    document.getElementById('montantCaisse').innerText = caisseVirtuelle.toFixed(2);
+    document.getElementById('calculDetails').innerHTML = 
+        `Base: ${montantBrut.toFixed(2)} | Taxe appliquée: ${(taxeBase * 100).toFixed(1)}%`;
+}
+
+// Attacher l'événement à tous les champs concernés
+document.querySelectorAll('#quantity, #price, #qualityCoeff, #expirationDate, input[name="paiement_type"]')
+    .forEach(el => el.addEventListener('input', calculerAdmission));
     // ============ FORMULAIRE : RETRAIT DE STOCK ============
     document.getElementById('retraitForm').addEventListener('submit', async (e) => {
       e.preventDefault();
