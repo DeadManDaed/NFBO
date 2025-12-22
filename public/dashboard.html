@@ -801,6 +801,7 @@ async function fetchCascade(type, parentId, targetId) {
 
     function applyPermissions(role) {
         const perms = {
+            'superadmin': ['tile-admission', 'tile-retrait', 'tile-audit', 'tile-messages', 'tile-admin'],
             'admin': ['tile-admission', 'tile-retrait', 'tile-audit', 'tile-messages', 'tile-admin'],
             'magasinier': ['tile-admission', 'tile-messages'],
             'caissier': ['tile-retrait', 'tile-messages'],
@@ -814,7 +815,29 @@ async function fetchCascade(type, parentId, targetId) {
             }
         });
     }
+// Fonction globale de capture d'erreurs
+async function logDeploymentError(context, error) {
+    const errorPayload = {
+        timestamp: new Date().toISOString(),
+        user: user.nom,
+        role: user.role,
+        context: context, // ex: "Admission-Submit"
+        error_message: error.message,
+        form_state: {
+            lot: document.getElementById('adm-lot-select').value,
+            qty: document.getElementById('adm-qty').value
+        }
+    };
 
+    console.error("Erreur critique capturée :", errorPayload);
+    
+    // Envoi au serveur pour l'analyse différée (Admin/Auditeur uniquement)
+    fetch('/api/logs/errors', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(errorPayload)
+    }).catch(e => console.warn("Impossible d'envoyer le log d'erreur au serveur"));
+}
     function openModule(id) {
         document.getElementById('main-grid').style.display = 'none';
         document.getElementById('module-' + id).style.display = 'block';
