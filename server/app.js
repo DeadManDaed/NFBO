@@ -12,6 +12,7 @@ const admissionsRouter = require('./routes/admissions');
 const retraitsRouter = require('./routes/retraits');
 const employersRouter = require('./routes/employers');
 const magasinsRoutes = require('./routes/magasins');
+const errorsRoute = require('./logs/errors');
 
 const app = express();
 
@@ -38,6 +39,7 @@ app.use('/api/retraits', retraitsRouter);
 app.use('/api/employers', employersRouter);
 app.use('/api/magasins', magasinsRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/api/errors', errorsRoute);
 
 // 5. ROUTES DE BASE
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
@@ -59,3 +61,4 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
