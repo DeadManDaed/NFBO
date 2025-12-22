@@ -1,4 +1,9 @@
 // /server/logs/errors
+const express = require('express');
+const router = express.Router();
+//const { validateAdmission } = require('../validators/validate'); 
+const pool = require('../db');
+
 app.post('/api/logs/errors', async (req, res) => {
     const { contexte, user, role, error_message, form_state } = req.body;
     
