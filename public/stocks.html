@@ -924,7 +924,6 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
     if (typeof loadAdmissions === 'function') {
         await loadAdmissions();
     }
-}
         } else {
             const errData = await response.json();
             throw new Error(errData.message || "Erreur lors de l'admission");
