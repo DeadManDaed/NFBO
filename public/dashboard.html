@@ -230,6 +230,12 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
         <h2 style="color:var(--admin); margin:0;"><i class="fa-solid fa-chart-line"></i> Audit & Performance</h2>
         <div style="display:flex; gap:10px;">
             <button class="btn" onclick="refreshAuditData()" style="background:#eee;"><i class="fa-solid fa-rotate"></i> Actualiser</button>
+            <div style="display:flex; gap:10px;">
+    <button class="btn" onclick="exportAuditPDF()" style="background:#454545; color:white;">
+        <i class="fa-solid fa-file-pdf"></i> Imprimer Rapport
+    </button>
+    <button class="btn" onclick="refreshAuditData()" style="background:#eee;">...</button>
+</div>
             <button class="btn-back" onclick="closeModule()">← Retour</button>
         </div>
     </div>
@@ -347,6 +353,53 @@ function renderPerformanceChart(data) {
     html += `</div>`;
     container.innerHTML = html;
 }
+    /**
+ * Génère un rapport d'audit au format PDF/Impression
+ * Basé sur les données de performance par magasin
+ */
+function exportAuditPDF() {
+    const role = user.role;
+    
+    // Vérification de sécurité finale
+    if (role !== 'admin' && role !== 'auditeur') {
+        alert("Action non autorisée.");
+        return;
+    }
+
+    const content = document.getElementById('module-audit').innerHTML;
+    const printWindow = window.open('', '_blank', 'height=800,width=1000');
+
+    printWindow.document.write(`
+        <html>
+            <head>
+                <title>Rapport d'Audit NBFO - ${new Date().toLocaleDateString()}</title>
+                <style>
+                    body { font-family: sans-serif; padding: 40px; }
+                    .stat-card { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    .no-print { display: none; }
+                    h1 { color: #1565c0; }
+                </style>
+            </head>
+            <body>
+                <h1>Rapport de Performance par Magasin</h1>
+                <p>Généré le : ${new Date().toLocaleString()}</p>
+                <p>Auditeur : ${user.nom}</p>
+                <hr>
+                ${content}
+            </body>
+        </html>
+    `);
+
+    printWindow.document.close();
+    
+    // Petite pause pour laisser le temps au rendu de s'afficher
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+}
 
 function renderAuditLogs(logs) {
     const list = document.getElementById('audit-log-list');
@@ -365,7 +418,8 @@ function renderAuditLogs(logs) {
         </div>
     `).join('');
 }
-</script></div>
+</script>
+    </div>
     <div id="module-messages" class="module"><div class="messaging-layout" style="display: flex; gap: 20px; height: 70vh;">
     <div class="message-sidebar" style="flex: 1; border-right: 1px solid #eee; padding-right: 20px; display: flex; flex-direction: column;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
@@ -507,7 +561,8 @@ async function sendMessage(e) {
         }
     } catch (err) { alert("Erreur lors de l'envoi"); }
 }
-</script></div>
+</script>
+    </div>
     <div id="module-admin" class="module"><div class="admin-layout" style="display: flex; gap: 20px;">
     <nav class="admin-sidebar" style="width: 220px; display: flex; flex-direction: column; gap: 10px;">
         <h3 style="font-size: 14px; color: var(--admin); text-transform: uppercase;">Configuration</h3>
