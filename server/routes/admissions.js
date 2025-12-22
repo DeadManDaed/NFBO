@@ -4,24 +4,24 @@ const router = express.Router();
 const { validateAdmission } = require('../validators/validate'); 
 const pool = require('../db');
 
-router.get('/', async (req, res) => { /* ... existant ... */ });
-
 router.post('/', validateAdmission, async (req, res) => { 
-  // On récupère exactement ce que le front envoie (notez 'prix_unitaire' au lieu de 'prix_ref')
   const {
-    lot_id, 
-    producteur_id, // Sera reçu comme un String (ex: "PRD-2025-001")
-    quantite, 
-    unite, 
-    prix_unitaire, 
-    qualite, // On renomme pour correspondre au front (coef_qualite dans la DB)
-    date_expiration, 
-    magasin_id
+    lot_id, producteur_id, quantite, unite, prix_unitaire, 
+    qualite, // Contient "A", "B", etc.
+    date_expiration, magasin_id
   } = req.body;
 
-  // On définit l'utilisateur par défaut ou via la session si disponible
+  // 1. Transformation de la lettre en coefficient numérique
+  const coeffs = {
+    'A': 1.0,
+    'B': 0.9,
+    'C': 0.85,
+    'D': 0.7
+  };
+  const valeurCoefficient = coeffs[qualite] || 1.0; // Par défaut 1.0 si erreur
+
   const utilisateur = req.body.utilisateur || 'admin';
-  const date_reception = new Date(); // Date automatique si non fournie
+  const date_reception = new Date();
 
   try {
     const result = await pool.query(
@@ -30,12 +30,12 @@ router.post('/', validateAdmission, async (req, res) => {
         date_reception, date_expiration, magasin_id, utilisateur
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
       [
-        parseInt(lot_id), // S'assurer que l'ID du lot est un entier
-        producteur_id,    // Envoyé tel quel car c'est un String auto-généré
+        parseInt(lot_id), 
+        producteur_id, 
         parseFloat(quantite), 
         unite, 
         parseFloat(prix_unitaire || 0), 
-        qualite, 
+        valeurCoefficient, // On envoie le CHIFFRE (1.0) et non la LETTRE ("A")
         date_reception, 
         date_expiration || null, 
         magasin_id, 
@@ -46,7 +46,6 @@ router.post('/', validateAdmission, async (req, res) => {
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Erreur POST admissions', err);
-    // On renvoie l'erreur détaillée pour vous aider à déboguer sur Render
     res.status(400).json({ 
         error: 'Erreur lors de la création de l’admission',
         details: err.message 
