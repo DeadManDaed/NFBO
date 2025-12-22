@@ -270,36 +270,82 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
 
 async function refreshAuditData() {
     try {
-        const res = await fetch('/api/audit/summary');
-        const data = await res.json();
+        // Appel à l'API filtrée par le rôle utilisateur
+        const res = await fetch('/api/audit/performance-by-store');
         
-        // Mise à jour des chiffres clés
-        document.getElementById('audit-total-profit').innerText = data.total_profit.toLocaleString();
-        document.getElementById('audit-total-qty').innerText = data.total_qty.toLocaleString();
-        document.getElementById('audit-alerts').innerText = data.alerts_count;
+        if (res.status === 403) {
+            throw new Error("Accès non autorisé à la source de données.");
+        }
 
-        renderPerformanceChart(data.by_store);
-        renderAuditLogs(data.recent_logs);
+        const data = await res.json();
+        renderPerformanceChart(data); // Génère le visuel
+        renderAuditLogs(data);        // Remplit le tableau détaillé
+        
     } catch (err) {
-        console.error("Erreur Audit API:", err);
+        // En cas d'erreur de déploiement ou de droit, on logue l'incident
+        logDeploymentError('Audit-Performance-Render', err);
+        document.getElementById('performance-chart-container').innerHTML = 
+            `<p style="color:red;">Erreur lors du chargement des performances.</p>`;
     }
 }
 
-function renderPerformanceChart(stores) {
+/**
+ * Transforme les données de la source "Performance by Store" en graphique
+ * @param {Array} data - Résultat de la requête SQL vue_performance_magasins
+ */
+function renderPerformanceChart(data) {
     const container = document.getElementById('performance-chart-container');
-    if(!stores) return;
+    const role = user.role;
 
-    const maxProfit = Math.max(...stores.map(s => s.profit));
-    
-    container.innerHTML = stores.map(s => {
-        const height = (s.profit / maxProfit) * 100;
-        return `
-            <div style="flex:1; display:flex; flex-direction:column; align-items:center; gap:10px;">
-                <div style="width:100%; background:var(--admin); height:${height}%; border-radius:4px 4px 0 0; transition:height 0.5s;"></div>
-                <span style="font-size:10px; text-align:center; height:30px;">${s.nom}</span>
-            </div>
-        `;
-    }).join('');
+    // Sécurité : Vérification du rôle avant rendu
+    if (role !== 'admin' && role !== 'auditeur') {
+        container.innerHTML = `<p style="color:red; padding:20px;">Accès refusé : Droits insuffisants.</p>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        container.innerHTML = "<p>Aucune donnée de performance disponible.</p>";
+        return;
+    }
+
+    // Calcul de la valeur maximale pour l'échelle du graphique
+    const maxProfit = Math.max(...data.map(d => parseFloat(d.profit_virtuel_genere)));
+
+    let html = `<div style="display: flex; align-items: flex-end; gap: 15px; height: 100%; padding: 20px;">`;
+
+    data.forEach(store => {
+        const profit = parseFloat(store.profit_virtuel_genere);
+        const heightPercentage = (profit / maxProfit) * 100;
+        
+        html += `
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; group">
+                <div style="font-size: 10px; margin-bottom: 5px; font-weight: bold;">
+                    ${Math.round(profit).toLocaleString()}
+                </div>
+                <div style="
+                    width: 100%; 
+                    height: ${heightPercentage}%; 
+                    background: ${profit > 0 ? 'var(--primary)' : '#d32f2f'}; 
+                    border-radius: 4px 4px 0 0;
+                    transition: height 0.5s ease;
+                    cursor: pointer;"
+                    title="Admissions: ${store.nombre_admissions}">
+                </div>
+                <div style="
+                    font-size: 11px; 
+                    margin-top: 8px; 
+                    text-align: center; 
+                    white-space: nowrap; 
+                    overflow: hidden; 
+                    text-overflow: ellipsis; 
+                    width: 60px;">
+                    ${store.nom_magasin}
+                </div>
+            </div>`;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
 }
 
 function renderAuditLogs(logs) {
