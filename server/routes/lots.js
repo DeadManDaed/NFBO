@@ -42,7 +42,7 @@ router.get('/', async (req, res) => {
     LEFT JOIN categories c ON l.categorie_id = c.id 
     ORDER BY l.date_creation DESC
 `;
-    const result = await pool.query(query); ORDER BY date_creation DESC');
+    const result = await pool.query(query) ORDER BY date_creation DESC');
         res.json(result.rows); // Renvoie le tableau que .map() attend
     } catch (err) {
         console.error('Erreur GET /api/lots:', err);
@@ -110,6 +110,7 @@ router.delete('/:id', async (req, res) => {
 
 // ... gardez vos routes GET, PUT et DELETE ...
 module.exports = router;
+
 
 
 
