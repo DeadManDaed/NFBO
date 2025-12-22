@@ -884,12 +884,27 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
         if (response.ok) {
             showAlert("Admission enregistrée avec succès ✅");
             e.target.reset();
-            document.getElementById('unitesAdmissionContainer').innerHTML = "<em>Sélectionnez d'abord un lot</em>";
-            
-            // On rafraîchit la liste des admissions si la fonction existe
-            if (typeof loadAdmissions === 'function') await loadAdmissions();
-            // On rafraîchit les stocks car l'admission a dû augmenter le stock du lot
-            await loadLots(); 
+            document.getElementById('unitesAdmissionContainer').innerHTML = "<em>Sélectionnez d'abord un lot</em>";                      
+          // 1. Réinitialiser le formulaire (vide les inputs quantity, price, etc.)
+    const form = document.getElementById('admissionForm');
+    form.reset(); 
+
+    // 2. Vider le conteneur dynamique des unités
+    // On remet le message d'attente pour forcer l'utilisateur à re-choisir un lot
+    const unitesContainer = document.getElementById('unitesAdmissionContainer');
+    if (unitesContainer) {
+        unitesContainer.innerHTML = '<em>Sélectionnez d'abord un lot</em>';
+    }
+
+    // 3. Rafraîchir les données
+    // On recharge les lots pour mettre à jour les stocks affichés partout
+    await loadLots(); 
+    
+    // Si vous avez une fonction pour la liste des admissions en bas de page
+    if (typeof loadAdmissions === 'function') {
+        await loadAdmissions();
+    }
+}
         } else {
             const errData = await response.json();
             throw new Error(errData.message || "Erreur lors de l'admission");
@@ -941,20 +956,26 @@ document.getElementById('admissionForm').addEventListener('submit', async (e) =>
     });
 
     // Gestion de l'affichage dynamique des unités selon le lot choisi
-    function updateUnits(sourceId, targetId) {
-        const selectLot = document.getElementById(sourceId);
-        const selectedOption = selectLot.options[selectLot.selectedIndex];
-        if (!selectedOption.value) return;
-        
-        const unites = JSON.parse(selectedOption.getAttribute('data-unites') || '[]');
-        const unitSelect = document.getElementById(targetId);
-        unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
-        
-        if (sourceId === 'lotSelect') {
-            document.getElementById('price').value = selectedOption.getAttribute('data-prix') || "";
-        }
+   function updateUnits(unites) {
+    const container = document.getElementById('unitesAdmissionContainer');
+    // Sécurité pour éviter le crash "null"
+    if (!container) {
+        console.warn("Le conteneur 'unitesAdmissionContainer' n'est pas encore prêt.");
+        return; 
     }
 
+    if (!unites || unites.length === 0) {
+        container.innerHTML = "<em>Aucune unité définie pour ce lot</em>";
+        return;
+    }
+
+    container.innerHTML = unites.map(u => `
+        <label style="margin-right:10px;">
+            <input type="radio" name="unite_admission" value="${u}" required> ${u}
+        </label>
+    `).join('');
+}
+    
     document.getElementById('lotSelect').addEventListener('change', () => updateUnits('lotSelect', 'unitSelect'));
     document.getElementById('retraitLot').addEventListener('change', () => updateUnits('retraitLot', 'retraitUnite'));
 
