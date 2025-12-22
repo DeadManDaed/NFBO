@@ -1,42 +1,389 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - NBFO</title>
-  <link rel="stylesheet" href="/css/style.css">
-</head>
-<body>
-  <!-- Zone d'erreur -->
-  <div id="errorBox" style="display:none;"></div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 2px solid #f0f0f0; padding-bottom: 15px;">
+        <h2 style="color: var(--primary); margin: 0;"><i class="fa-solid fa-file-import"></i> Admission & Contrôle Qualité</h2>
+        <button class="btn btn-back" onclick="closeModule()" style="margin: 0;">← Dashboard</button>
+    </div>
 
-  <!-- Message de bienvenue -->
-  <h2 id="welcome"></h2>
+    <form id="admissionForm">
+        <div class="form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px;">
+            
+            <div class="form-section">
+                <h4 style="margin-bottom: 15px; color: #555; border-left: 4px solid var(--secondary); padding-left: 10px;">Identification</h4>
+                
+                <div class="form-group">
+                    <label>Produit / Lot *</label>
+                    <select id="lotSelect" required onchange="handleLotChange()">
+                        <option value="">-- Sélectionner un produit --</option>
+                    </select>
+                </div>
 
-  <!-- Contenu spécifique au rôle -->
-  <div id="roleContent"></div>
+                <div class="form-group">
+                    <label>Producteur (Déposant) *</label>
+                    <select id="producerSelect" required>
+                        <option value="">-- Sélectionner le partenaire --</option>
+                    </select>
+                </div>
 
-  <!-- Bouton de déconnexion -->
-  <button id="logoutBtn">Déconnexion</button>
+                <div class="form-group">
+                    <label>Magasin de stockage *</label>
+                    <select id="magasinSelect" required></select>
+                </div>
+            </div>
 
-  <!-- Scripts -->
-  <script src="/js/auth.js"></script>
-  <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const currentUser = requireLogin();
-      if (currentUser) {
-        // Message de bienvenue
-        document.getElementById("welcome").textContent =
-          `Bienvenue ${currentUser.username} (rôle: ${currentUser.role})`;
+            <div class="form-section">
+                <h4 style="margin-bottom: 15px; color: #555; border-left: 4px solid var(--secondary); padding-left: 10px;">Mesures Physiques</h4>
+                
+                <div style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 2;">
+                        <label>Quantité Brute *</label>
+                        <input type="number" id="quantity" step="0.01" required placeholder="0.00">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>Unité *</label>
+                        <div id="unitesAdmissionContainer" style="font-size: 13px; color: #666; padding-top: 10px;">
+                            <em>Choisir un lot...</em>
+                        </div>
+                    </div>
+                </div>
 
-        // Charger le contenu selon le rôle
-        loadRoleContent(currentUser.role);
+                <div class="form-group">
+                    <label>Grade de Qualité (Audit) *</label>
+                    <select id="qualityCoeff" required>
+                        <option value="">-- Évaluation --</option>
+                        <option value="A">Grade A - Excellente (100%)</option>
+                        <option value="B">Grade B - Bonne (90%)</option>
+                        <option value="C">Grade C - Moyenne (85%)</option>
+                        <option value="D">Grade D - Faible (70%)</option>
+                    </select>
+                </div>
 
-        // Déconnexion
-        document.getElementById("logoutBtn").addEventListener("click", logout);
-      }
+                <div class="form-group">
+                    <label>Date de Péremption / Fin de cycle</label>
+                    <input type="date" id="expirationDate">
+                </div>
+            </div>
+        </div>
+
+        <div id="auditSimulation" style="margin-top: 30px; background: #f8fbff; border: 1px solid #d1e3f8; border-radius: 12px; padding: 20px;">
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                <i class="fa-solid fa-calculator" style="color: #1565c0;"></i>
+                <h4 style="margin: 0; color: #1565c0;">Simulation du Versement (Audit)</h4>
+            </div>
+            
+            <div class="simulation-results" style="display: flex; justify-content: space-around; flex-wrap: wrap; gap: 20px;">
+                <div style="text-align: center;">
+                    <span style="font-size: 12px; color: #777; text-transform: uppercase;">Dû au Producteur</span>
+                    <div style="font-size: 24px; font-weight: bold; color: #2e7d32;"><span id="simProducteur">0</span> FCFA</div>
+                </div>
+                <div style="text-align: center;">
+                    <span style="font-size: 12px; color: #777; text-transform: uppercase;">Profit Virtuel (Caisse)</span>
+                    <div style="font-size: 24px; font-weight: bold; color: #1565c0;"><span id="simCaisse">0</span> FCFA</div>
+                </div>
+                <div style="text-align: center;">
+                    <span style="font-size: 12px; color: #777; text-transform: uppercase;">Taxe Audit appliquée</span>
+                    <div style="font-size: 20px; font-weight: bold; color: #e65100;"><span id="simTaxe">0</span>%</div>
+                </div>
+            </div>
+            <div id="calculDetails" style="font-size: 11px; color: #888; margin-top: 15px; text-align: center; font-style: italic;">
+                Les calculs incluent le coefficient de qualité et la taxe de gestion coopérative.
+            </div>
+        </div>
+
+        <div style="margin-top: 25px; display: flex; gap: 15px; justify-content: flex-end;">
+            <button type="button" class="btn" style="background: #eee; color: #333;" onclick="closeModule()">Annuler</button>
+            <button type="submit" class="btn btn-primary" style="padding: 12px 40px;">Valider l'Admission</button>
+        </div>
+    </form>
+</div>
+
+<div id="module-admin" class="module-container" style="display:none; background: #fff; border-radius: 15px; padding: 20px; margin: 20px auto; max-width: 1200px; min-height: 80vh; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 15px;">
+        <h2 style="color: var(--admin-color); margin: 0;"><i class="fa-solid fa-user-shield"></i> Console d'Administration</h2>
+        <button class="btn btn-back" onclick="closeModule()">← Dashboard</button>
+    </div>
+
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+        <nav class="admin-nav" style="flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 8px;">
+            <button onclick="switchAdminTab('magasins')" class="admin-tab-btn active"><i class="fa-solid fa-shop"></i> Magasins</button>
+            <button onclick="switchAdminTab('utilisateurs')" class="admin-tab-btn"><i class="fa-solid fa-users-gear"></i> Utilisateurs</button>
+            <button onclick="switchAdminTab('employes')" class="admin-tab-btn"><i class="fa-solid fa-id-badge"></i> Employés</button>
+            <button onclick="switchAdminTab('producteurs')" class="admin-tab-btn"><i class="fa-solid fa-wheat-awn"></i> Producteurs</button>
+            <button onclick="switchAdminTab('messages')" class="admin-tab-btn"><i class="fa-solid fa-envelope"></i> Messagerie</button>
+        </nav>
+
+        <div id="admin-workspace" style="flex: 4; min-width: 300px; background: #f9f9f9; border-radius: 12px; padding: 20px;">
+            <div id="admin-view-header" style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                <h3 id="admin-view-title" style="margin: 0;">Gestion des Magasins</h3>
+                <button class="btn btn-primary" onclick="showCreationForm()" style="background: var(--admin-color);"><i class="fa-solid fa-plus"></i> Nouveau</button>
+            </div>
+            
+            <div id="admin-dynamic-content">
+                <p style="text-align:center; color:#999;">Sélectionnez une catégorie à gauche pour commencer.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-tab-btn {
+        padding: 12px 15px; border: none; border-radius: 8px; background: #f0f2f5;
+        color: #444; text-align: left; cursor: pointer; transition: 0.3s; font-weight: 500;
+    }
+    .admin-tab-btn:hover { background: #e2e6ea; }
+    .admin-tab-btn.active { background: var(--admin-color); color: white; }
+    
+    .admin-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media (max-width: 768px) { .admin-form-grid { grid-template-columns: 1fr; } }
+
+
+<script>
+    let currentAdminTab = 'magasins';
+
+    // 1. Gestion des Onglets Admin
+    function switchAdminTab(tab) {
+        currentAdminTab = tab;
+        document.querySelectorAll('.admin-tab-btn').forEach(btn => btn.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+        document.getElementById('admin-view-title').innerText = "Gestion : " + tab.charAt(0).toUpperCase() + tab.slice(1);
+        
+        // Simuler le chargement des données
+        document.getElementById('admin-dynamic-content').innerHTML = `
+            <div style="text-align:center; padding:40px;">
+                <i class="fa-solid fa-spinner fa-spin fa-2x" style="color:#ccc;"></i>
+                <p>Chargement de la liste ${tab}...</p>
+            </div>
+        `;
+        
+        // Ici on appellera ta fonction construireTableau() du code original
+        setTimeout(() => renderAdminTable(tab), 500);
+    }
+
+    // 2. Rendu des formulaires avec CASCADE GEOGRAPHIQUE (Ta technique)
+    function showCreationForm() {
+        let html = '';
+        if (currentAdminTab === 'producteurs') {
+            html = `
+                <form id="prodForm" class="admin-form-grid">
+                    <div class="form-group"><label>Nom Producteur</label><input type="text" required></div>
+                    <div class="form-group"><label>Téléphone</label><input type="tel"></div>
+                    
+                    <div class="form-group">
+                        <label>Région</label>
+                        <select id="reg-select" onchange="loadDepartements(this.value)">
+                            <option value="">-- Choisir Région --</option>
+                            <option value="CE">Centre</option>
+                            <option value="LT">Littoral</option>
+                            <option value="OU">Ouest</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Département</label>
+                        <select id="dep-select" disabled onchange="loadArrondissements(this.value)">
+                            <option value="">-- Attente Région --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Arrondissement</label>
+                        <select id="arr-select" disabled>
+                            <option value="">-- Attente Département --</option>
+                        </select>
+                    </div>
+                    <div class="form-group"><label>Statut</label><select><option>Actif</option><option>Suspendu</option></select></div>
+                    <button type="submit" class="btn btn-primary" style="grid-column: 1 / -1;">Enregistrer</button>
+                </form>
+            `;
+        } else {
+            html = `<p>Formulaire pour ${currentAdminTab} en cours de préparation...</p>`;
+        }
+        document.getElementById('admin-dynamic-content').innerHTML = html;
+    }
+
+    // 3. LOGIQUE DE CASCADE (Simulation de ton code administration.html)
+    function loadDepartements(regId) {
+        const dep = document.getElementById('dep-select');
+        dep.innerHTML = '<option value="">-- Charger... --</option>';
+        dep.disabled = false;
+        
+        setTimeout(() => {
+            const data = {
+                'CE': ['Mfoundi', 'Lekié', 'Nyong-et-So\'o'],
+                'LT': ['Wouri', 'Sanaga-Maritime', 'Moungo'],
+                'OU': ['Mifi', 'Noun', 'Koung-Khi']
+            };
+            dep.innerHTML = '<option value="">-- Choisir Département --</option>';
+            (data[regId] || []).forEach(d => dep.add(new Option(d, d)));
+        }, 300);
+    }
+
+    function loadArrondissements(depId) {
+        const arr = document.getElementById('arr-select');
+        arr.disabled = false;
+        arr.innerHTML = '<option value="">-- Choisir Arrondissement --</option>';
+        // Simulation rapide
+        ['Arrond. 1', 'Arrond. 2', 'Arrond. Rural'].forEach(a => arr.add(new Option(a, a)));
+    }
+
+    function renderAdminTable(tab) {
+        document.getElementById('admin-dynamic-content').innerHTML = `
+            <table style="width:100%; border-collapse: collapse;">
+                <thead style="background:#eee;">
+                    <tr><th>ID</th><th>Nom / Référence</th><th>Statut</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>Exemple ${tab} 1</td><td>Actif</td><td><button class="btn">Editer</button></td></tr>
+                </tbody>
+            </table>
+        `;
+    }
+
+    // Simulation de l'utilisateur (sera remplacé par sessionStorage)
+    const currentUser = {
+      name: "Bea Bea Ngidjoi",
+      role: "admin" // Testez ici avec 'admin', 'magasinier', 'auditeur'
+    };
+
+    function initDashboard() {
+      document.getElementById('userName').innerText = currentUser.name;
+      document.getElementById('roleBadge').innerText = currentUser.role;
+
+      // Définition des accès
+      const access = {
+  'admin':      ['tile-admission', 'tile-retrait', 'tile-audit', 'tile-messages', 'tile-admin-panel'],
+  'magasinier': ['tile-admission', 'tile-messages'],
+  'caissier':   ['tile-retrait', 'tile-messages'],
+  'auditeur':   ['tile-audit', 'tile-messages']
+};
+
+      const allowed = access[currentUser.role] || [];
+
+      // Application visuelle du verrouillage
+      document.querySelectorAll('.tile').forEach(tile => {
+        if (!allowed.includes(tile.id)) {
+          tile.classList.add('disabled');
+          tile.onclick = null; // Désactive le clic
+        }
+      });
+    }
+
+    function navTo(module) {
+      alert("Ouverture du module : " + module + "\n(Prochaine étape du test)");
+    }
+
+    function logout() {
+      window.location.href = 'index.html';
+    }
+ // --- LOGIQUE SPECIFIQUE AU MODULE ADMISSION ---
+
+    // 1. Simulation en temps réel (Audit)
+    function runSimulation() {
+        const qte = parseFloat(document.getElementById('quantity').value) || 0;
+        const quality = document.getElementById('qualityCoeff').value;
+        const lotId = document.getElementById('lotSelect').value;
+        
+        // On récupère le prix de référence stocké dans l'objet lot (simulé ici)
+        const selectedLot = mockLots.find(l => l.id == lotId);
+        const prixRef = selectedLot ? selectedLot.prix_ref : 0;
+
+        const mapQualite = { 'A': 1.0, 'B': 0.9, 'C': 0.85, 'D': 0.7 };
+        const coef = mapQualite[quality] || 0;
+
+        const montantBrut = qte * (prixRef * coef);
+        const taxeCoop = 0.05; // 5% fixe
+
+        const duProducteur = montantBrut * (1 - taxeCoop);
+        const profitVirtuel = (qte * prixRef) - duProducteur;
+
+        document.getElementById('simProducteur').innerText = Math.round(duProducteur).toLocaleString();
+        document.getElementById('simCaisse').innerText = Math.round(profitVirtuel).toLocaleString();
+        document.getElementById('simTaxe').innerText = (taxeCoop * 100).toFixed(0);
+    }
+
+    // 2. Gestion des unités dynamiques
+    function handleLotChange() {
+        const lotId = document.getElementById('lotSelect').value;
+        const container = document.getElementById('unitesAdmissionContainer');
+        const selectedLot = mockLots.find(l => l.id == lotId);
+
+        if (selectedLot && selectedLot.unites) {
+            container.innerHTML = selectedLot.unites.map(u => `
+                <label style="display:block; margin-bottom:5px; cursor:pointer;">
+                    <input type="radio" name="unite_active" value="${u}" required> ${u}
+                </label>
+            `).join('');
+        } else {
+            container.innerHTML = "<em>Aucune unité</em>";
+        }
+        runSimulation();
+    }
+
+    // Initialisation des écouteurs de calcul
+    document.querySelectorAll('#quantity, #qualityCoeff, #lotSelect').forEach(el => {
+        el.addEventListener('input', runSimulation);
     });
+
+    // Données de test (Mocks) pour validation visuelle
+    const mockLots = [
+        { id: 1, description: "Maïs Blanc", prix_ref: 250, unites: ["Sac 50kg", "KG"] },
+        { id: 2, description: "Huile de Palme", prix_ref: 900, unites: ["Litre", "Bidon 20L"] }
+    ];
+
+    function openModule(id) {
+        document.querySelector('.dashboard-grid').style.display = 'none';
+        document.getElementById('module-' + id).style.display = 'block';
+        
+        // Peupler le lotSelect si vide
+        const sel = document.getElementById('lotSelect');
+        if(sel.options.length <= 1) {
+            mockLots.forEach(l => sel.add(new Option(l.description, l.id)));
+        }
+    }
+// Fonction pour remplir les listes déroulantes avec des données de test
+function initialiserListesTest() {
+    const producteurs = [
+        { id: 101, nom: "Coopérative Ouest - Jean" },
+        { id: 102, nom: "GIC Excellence - Marie" },
+        { id: 103, nom: "Union des Planteurs" }
+    ];
+
+    const magasins = [
+        { id: 1, nom: "Entrepôt Central A" },
+        { id: 2, nom: "Magasin de Stockage B1" }
+    ];
+
+    const prodSelect = document.getElementById('producerSelect');
+    const magSelect = document.getElementById('magasinSelect');
+
+    // On remplit les producteurs s'ils sont vides
+    if (prodSelect && prodSelect.options.length <= 1) {
+        producteurs.forEach(p => {
+            prodSelect.add(new Option(p.nom, p.id));
+        });
+    }
+
+    // On remplit les magasins s'ils sont vides
+    if (magSelect && magSelect.options.length === 0) {
+        magasins.forEach(m => {
+            magSelect.add(new Option(m.nom, m.id));
+        });
+    }
+}
+
+// Modifier la fonction openModule pour appeler l'initialisation
+const originalOpenModule = openModule;
+openModule = function(id) {
+    originalOpenModule(id);
+    if (id === 'admission') {
+        initialiserListesTest();
+    }
+};
+
+    function closeModule() {
+        document.querySelectorAll('.module-container').forEach(m => m.style.display = 'none');
+        document.querySelector('.dashboard-grid').style.display = 'grid';
+    }
+    
+    window.onload = initDashboard;
   </script>
 </body>
 </html>
-
