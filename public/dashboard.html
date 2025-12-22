@@ -48,6 +48,19 @@
             <h3>Ventes & Retraits</h3>
             <p>Sorties et facturation</p>
         </div>
+
+<div class="tile" onclick="openModule('transferts')" style="position:relative; background: #546e7a; color: white; padding: 20px; border-radius: 12px; cursor: pointer;">
+    <div style="font-size: 24px; margin-bottom: 10px;">
+        <i class="fa-solid fa-truck-arrow-right"></i>
+    </div>
+    <div style="font-weight: bold;">Transferts</div>
+    <div style="font-size: 12px; opacity: 0.8;">Expédier ou Recevoir</div>
+    
+    <span id="badge-transfert" style="position:absolute; top:10px; right:10px; background:#ff5252; color:white; border-radius:50%; padding:2px 8px; font-size:12px; display:none;">
+        3
+    </span>
+</div>
+        
         <div class="tile" id="tile-audit" onclick="openModule('audit')">
             <i class="fa-solid fa-chart-line"></i>
             <h3>Audit</h3>
@@ -225,6 +238,104 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
         <button type="submit" class="btn" style="background:#d32f2f; color:white; padding:15px 40px;">VALIDER LA SORTIE</button>
     </div>
 </form></div>
+
+<div id="module-transferts" class="module-container">
+    <div class="tabs" style="display:flex; gap:10px; margin-bottom:20px;">
+        <button class="tab-btn active" onclick="switchTab('expedier')">EXPÉDIER</button>
+        <button class="tab-btn" onclick="switchTab('receptionner')">RÉCEPTIONNER</button>
+    </div>
+
+    <form id="form-expedition" class="tab-content">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            <div class="form-group">
+                <label>Produit à transférer (Stock Local) *</label>
+                <select id="trans-lot" required style="width:100%; padding:10px;">
+                    </select>
+            </div>
+            <div class="form-group">
+                <label>Magasin Destinataire *</label>
+                <select id="trans-dest" required style="width:100%; padding:10px;">
+                    </select>
+            </div>
+            <div class="form-group">
+                <label>Quantité à envoyer *</label>
+                <input type="number" id="trans-qty" required style="width:100%; padding:10px;">
+            </div>
+            <div class="form-group">
+                <label>Transporteur / Chauffeur *</label>
+                <input type="text" id="trans-driver" placeholder="Nom et Matricule" required style="width:100%; padding:10px;">
+            </div>
+        </div>
+        <div style="margin-top:20px;">
+            <label>Note d'accompagnement (Optionnel)</label>
+            <textarea id="trans-note" style="width:100%; height:60px;"></textarea>
+        </div>
+        <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px;">LANCER L'EXPÉDITION</button>
+    </form>
+
+    <div id="list-reception" class="tab-content" style="display:none;">
+        <table style="width:100%; border-collapse: collapse; margin-top:10px;">
+            <thead>
+                <tr style="background:#f5f5f5;">
+                    <th>Provenance</th>
+                    <th>Produit</th>
+                    <th>Qté Envoyée</th>
+                    <th>Qté Reçue (Pesée)</th>
+                    <th>Qualité</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody id="table-reception-body">
+                <tr>
+                    <td>Magasin Douala</td>
+                    <td>Maïs Sec</td>
+                    <td>100 Sacs</td>
+                    <td><input type="number" value="100" style="width:60px;"></td>
+                    <td>
+                        <select>
+                            <option>Grade A (Conforme)</option>
+                            <option>Grade B (Altéré)</option>
+                        </select>
+                    </td>
+                    <td><button class="btn-small" onclick="validerReception(this)">ACCEPTER</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <script>
+    async function validerReception(btn) {
+    const row = btn.closest('tr');
+    const qteEnvoyee = 100; // Exemple
+    const qteRecue = parseFloat(row.querySelector('input').value);
+    
+    // 1. Détection automatique de litige pour l'auditeur
+    if (qteRecue < qteEnvoyee) {
+        const confirmLitige = confirm(`Écart détecté : ${qteEnvoyee - qteRecue} unités manquantes. Voulez-vous ouvrir un incident d'audit ?`);
+        if(!confirmLitige) return;
+    }
+
+    try {
+        const res = await fetch('/api/transferts/valider', {
+            method: 'POST',
+            body: JSON.stringify({
+                id: 'TR-987',
+                qteRecue: qteRecue,
+                magasin_id: user.magasin_id // Magasin qui reçoit
+            })
+        });
+
+        if(res.ok) {
+            alert("Réception validée. Le stock est désormais sous votre responsabilité.");
+            row.remove();
+        }
+    } catch (err) {
+        // Capture l'erreur pour l'analyse de fin d'année 2025
+        logDeploymentError('Transfer-Reception-Fail', err);
+    }
+}
+        </script>
+</div>
+    
     <div id="module-audit" class="module"><div class="audit-layout">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
         <h2 style="color:var(--admin); margin:0;"><i class="fa-solid fa-chart-line"></i> Audit & Performance</h2>
