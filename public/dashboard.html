@@ -748,10 +748,12 @@ async function sendMessage(e) {
         <button class="admin-nav-btn" onclick="loadAdminSection('employes')"><i class="fa-solid fa-id-badge"></i> Employés</button>
         <button class="admin-nav-btn" onclick="loadAdminSection('producteurs')"><i class="fa-solid fa-wheat-awn"></i> Producteurs</button>
         <button class="admin-nav-btn" onclick="loadAdminSection('lots')"><i class="fa-solid fa-tags"></i> Référentiel Lots</button>
+        <button class="admin-nav-btn" onclick="loadAdminSection('validations')"><i class="fa-solid fa-tags"></i> Validations</button>
+
         <hr style="width:100%; border:0; border-top:1px solid #ddd;">
         <button class="btn-back" onclick="closeModule()">← Quitter</button>
     </nav>
-
+        
     <div id="admin-content" style="flex-grow: 1; background: #f9f9f9; padding: 20px; border-radius: 8px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 id="admin-title" style="margin:0; font-size:1.5rem;">Magasins</h2>
@@ -759,6 +761,11 @@ async function sendMessage(e) {
         </div>
         <div id="admin-table-wrapper" class="table-container">
             </div>
+        <div id="section-admin-local" class="admin-panel" style="display:none; margin-top: 20px;">
+    <h3 style="color: #37474f;"><i class="fa-solid fa-user-shield"></i> Approbations Locales en Attente</h3>
+    <div id="local-transfer-list" class="grid-container">
+        </div>
+</div>
     </div>
 </div>
 
