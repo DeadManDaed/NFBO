@@ -20,3 +20,6 @@ app.post('/api/logs/errors', async (req, res) => {
         res.status(500).send("Server Error");
     }
 });
+const router = express.Router();
+
+module.exports = router;
