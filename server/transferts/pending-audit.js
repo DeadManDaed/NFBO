@@ -1,5 +1,8 @@
+const express = require('express');
+const router = express.Router();
+
 // Endpoint pour l'Auditeur : Récupérer les transferts en attente de validation finale
-app.get('/api/transferts/pending-audit', async (req, res) => {
+router.get('/pending-audit', async (req, res) => {
     // Sécurité : Seul un Auditeur ou Superadmin peut appeler cette route
     if (req.user.role !== 'auditeur' && req.user.role !== 'admin') {
         return res.status(403).json({ error: "Accès refusé" });
@@ -26,3 +29,4 @@ app.get('/api/transferts/pending-audit', async (req, res) => {
         res.status(500).send("Erreur serveur");
     }
 });
+module.exports = router;
