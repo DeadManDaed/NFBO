@@ -57,4 +57,27 @@ router.post('/local-approve/:id', async (req, res) => {
         res.status(500).send("Erreur lors de la mise à jour.");
     }
 });
+// Validation finale par l'Auditeur
+router.post('/final-approve/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query(
+            `UPDATE transferts_urgence 
+             SET audit_final_ok = TRUE, statut = 'APPROVED' 
+             WHERE id = $1 AND admin_local_depart_ok = TRUE AND admin_local_dest_ok = TRUE
+             RETURNING *`, [id]
+        );
+
+        if (result.rowCount === 0) {
+            return res.status(400).json({ error: "Les validations locales manquent encore." });
+        }
+
+        res.json({ message: "Transfert validé et stock mis à jour.", data: result.rows[0] });
+    } catch (err) {
+        // On utilise notre logger pour l'analyse future
+        logDeploymentError('Final-Approve-Fail', err);
+        res.status(500).send("Erreur serveur");
+    }
+});
 module.exports = router;
