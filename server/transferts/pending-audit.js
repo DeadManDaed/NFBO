@@ -29,4 +29,32 @@ router.get('/pending-audit', async (req, res) => {
         res.status(500).send("Erreur serveur");
     }
 });
+// Route pour approuver localement (Départ ou Destination)
+router.post('/local-approve/:id', async (req, res) => {
+    const { id } = req.params;
+    const { magasin_id } = req.body;
+
+    try {
+        // On vérifie si le magasin est l'expéditeur ou le destinataire pour cocher le bon drapeau
+        const query = `
+            UPDATE transferts_urgence 
+            SET 
+                admin_local_depart_ok = CASE WHEN magasin_id_depart = $1 THEN TRUE ELSE admin_local_depart_ok END,
+                admin_local_dest_ok = CASE WHEN magasin_id_dest = $1 THEN TRUE ELSE admin_local_dest_ok END,
+                statut = CASE 
+                    WHEN (magasin_id_depart = $1 AND admin_local_dest_ok = TRUE) OR (magasin_id_dest = $1 AND admin_local_depart_ok = TRUE) 
+                    THEN 'WAITING_AUDIT' 
+                    ELSE statut 
+                END
+            WHERE id = $2
+            RETURNING *;
+        `;
+        
+        const result = await pool.query(query, [magasin_id, id]);
+        res.json(result.rows[0]);
+    } catch (err) {
+        logDeploymentError('DB-Local-Approve-Update', err);
+        res.status(500).send("Erreur lors de la mise à jour.");
+    }
+});
 module.exports = router;
