@@ -2,7 +2,9 @@
 const Ajv = require('ajv');
 const addFormats = require('ajv-formats');
 
-const ajv = new Ajv({ allErrors: true, removeAdditional: false });
+const ajv = new Ajv({allErrors: true, 
+    removeAdditional: false, 
+    allowUnionTypes: true});
 addFormats(ajv);
 
 const lotSchema = require('./lotSchema.json');
@@ -44,3 +46,4 @@ function validateAdmission(req, res, next) {
 }
 
 module.exports = { validateLotDefinition, validateAdmission };
+
