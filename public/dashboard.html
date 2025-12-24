@@ -239,12 +239,41 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
     </div>
 </form></div>
 
+    
+
+
 <div id="module-transferts" class="module-container">
     <div class="tabs" style="display:flex; gap:10px; margin-bottom:20px;">
         <button class="tab-btn active" onclick="switchTab('expedier')">EXPÉDIER</button>
         <button class="tab-btn" onclick="switchTab('receptionner')">RÉCEPTIONNER</button>
     
-
+<form id="form-expedition" class="tab-content">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            <div class="form-group">
+                <label>Produit à transférer (Stock Local) *</label>
+                <select id="trans-lot" required style="width:100%; padding:10px;">
+                    </select>
+            </div>
+            <div class="form-group">
+                <label>Magasin Destinataire *</label>
+                <select id="trans-dest" required style="width:100%; padding:10px;">
+                    </select>
+            </div>
+            <div class="form-group">
+                <label>Quantité à envoyer *</label>
+                <input type="number" id="trans-qty" required style="width:100%; padding:10px;">
+            </div>
+            <div class="form-group">
+                <label>Transporteur / Chauffeur *</label>
+                <input type="text" id="trans-driver" placeholder="Nom et Matricule" required style="width:100%; padding:10px;">
+            </div>
+        </div>
+        <div style="margin-top:20px;">
+            <label>Note d'accompagnement (Optionnel)</label>
+            <textarea id="trans-note" style="width:100%; height:60px;"></textarea>
+        </div>
+        <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px;">LANCER L'EXPÉDITION</button>
+    </form>
     
     <div id="list-reception" class="tab-content" style="display:none;">
         <table style="width:100%; border-collapse: collapse; margin-top:10px;">
@@ -345,7 +374,7 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
 }
         </script>
 </div>
-    
+  
     <div id="module-audit" class="module"><div class="audit-layout">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:25px;">
         <h2 style="color:var(--admin); margin:0;"><i class="fa-solid fa-chart-line"></i> Audit & Performance</h2>
