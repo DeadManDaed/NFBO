@@ -5,11 +5,13 @@ async function loadReferencesForForms(type) {
         if (type === 'admission') {
             const [resLots, resProds] = await Promise.all([
                 fetch('/api/lots'),
+                fetch('/api/magasins'),
                 fetch('/api/producteurs')
             ]);
 
             const lots = await resLots.json();
             const prods = await resProds.json();
+            const magasins = await resMagasins.json();
 
             const selectLot = document.getElementById('adm-lot-select');
             if (selectLot) {
@@ -17,10 +19,15 @@ async function loadReferencesForForms(type) {
                     lots.map(l => `<option value="${l.id}">${l.description}</option>`).join('');
             }
 
-            const selectProd = document.getElementById('adm-prod-select');
+            const selectProd = document.getElementById('adm-producer-select');
             if (selectProd) {
                 selectProd.innerHTML = '<option value="">-- Choisir un producteur --</option>' + 
                     prods.map(p => `<option value="${p.id}">${p.nom} (${p.code_producteur || p.id})</option>`).join('');
+            }
+            const selectMag = document.getElementById('adm-magasin-select');
+            if (selectMag) {
+                selectMag.innerHTML = '<option value="">-- Choisir un magasin source --</option>' + 
+                    magasins.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
             }
         } 
         
@@ -33,13 +40,13 @@ async function loadReferencesForForms(type) {
             const lots = await resLots.json();
             const magasins = await resMagasins.json();
 
-            const selectLot = document.getElementById('ret-lot-select');
+            const selectLot = document.getElementById('retraiLot');
             if (selectLot) {
                 selectLot.innerHTML = '<option value="">-- Choisir un lot --</option>' + 
                     lots.map(l => `<option value="${l.id}">${l.description}</option>`).join('');
             }
 
-            const selectMag = document.getElementById('ret-magasin-select');
+            const selectMag = document.getElementById('retraitMagasin');
             if (selectMag) {
                 selectMag.innerHTML = '<option value="">-- Choisir un magasin source --</option>' + 
                     magasins.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
