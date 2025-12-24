@@ -1,105 +1,40 @@
 // public/js/ui-utils.js
 
-async function loadReferencesForForms(type) {
-    try {
-        if (type === 'admission') {
-            const [resLots, resProds, resMagasins] = await Promise.all([
-                fetch('/api/lots'),
-                fetch('/api/magasins'),
-                fetch('/api/producteurs')
-            ]);
+/**
+ * Charge des données de référence depuis une table et remplit un <select>.
+ * @param {string} type - Nom de la ressource API (ex: 'magasins', 'lots', 'producteurs', 'regions', 'departements', 'arrondissements').
+ * @param {string} targetId - ID du <select> à remplir.
+ * @param {string|null} parentId - Optionnel, utilisé pour les cascades (ex: departements par région).
+ * @param {function|null} labelFn - Optionnel, fonction pour formater le libellé affiché.
+ */
+async function loadReference(type, targetId, parentId = null, labelFn = null) {
+    const target = document.getElementById(targetId);
+    if (!target) return;
 
-            const lots = await resLots.json();
-            const prods = await resProds.json();
-           // const magasins = await resMagasins.json();
+    let url = `/api/${type}`;
+    if (parentId) url += `?parent_id=${parentId}`;
 
-            const selectLot = document.getElementById('adm-lot-select');
-            if (selectLot) {
-                selectLot.innerHTML = '<option value="">-- Choisir un lot --</option>' + 
-                    lots.map(l => `<option value="${l.id}">${l.description}</option>`).join('');
-            }
-
-            const selectProd = document.getElementById('adm-producer-select');
-            if (selectProd) {
-                selectProd.innerHTML = '<option value="">-- Choisir un producteur --</option>' + 
-                    prods.map(p => `<option value="${p.id}">${p.nom} (${p.code_producteur || p.id})</option>`).join('');
-            }            
-        } 
-        
-        else if (type === 'retrait') {
-            const [resLots, resMagasins] = await Promise.all([
-                fetch('/api/lots'),
-                fetch('/api/magasins')
-            ]);
-
-            const lots = await resLots.json();
-            const magasins = await resMagasins.json();
-
-            const selectLot = document.getElementById('retraitLot');
-            if (selectLot) {
-                selectLot.innerHTML = '<option value="">-- Choisir un lot --</option>' + 
-                    lots.map(l => `<option value="${l.id}">${l.description}</option>`).join('');
-            }
-
-            const selectMag = document.getElementById('retraitMagasin');
-            if (selectMag) {
-                selectMag.innerHTML = '<option value="">-- Choisir un magasin source --</option>' + 
-                    magasins.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
-            }
-        }
-    } catch (err) {
-        console.error("Erreur chargement:", err);
-    }
-}
-
-// public/js/navigation.js (ou ton script principal)
-
-function openModule(id) {
-    document.getElementById('main-grid').style.display = 'none';
-    
-    const normalizedId = id.endsWith('s') ? id.slice(0, -1) : id; 
-    const target = document.getElementById('module-' + normalizedId);
-    
-    if (target) {
-        target.style.display = 'block';
-        if (normalizedId === 'admission' || normalizedId === 'retrait') {
-            loadReferencesForForms(normalizedId);
-        }
-    }
-}
-
-// public/js/ui-utils.js
-
-async function loadStockForMagasin(magasinId) {
-    const selectLot = document.getElementById('retraitLot');
-    
-    if (!magasinId) {
-        selectLot.innerHTML = '<option value="">-- Choisir un magasin d'abord --</option>';
-        return;
-    }
-
-    selectLot.innerHTML = '<option value="">Chargement du stock...</option>';
+    target.innerHTML = `<option value="">Chargement...</option>`;
 
     try {
-        // On appelle une route dédiée au stock par magasin
-        const res = await fetch(`/api/lots/magasin/${magasinId}`);
-        const stocks = await res.json();
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`);
+        const data = await res.json();
 
-        if (stocks.length === 0) {
-            selectLot.innerHTML = '<option value="">⚠️ Aucun stock dans ce magasin</option>';
+        if (!Array.isArray(data) || data.length === 0) {
+            target.innerHTML = `<option value="">⚠️ Aucun ${type} trouvé</option>`;
             return;
         }
 
-        // On remplit le select avec les lots dispos (l.quantite est le stock actuel)
-        selectLot.innerHTML = '<option value="">-- Choisir le produit à sortir --</option>' + 
-            stocks.map(s => `
-                <option value="${s.lot_id}">
-                    ${s.description} (Dispo: ${s.quantite} ${s.unite || ''})
-                </option>
-            `).join('');
+        target.innerHTML = `<option value="">-- Sélectionner --</option>` +
+            data.map(item => {
+                const label = labelFn ? labelFn(item) : (item.nom || item.description || item.username || item.id);
+                return `<option value="${item.id}">${label}</option>`;
+            }).join('');
 
+        target.disabled = false;
     } catch (err) {
-        console.error("Erreur chargement stock magasin:", err);
-        selectLot.innerHTML = '<option value="">❌ Erreur de chargement</option>';
+        console.error(`Erreur chargement ${type}:`, err);
+        target.innerHTML = `<option value="">❌ Erreur de chargement</option>`;
     }
 }
