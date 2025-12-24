@@ -33,6 +33,41 @@
 <script src="js/ui-utils.js"></script>
 <script src="app.js"></script>
     <script src="common.js"></script>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - NBFO</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    .admin-nav-btn {
+        padding: 12px; border: none; border-radius: 6px; background: white;
+        text-align: left; cursor: pointer; transition: 0.2s; font-weight: 500; color: #555;
+    }
+    .admin-nav-btn:hover { background: #eef2f7; }
+    .admin-nav-btn.active { background: var(--admin); color: white; }
+    .admin-table { width: 100%; border-collapse: collapse; background: white; }
+    .admin-table th, .admin-table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+</style>
+</head>
+<body>
+
+<nav class="admin-sidebar" style="width: 220px; display: flex; flex-direction: column; gap: 10px;">
+    <h3 style="font-size: 14px; color: var(--admin); text-transform: uppercase;">Configuration</h3>
+    <button class="admin-nav-btn active" onclick="loadAdminSection('magasins', event)"><i class="fa-solid fa-shop"></i> Magasins</button>
+    <button class="admin-nav-btn" onclick="loadAdminSection('users', event)"><i class="fa-solid fa-users-gear"></i> Utilisateurs</button>
+    <button class="admin-nav-btn" onclick="loadAdminSection('employers', event)"><i class="fa-solid fa-id-badge"></i> Employés</button>
+    <button class="admin-nav-btn" onclick="loadAdminSection('producteurs', event)"><i class="fa-solid fa-wheat-awn"></i> Producteurs</button>
+    <button class="admin-nav-btn" onclick="loadAdminSection('lots', event)"><i class="fa-solid fa-tags"></i> Référentiel Lots</button>
+    <button class="admin-nav-btn" onclick="loadAdminSection('validations', event)"><i class="fa-solid fa-tags"></i> Validations</button>
+
+    <hr style="width:100%; border:0; border-top:1px solid #ddd;">
+    <button class="btn-back" onclick="closeModule()">← Quitter</button>
+</nav>
+<script src="js/ui-utils.js"></script>
+<script src="app.js"></script>
+    <script src="common.js"></script>
 <script>
 // --- Helpers génériques (fallbacks si ui-utils.js n'est pas chargé) ---
 async function safeFetchJson(url) {
