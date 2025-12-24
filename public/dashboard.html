@@ -242,24 +242,30 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
     
 
 
-<div id="module-transferts" class="module"><div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-    <h2 style="color:#d32f2f"><i class="fa-solid fa-cart-arrow-down">Transferts inter-magasins</h2>
-    <button class="btn-back" onclick="closeModule()">← Retour</button>
+<div id="module-transferts" class="module">
+    <div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #546e7a; padding-bottom: 10px;">
+        <h2 style="color:#546e7a; margin:0;"><i class="fa-solid fa-truck-arrow-right"></i> Transferts inter-magasins</h2>
+        <button class="btn-back" onclick="closeModule()">← Retour</button>
+    </div>
+
     <div class="tabs" style="display:flex; gap:10px; margin-bottom:20px;">
-        <button class="tab-btn active" onclick="switchTab('expedier')">EXPÉDIER</button>
-        <button class="tab-btn" onclick="switchTab('receptionner')">RÉCEPTIONNER</button>
-    
-<form id="form-expedition" class="tab-content">
+        <button class="tab-btn active" onclick="switchTab('expedier')" style="padding:10px 20px; border:none; border-radius:6px; background:var(--primary); color:white; cursor:pointer;">EXPÉDIER</button>
+        <button class="tab-btn" onclick="switchTab('receptionner')" style="padding:10px 20px; border:none; border-radius:6px; background:#eee; cursor:pointer;">RÉCEPTIONNER</button>
+    </div>
+
+    <form id="form-expedition" class="tab-content">
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
             <div class="form-group">
                 <label>Produit à transférer (Stock Local) *</label>
                 <select id="trans-lot" required style="width:100%; padding:10px;">
-                    </select>
+                    <option value="">-- Sélectionner un lot --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Magasin Destinataire *</label>
                 <select id="trans-dest" required style="width:100%; padding:10px;">
-                    </select>
+                    <option value="">-- Sélectionner un magasin --</option>
+                </select>
             </div>
             <div class="form-group">
                 <label>Quantité à envoyer *</label>
@@ -272,109 +278,130 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
         </div>
         <div style="margin-top:20px;">
             <label>Note d'accompagnement (Optionnel)</label>
-            <textarea id="trans-note" style="width:100%; height:60px;"></textarea>
+            <textarea id="trans-note" style="width:100%; height:60px; padding:10px;"></textarea>
         </div>
-        <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px;">LANCER L'EXPÉDITION</button>
+        <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px; padding:12px 30px; border:none; border-radius:6px; cursor:pointer;">LANCER L'EXPÉDITION</button>
     </form>
     
     <div id="list-reception" class="tab-content" style="display:none;">
-        <table style="width:100%; border-collapse: collapse; margin-top:10px;">
+        <table style="width:100%; border-collapse: collapse; margin-top:10px; background:white;">
             <thead>
                 <tr style="background:#f5f5f5;">
-                    <th>Provenance</th>
-                    <th>Produit</th>
-                    <th>Qté Envoyée</th>
-                    <th>Qté Reçue (Pesée)</th>
-                    <th>Qualité</th>
-                    <th>Action</th>
+                    <th style="padding:12px; text-align:left; border-bottom:1px solid #eee;">Provenance</th>
+                    <th style="padding:12px; text-align:left; border-bottom:1px solid #eee;">Produit</th>
+                    <th style="padding:12px; text-align:left; border-bottom:1px solid #eee;">Qté Envoyée</th>
+                    <th style="padding:12px; text-align:left; border-bottom:1px solid #eee;">Qté Reçue (Pesée)</th>
+                    <th style="padding:12px; text-align:left; border-bottom:1px solid #eee;">Qualité</th>
+                    <th style="padding:12px; text-align:left; border-bottom:1px solid #eee;">Action</th>
                 </tr>
             </thead>
             <tbody id="table-reception-body">
                 <tr>
-                    <td>Magasin Douala</td>
-                    <td>Maïs Sec</td>
-                    <td>100 Sacs</td>
-                    <td><input type="number" value="100" style="width:60px;"></td>
-                    <td>
-                        <select>
+                    <td style="padding:12px; border-bottom:1px solid #eee;">Magasin Douala</td>
+                    <td style="padding:12px; border-bottom:1px solid #eee;">Maïs Sec</td>
+                    <td style="padding:12px; border-bottom:1px solid #eee;">100 Sacs</td>
+                    <td style="padding:12px; border-bottom:1px solid #eee;"><input type="number" value="100" style="width:60px; padding:5px;"></td>
+                    <td style="padding:12px; border-bottom:1px solid #eee;">
+                        <select style="padding:5px;">
                             <option>Grade A (Conforme)</option>
                             <option>Grade B (Altéré)</option>
                         </select>
                     </td>
-                    <td><button class="btn-small" onclick="validerReception(this)">ACCEPTER</button></td>
+                    <td style="padding:12px; border-bottom:1px solid #eee;"><button class="btn-small" onclick="validerReception(this)" style="padding:6px 12px; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">ACCEPTER</button></td>
                 </tr>
             </tbody>
         </table>
-    </div></div>
+    </div>
+
     <script>
-    async function validerReception(btn) {
-    const row = btn.closest('tr');
-    const qteEnvoyee = 100; // Exemple
-    const qteRecue = parseFloat(row.querySelector('input').value);
-    
-    // 1. Détection automatique de litige pour l'auditeur
-    if (qteRecue < qteEnvoyee) {
-        const confirmLitige = confirm(`Écart détecté : ${qteEnvoyee - qteRecue} unités manquantes. Voulez-vous ouvrir un incident d'audit ?`);
-        if(!confirmLitige) return;
-    }
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab-btn');
+            tabs.forEach(t => {
+                t.style.background = '#eee';
+                t.style.color = '#333';
+                t.classList.remove('active');
+            });
+            event.target.style.background = 'var(--primary)';
+            event.target.style.color = 'white';
+            event.target.classList.add('active');
 
-    try {
-        const res = await fetch('/api/transferts/valider', {
-            method: 'POST',
-            body: JSON.stringify({
-                id: 'TR-987',
-                qteRecue: qteRecue,
-                magasin_id: user.magasin_id // Magasin qui reçoit
-            })
-        });
-
-        if(res.ok) {
-            alert("Réception validée. Le stock est désormais sous votre responsabilité.");
-            row.remove();
+            if(tab === 'expedier') {
+                document.getElementById('form-expedition').style.display = 'block';
+                document.getElementById('list-reception').style.display = 'none';
+            } else {
+                document.getElementById('form-expedition').style.display = 'none';
+                document.getElementById('list-reception').style.display = 'block';
+            }
         }
-    } catch (err) {
-        // Capture l'erreur pour l'analyse de fin d'année 2025
-        logDeploymentError('Transfer-Reception-Fail', err);
-    }
-}
+
+        async function validerReception(btn) {
+            const row = btn.closest('tr');
+            const qteEnvoyee = 100;
+            const qteRecue = parseFloat(row.querySelector('input').value);
+            
+            if (qteRecue < qteEnvoyee) {
+                const confirmLitige = confirm(`Écart détecté : ${qteEnvoyee - qteRecue} unités manquantes. Voulez-vous ouvrir un incident d'audit ?`);
+                if(!confirmLitige) return;
+            }
+
+            try {
+                const res = await fetch('/api/transferts/valider', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        id: 'TR-987',
+                        qteRecue: qteRecue,
+                        magasin_id: user.magasin_id
+                    })
+                });
+
+                if(res.ok) {
+                    alert("Réception validée. Le stock est désormais sous votre responsabilité.");
+                    row.remove();
+                }
+            } catch (err) {
+                logDeploymentError('Transfer-Reception-Fail', err);
+            }
+        }
+
         function imprimerBonTransfert(data) {
-    const win = window.open('', '_blank');
-    win.document.write(`
-        <html>
-        <head>
-            <title>Bon de Transfert #TR-${data.id}</title>
-            <style>
-                body { font-family: 'Courier New', Courier, monospace; padding: 20px; border: 2px solid #000; }
-                .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
-                .section { margin: 20px 0; display: flex; justify-content: space-between; }
-                .stamp { border: 2px solid #d32f2f; color: #d32f2f; padding: 10px; transform: rotate(-15deg); display: inline-block; font-weight: bold; }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h2>BON DE MOUVEMENT DE STOCK INTER-MAGASINS</h2>
-                <p>Date : ${new Date().toLocaleString()}</p>
-            </div>
-            <div class="section">
-                <div><strong>EXPÉDITEUR :</strong><br>${data.magasinDepart}<br>Responsable : ${user.nom}</div>
-                <div><strong>DESTINATAIRE :</strong><br>${data.magasinDest}<br>Responsable : ${data.destinataireNom}</div>
-            </div>
-            <div class="section">
-                <div><strong>PRODUIT :</strong> ${data.produit}</div>
-                <div><strong>QUANTITÉ :</strong> ${data.quantite} ${data.unite}</div>
-            </div>
-            <div style="margin: 20px 0;"><strong>TRANSPORTEUR :</strong> ${data.chauffeur}</div>
-            <div style="margin: 20px 0; border-top: 1px dashed #000; padding-top: 10px;">
-                <p>Signature Expéditeur : .......................</p>
-                <p>Signature Chauffeur : .......................</p>
-            </div>
-            <div class="stamp">EN TRANSIT</div>
-        </body>
-        </html>
-    `);
-    win.print();
-}
-        </script>
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html>
+                <head>
+                    <title>Bon de Transfert #TR-${data.id}</title>
+                    <style>
+                        body { font-family: 'Courier New', Courier, monospace; padding: 20px; border: 2px solid #000; }
+                        .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; }
+                        .section { margin: 20px 0; display: flex; justify-content: space-between; }
+                        .stamp { border: 2px solid #d32f2f; color: #d32f2f; padding: 10px; transform: rotate(-15deg); display: inline-block; font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h2>BON DE MOUVEMENT DE STOCK INTER-MAGASINS</h2>
+                        <p>Date : ${new Date().toLocaleString()}</p>
+                    </div>
+                    <div class="section">
+                        <div><strong>EXPÉDITEUR :</strong><br>${data.magasinDepart}<br>Responsable : ${user.nom}</div>
+                        <div><strong>DESTINATAIRE :</strong><br>${data.magasinDest}<br>Responsable : ${data.destinataireNom}</div>
+                    </div>
+                    <div class="section">
+                        <div><strong>PRODUIT :</strong> ${data.produit}</div>
+                        <div><strong>QUANTITÉ :</strong> ${data.quantite} ${data.unite}</div>
+                    </div>
+                    <div style="margin: 20px 0;"><strong>TRANSPORTEUR :</strong> ${data.chauffeur}</div>
+                    <div style="margin: 20px 0; border-top: 1px dashed #000; padding-top: 10px;">
+                        <p>Signature Expéditeur : .......................</p>
+                        <p>Signature Chauffeur : .......................</p>
+                    </div>
+                    <div class="stamp">EN TRANSIT</div>
+                </body>
+                </html>
+            `);
+            win.print();
+        }
+    </script>
 </div>
   
     <div id="module-audit" class="module"><div class="audit-layout">
