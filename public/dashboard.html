@@ -242,7 +242,9 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
     
 
 
-<div id="module-transferts" class="module-container">
+<div id="module-transferts" class="module"><div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <h2 style="color:#d32f2f"><i class="fa-solid fa-cart-arrow-down">Transferts inter-magasins</h2>
+    <button class="btn-back" onclick="closeModule()">← Retour</button>
     <div class="tabs" style="display:flex; gap:10px; margin-bottom:20px;">
         <button class="tab-btn active" onclick="switchTab('expedier')">EXPÉDIER</button>
         <button class="tab-btn" onclick="switchTab('receptionner')">RÉCEPTIONNER</button>
