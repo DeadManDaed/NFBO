@@ -39,7 +39,7 @@ router.get('/', async (req, res) => {
         const query = `
     SELECT l.*, c.nom as categorie_nom 
     FROM lots l 
-    LEFT JOIN categories c ON l.categorie_id = c.id 
+    LEFT JOIN categorie c ON l.categorie_id = c.id 
     ORDER BY l.date_creation DESC
 `;
     const result = await pool.query(query);
@@ -110,6 +110,7 @@ router.delete('/:id', async (req, res) => {
 
 // ... gardez vos routes GET, PUT et DELETE ...
 module.exports = router;
+
 
 
 
