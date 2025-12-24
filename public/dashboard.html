@@ -775,8 +775,8 @@ async function sendMessage(e) {
     <nav class="admin-sidebar" style="width: 220px; display: flex; flex-direction: column; gap: 10px;">
         <h3 style="font-size: 14px; color: var(--admin); text-transform: uppercase;">Configuration</h3>
         <button class="admin-nav-btn active" onclick="loadAdminSection('magasins')"><i class="fa-solid fa-shop"></i> Magasins</button>
-        <button class="admin-nav-btn" onclick="loadAdminSection('utilisateurs')"><i class="fa-solid fa-users-gear"></i> Utilisateurs</button>
-        <button class="admin-nav-btn" onclick="loadAdminSection('employes')"><i class="fa-solid fa-id-badge"></i> Employés</button>
+        <button class="admin-nav-btn" onclick="loadAdminSection('users')"><i class="fa-solid fa-users-gear"></i> Utilisateurs</button>
+        <button class="admin-nav-btn" onclick="loadAdminSection('employers')"><i class="fa-solid fa-id-badge"></i> Employés</button>
         <button class="admin-nav-btn" onclick="loadAdminSection('producteurs')"><i class="fa-solid fa-wheat-awn"></i> Producteurs</button>
         <button class="admin-nav-btn" onclick="loadAdminSection('lots')"><i class="fa-solid fa-tags"></i> Référentiel Lots</button>
         <button class="admin-nav-btn" onclick="loadAdminSection('validations')"><i class="fa-solid fa-tags"></i> Validations</button>
@@ -827,14 +827,8 @@ async function loadAdminSection(section) {
 // 2. Chargement des données (API)
 async function refreshAdminTable() {
     const wrapper = document.getElementById('admin-table-wrapper');
-    wrapper.innerHTML = "Chargement...";
-    
-    // Mapping pour faire correspondre l'interface et le backend
-    const sectionToApi = {
-        'utilisateurs': 'users',
-        'employe': 'employers',
-        // 'magasins' et 'producteurs' restent identiques s'ils matchent déjà
-    };
+    wrapper.innerHTML = "Chargement...";   
+
 
     // On utilise le nom mappé, ou le nom par défaut si pas de mapping
     const apiName = sectionToApi[currentSection] || currentSection;
