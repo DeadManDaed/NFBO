@@ -145,8 +145,10 @@
         <button type="submit" class="btn" style="background:var(--primary); color:white; padding:15px 50px; font-weight:bold;">VALIDER L'ADMISSION</button>
     </div>
 </form>
-
+<script src="js/ui-utils.js"></script>
+<script src="js/dashboard-main.js"></script>
 <script>
+    
 // --- LOGIQUE FINANCIERE (Simulation TRG-FINANCE-INSERT) ---
 
 let activeLotData = null;
@@ -165,36 +167,9 @@ async function onAdmissionLotChange() {
 
     calculateInternalFinance();
 }
-async function loadReferencesForForms() {
-    try {
-        // Chargement parallèle des deux listes
-        const [resLots, resProds] = await Promise.all([
-            fetch('/api/lots'),
-            fetch('/api/producteurs')
-        ]);
 
-        const lots = await resLots.json();
-        const producteurs = await resProds.json();
-
-        // 1. Remplir le select des Lots
-        const selectLot = document.getElementById('adm-lot-select');
-        if (selectLot) {
-            selectLot.innerHTML = '<option value="">-- Choisir un produit --</option>' + 
-                lots.map(l => `<option value="${l.id}">${l.description} (${l.prix_ref} FCFA)</option>`).join('');
-            
-            // On stocke les lots globalement pour y accéder lors du changement de sélection (prix_ref)
-            window.availableLots = lots; 
-        }
-
-        // 2. Remplir le select des Producteurs (si tu en as un)
-        // Ou simplement aider à l'auto-complétion de l'ID
-        console.log(`${producteurs.length} producteurs chargés.`);
-        window.availableProducers = producteurs;
-
-    } catch (err) {
-        console.error("Erreur lors du chargement des références:", err);
-    }
-}
+    /****************** Finance interne *************************/
+    
 function calculateInternalFinance() {
     if(!activeLotData) return;
 
@@ -1161,7 +1136,7 @@ async function logDeploymentError(context, error) {
         document.getElementById('main-grid').style.display = 'none';
         document.getElementById('module-' + id).style.display = 'block';
         // Ici, nous appellerons la fonction de chargement spécifique au fragment
-        if(id=='admissions')
+        if(id=='admission')
         { loadReferencesForForms();}
         
     }
@@ -1170,36 +1145,6 @@ async function logDeploymentError(context, error) {
         document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
         document.getElementById('main-grid').style.display = 'grid';
     }
-    async function loadReferencesForForms() {
-    try {
-        // Chargement parallèle des deux listes
-        const [resLots, resProds] = await Promise.all([
-            fetch('/api/lots'),
-            fetch('/api/producteurs')
-        ]);
-
-        const lots = await resLots.json();
-        const producteurs = await resProds.json();
-
-        // 1. Remplir le select des Lots
-        const selectLot = document.getElementById('adm-lot-select');
-        if (selectLot) {
-            selectLot.innerHTML = '<option value="">-- Choisir un produit --</option>' + 
-                lots.map(l => `<option value="${l.id}">${l.description} (${l.prix_ref} FCFA)</option>`).join('');
-            
-            // On stocke les lots globalement pour y accéder lors du changement de sélection (prix_ref)
-            window.availableLots = lots; 
-        }
-
-        // 2. Remplir le select des Producteurs (si tu en as un)
-        // Ou simplement aider à l'auto-complétion de l'ID
-        console.log(`${producteurs.length} producteurs chargés.`);
-        window.availableProducers = producteurs;
-
-    } catch (err) {
-        console.error("Erreur lors du chargement des références:", err);
-    }
-}
 
     window.onload = init;
 </script>
