@@ -12,7 +12,7 @@ const admissionsRouter = require('./routes/admissions');
 const retraitsRouter = require('./routes/retraits');
 const employersRouter = require('./routes/employers');
 const magasinsRoutes = require('./routes/magasins');
-const transfertsRoutes = require('./server/transferts/pending-audit');
+const transfertsRoutes = require('./transferts/pending-audit');
 //const errorsRoute = require('./logs/errors');
 
 const app = express();
@@ -63,6 +63,7 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
 
 
 
