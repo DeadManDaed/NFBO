@@ -926,17 +926,6 @@ const btnAdd = document.getElementById('btn-add-admin');
 
 // pas besoin de switch ici, le bouton appelle toujours showAdminForm()
 
-    function handleClickNouveau() {
-    if (currentSection === 'lots') {
-        ouvrirModalLot();
-    } else if (currentSection === 'utilisateurs' || currentSection === 'users') {
-        // Appelle ton formulaire de création d'utilisateur
-        document.getElementById('modal-user').classList.add('active');
-    } else {
-        alert(`Le formulaire pour ${currentSection} est en cours de développement.`);
-    }
-}
-
 // 3. Rendu du tableau dynamique
 function renderAdminTable(data) {
     const wrapper = document.getElementById('admin-table-wrapper');
@@ -961,160 +950,159 @@ function renderAdminTable(data) {
 }
 
 // 4. Formulaire avec CASCADE GEOGRAPHIQUE
+// 4. Formulaire dynamique selon la section
 function showAdminForm() {
     const wrapper = document.getElementById('admin-table-wrapper');
-if(currentSection === 'lots') {
+    
+    switch(currentSection) {
+        case 'magasins':
+            showFormMagasins(wrapper);
+            break;
+        case 'users':
+        case 'utilisateurs':
+            showFormUsers(wrapper);
+            break;
+        case 'employers':
+        case 'employes':
+            showFormEmployers(wrapper);
+            break;
+        case 'producteurs':
+            showFormProducteurs(wrapper);
+            break;
+        case 'lots':
+            showFormLots(wrapper);
+            break;
+        case 'validations':
+            wrapper.innerHTML = `<p style="padding:20px; color:#666;">Les validations ne nécessitent pas de création manuelle.</p>`;
+            break;
+        default:
+            wrapper.innerHTML = `<p style="padding:20px; color:orange;">⚠️ Formulaire "${currentSection}" non implémenté.</p>`;
+    }
+}
+
+// === FORMULAIRE MAGASINS ===
+function showFormMagasins(wrapper) {
     wrapper.innerHTML = `
-        <form id="form-lots-complet" style="background:white; padding:25px; border-radius:8px;">
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
-                
+        <form id="form-magasin" style="background:white; padding:20px; border-radius:8px; max-width:600px;">
+            <h3 style="margin-top:0; color:var(--admin);">Nouveau Magasin</h3>
+            <div style="display:grid; gap:15px;">
                 <div class="form-group">
-                    <label>Catégorie *</label>
-                    <select id="lot-categorie" required style="width:100%; padding:10px;">
-                        <option value="">Sélectionner</option>
-                        <option value="frais">Produits frais</option>
-                        <option value="court">Cycle court</option>
-                        <option value="secs">Produits secs</option>
-                        <option value="manufactures_alim">Manufacturés alimentaires</option>
-                        <option value="manufactures_non_alim">Manufacturés non alimentaires</option>
-                        <option value="sensibles">Produits sensibles</option>
+                    <label>Nom du magasin *</label>
+                    <input type="text" id="magasin-nom" placeholder="Ex: Magasin Central Yaoundé" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Code *</label>
+                    <input type="text" id="magasin-code" placeholder="Ex: YDE001" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;" maxlength="10">
+                </div>
+                <div class="form-group">
+                    <label>Région</label>
+                    <select id="magasin-region" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Sélectionner une région --</option>
                     </select>
                 </div>
-
-                <div class="form-group">
-                    <label>Description *</label>
-                    <input type="text" id="lot-description" required style="width:100%; padding:10px;">
+                <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                    <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee;">Annuler</button>
+                    <button type="submit" class="btn" style="background:var(--admin); color:white;">Enregistrer</button>
                 </div>
-
-                <div class="form-group">
-                    <label>Prix de Référence (FCFA/Unité)</label>
-                    <input type="number" id="lot-prix-ref" required style="width:100%; padding:10px;">                
-                </div>
-
-                <div class="form-group">
-                    <label>Unités admises *</label>
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:13px; margin-top:5px;">
-                        <label><input type="checkbox" name="unite" value="kg"> Kilogrammes</label>
-                        <label><input type="checkbox" name="unite" value="gr"> Grammes</label>
-                        <label><input type="checkbox" name="unite" value="litres"> Litres</label>
-                        <label><input type="checkbox" name="unite" value="unites"> Unités</label>
-                        <label><input type="checkbox" name="unite" value="sacs"> Sacs</label>
-                        <label><input type="checkbox" name="unite" value="caisses"> Caisses</label>
-                    </div>
-                </div>
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:20px;">
-                <div class="form-group">
-                    <label>Mode de paiement *</label>
-                    <div style="margin-top:10px;">
-                        <label style="margin-right:15px;"><input type="radio" name="paiement" value="solde" checked> Verser sur solde</label>
-                        <label><input type="radio" name="paiement" value="momo"> Mobile Money (+ taxe)</label>
-                    </div>
-                </div>
-
-                <div style="background:#f8f9fa; padding:15px; border-radius:8px; border:1px solid #eee;">
-                    <strong style="font-size:14px;">Simulation du versement :</strong>
-                    <div style="margin-top:10px; font-size:13px; color:#666;">
-                        Dû au producteur : <span style="font-weight:bold; color:#333;">0.00 FCFA</span><br>
-                        <span style="color:#2e7d32;">Caisse virtuelle (surplus) : 0.00 FCFA</span>
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-top:30px; border-top:1px solid #eee; padding-top:20px;">
-                <h4 style="margin:0 0 15px 0; color:#666;">Critères d'admission</h4>
-                <textarea style="width:100%; height:80px; padding:10px; border:1px solid #ddd; border-radius:4px;" placeholder="Détails sur la qualité attendue..."></textarea>
-            </div>
-
-            <div style="margin-top:20px; text-align:right;">
-                <button type="submit" class="btn" style="background:var(--admin); color:white; padding:12px 30px;">ENREGISTRER LE LOT</button>
             </div>
         </form>
     `;
+    
+    // Charger les régions
+    loadReference('regions', 'magasin-region');
+    
+    // Soumission
+    document.getElementById('form-magasin').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            nom: document.getElementById('magasin-nom').value.trim(),
+            code: document.getElementById('magasin-code').value.trim().toUpperCase(),
+            region_id: document.getElementById('magasin-region').value || null
+        };
+        
+        try {
+            const res = await fetch('/api/magasins', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) throw new Error(await res.text());
+            
+            alert('✅ Magasin créé avec succès !');
+            await refreshAdminTable();
+        } catch (err) {
+            alert('❌ Erreur : ' + err.message);
+        }
+    });
 }
-    /* --- À coller DANS showAdminForm() pour la section users --- */
-if (currentSection === 'users' || currentSection === 'utilisateurs') {
+
+// === FORMULAIRE UTILISATEURS ===
+function showFormUsers(wrapper) {
     wrapper.innerHTML = `
         <form id="form-user" style="background:white; padding:20px; border-radius:8px; max-width:900px;">
+            <h3 style="margin-top:0; color:var(--admin);">Nouvel Utilisateur</h3>
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
                 <div class="form-group">
-                    <label>Prénom</label>
-                    <input type="text" name="prenom" id="user-prenom" placeholder="Prénom" required>
+                    <label>Prénom *</label>
+                    <input type="text" id="user-prenom" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
-                    <label>Nom</label>
-                    <input type="text" name="nom" id="user-nom" placeholder="Nom" required>
+                    <label>Nom *</label>
+                    <input type="text" id="user-nom" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
-                    <label>Nom d'utilisateur</label>
-                    <input type="text" name="username" id="user-username" placeholder="username" required>
+                    <label>Nom d'utilisateur *</label>
+                    <input type="text" id="user-username" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
-                    <label>Mot de passe</label>
-                    <input type="password" name="password" id="user-password" placeholder="Mot de passe" required>
+                    <label>Mot de passe *</label>
+                    <input type="password" id="user-password" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
-                    <label>Rôle</label>
-                    <select id="user-role" name="role" required>
+                    <label>Rôle *</label>
+                    <select id="user-role" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                         <option value="">-- Choisir un rôle --</option>
-                        <option value="superadmin">superadmin</option>
-                        <option value="admin">admin</option>
-                        <option value="auditeur">auditeur</option>
-                        <option value="caisse">caisse</option>
-                        <option value="stock">stock</option>
+                        <option value="superadmin">Superadmin</option>
+                        <option value="admin">Admin</option>
+                        <option value="auditeur">Auditeur</option>
+                        <option value="caisse">Caisse</option>
+                        <option value="stock">Stock</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="email" name="email" id="user-email" placeholder="email@exemple.com">
+                    <input type="email" id="user-email" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
                     <label>Téléphone</label>
-                    <input type="tel" name="telephone" id="user-telephone" placeholder="+237 6XXXXXXXX">
+                    <input type="tel" id="user-telephone" placeholder="+237 6XX XX XX XX" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
                     <label>Magasin d'affectation</label>
-                    <select id="user-magasin-select" name="magasin_id">
+                    <select id="user-magasin-select" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                         <option value="">-- Choisir un magasin --</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Statut</label>
-                    <select id="user-statut" name="statut">
-                        <option value="actif">actif</option>
-                        <option value="inactif">inactif</option>
+                    <select id="user-statut" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="actif">Actif</option>
+                        <option value="inactif">Inactif</option>
                     </select>
                 </div>
                 <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
-                    <button type="button" class="btn" onclick="refreshAdminTable()">Annuler</button>
+                    <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee;">Annuler</button>
                     <button type="submit" class="btn" style="background:var(--admin); color:white;">Créer l'utilisateur</button>
                 </div>
             </div>
         </form>
     `;
 
-    // Charger la liste des magasins dans le select (utilise la fonction générique)
-    // Assure-toi que loadReference(type, targetId, parentId, labelFn) est défini dans public/js/ui-utils.js
-    if (typeof loadReference === 'function') {
-        loadReference('magasins', 'user-magasin-select', null, m => `${m.nom} ${m.code ? '(' + m.code + ')' : ''}`);
-    } else {
-        // Fallback minimal si loadReference n'est pas encore présent
-        fetch('/api/magasins')
-            .then(r => r.json())
-            .then(list => {
-                const sel = document.getElementById('user-magasin-select');
-                if (!sel) return;
-                sel.innerHTML = '<option value="">-- Choisir un magasin --</option>' +
-                    list.map(m => `<option value="${m.id}">${m.nom}${m.code ? ' ('+m.code+')' : ''}</option>`).join('');
-            })
-            .catch(err => console.error('Erreur chargement magasins:', err));
-    }
+    loadReference('magasins', 'user-magasin-select', null, m => `${m.nom} (${m.code})`);
 
-    // Soumission du formulaire : POST vers /api/users (ne modifie pas les ids existants)
-    const form = document.getElementById('form-user');
-    form.addEventListener('submit', async (ev) => {
-        ev.preventDefault();
+    document.getElementById('form-user').addEventListener('submit', async (e) => {
+        e.preventDefault();
         const payload = {
             username: document.getElementById('user-username').value.trim(),
             password: document.getElementById('user-password').value,
@@ -1134,52 +1122,269 @@ if (currentSection === 'users' || currentSection === 'utilisateurs') {
                 body: JSON.stringify(payload)
             });
 
-            if (!res.ok) {
-                const errText = await res.text().catch(()=>null);
-                throw new Error(errText || `Erreur HTTP ${res.status}`);
-            }
+            if (!res.ok) throw new Error(await res.text());
 
-            // Rafraîchir la table et afficher un court message
+            alert('✅ Utilisateur créé avec succès !');
             await refreshAdminTable();
-            // Optionnel : remettre le bouton "Ajouter" visible (déjà géré) et scroller vers le haut
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         } catch (err) {
-            console.error('Erreur création utilisateur:', err);
-            // Affichage simple d'erreur ; tu peux remplacer par showError()
-            alert('Impossible de créer l’utilisateur : ' + (err.message || 'erreur inconnue'));
+            alert('❌ Erreur : ' + err.message);
         }
     });
 }
 
-    if(currentSection === 'producteurs') {
-        wrapper.innerHTML = `
-            <form id="form-admin-dynamic" style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-                <input type="text" name="nom" placeholder="Nom complet" required>
-                <input type="tel" name="tel" placeholder="Téléphone">
-                
-                <select id="reg-select" onchange="fetchCascade('departements', this.value, 'dep-select')">
-                    <option value="">-- Sélectionner Région --</option>
-                </select>
-                
-                <select id="dep-select" disabled onchange="fetchCascade('arrondissements', this.value, 'arr-select')">
-                    <option value="">-- Attente Région --</option>
-                </select>
-                
-                <select id="arr-select" disabled>
-                    <option value="">-- Attente Département --</option>
-                </select>
-
-                <div style="grid-column: 1 / -1; display:flex; gap:10px; margin-top:20px;">
-                    <button type="submit" class="btn" style="background:var(--admin); color:white;">Enregistrer</button>
-                    <button type="button" onclick="refreshAdminTable()">Annuler</button>
+// === FORMULAIRE EMPLOYÉS ===
+function showFormEmployers(wrapper) {
+    wrapper.innerHTML = `
+        <form id="form-employer" style="background:white; padding:20px; border-radius:8px; max-width:700px;">
+            <h3 style="margin-top:0; color:var(--admin);">Nouvel Employé</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div class="form-group">
+                    <label>Nom complet *</label>
+                    <input type="text" id="employer-nom" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
-            </form>
-        `;
-        // Charger les régions immédiatement
-        fetchCascade('regions', null, 'reg-select');
-    } else {
-        wrapper.innerHTML = `<p>Formulaire pour ${currentSection} en développement.</p>`;
-    }
+                <div class="form-group">
+                    <label>Rôle *</label>
+                    <select id="employer-role" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Choisir un rôle --</option>
+                        <option value="manutentionnaire">Manutentionnaire</option>
+                        <option value="securite">Sécurité</option>
+                        <option value="chauffeur">Chauffeur</option>
+                        <option value="caissier">Caissier</option>
+                        <option value="magasinier">Magasinier</option>
+                        <option value="maintenance">Maintenance</option>
+                        <option value="nettoyage">Nettoyage</option>
+                        <option value="logistique">Logistique</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Contact</label>
+                    <input type="tel" id="employer-contact" placeholder="+237 6XX XX XX XX" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Magasin d'affectation</label>
+                    <select id="employer-magasin" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Choisir un magasin --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Matricule</label>
+                    <input type="text" id="employer-matricule" placeholder="Ex: EMP-001" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Statut</label>
+                    <select id="employer-statut" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="actif">Actif</option>
+                        <option value="inactif">Inactif</option>
+                    </select>
+                </div>
+                <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                    <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee;">Annuler</button>
+                    <button type="submit" class="btn" style="background:var(--admin); color:white;">Enregistrer</button>
+                </div>
+            </div>
+        </form>
+    `;
+
+    loadReference('magasins', 'employer-magasin', null, m => `${m.nom} (${m.code})`);
+
+    document.getElementById('form-employer').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            nom: document.getElementById('employer-nom').value.trim(),
+            role: document.getElementById('employer-role').value,
+            contact: document.getElementById('employer-contact').value.trim() || null,
+            magasin_id: document.getElementById('employer-magasin').value || null,
+            matricule: document.getElementById('employer-matricule').value.trim() || null,
+            statut: document.getElementById('employer-statut').value || 'actif',
+            date_embauche: new Date().toISOString().split('T')[0]
+        };
+
+        try {
+            const res = await fetch('/api/employers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error(await res.text());
+
+            alert('✅ Employé créé avec succès !');
+            await refreshAdminTable();
+        } catch (err) {
+            alert('❌ Erreur : ' + err.message);
+        }
+    });
+}
+
+// === FORMULAIRE PRODUCTEURS ===
+function showFormProducteurs(wrapper) {
+    wrapper.innerHTML = `
+        <form id="form-producteur" style="background:white; padding:20px; border-radius:8px; max-width:800px;">
+            <h3 style="margin-top:0; color:var(--admin);">Nouveau Producteur</h3>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                <div class="form-group">
+                    <label>Nom complet *</label>
+                    <input type="text" id="prod-nom" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Téléphone *</label>
+                    <input type="tel" id="prod-tel" required placeholder="+237 6XX XX XX XX" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Type de producteur</label>
+                    <input type="text" id="prod-type" placeholder="Ex: Agriculteur, Éleveur..." style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Matricule</label>
+                    <input type="text" id="prod-matricule" placeholder="Ex: PROD-001" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Région</label>
+                    <select id="prod-region" onchange="loadReference('departements', 'prod-departement', this.value)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Sélectionner une région --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Département</label>
+                    <select id="prod-departement" disabled onchange="loadReference('arrondissements', 'prod-arrondissement', this.value)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Attente région --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Arrondissement</label>
+                    <select id="prod-arrondissement" disabled style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Attente département --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Localité</label>
+                    <input type="text" id="prod-localite" placeholder="Village, quartier..." style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+                    <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee;">Annuler</button>
+                    <button type="submit" class="btn" style="background:var(--admin); color:white;">Enregistrer</button>
+                </div>
+            </div>
+        </form>
+    `;
+
+    loadReference('regions', 'prod-region');
+
+    document.getElementById('form-producteur').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const payload = {
+            nom_producteur: document.getElementById('prod-nom').value.trim(),
+            tel_producteur: document.getElementById('prod-tel').value.trim(),
+            type_producteur: document.getElementById('prod-type').value.trim() || null,
+            matricule: document.getElementById('prod-matricule').value.trim() || null,
+            region_id: document.getElementById('prod-region').value || null,
+            departement_id: document.getElementById('prod-departement').value || null,
+            arrondissement_id: document.getElementById('prod-arrondissement').value || null,
+            localite: document.getElementById('prod-localite').value.trim() || null,
+            statut: 'actif'
+        };
+
+        try {
+            const res = await fetch('/api/producteurs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error(await res.text());
+
+            alert('✅ Producteur créé avec succès !');
+            await refreshAdminTable();
+        } catch (err) {
+            alert('❌ Erreur : ' + err.message);
+        }
+    });
+}
+
+// === FORMULAIRE LOTS ===
+function showFormLots(wrapper) {
+    wrapper.innerHTML = `
+        <form id="form-lot" style="background:white; padding:25px; border-radius:8px;">
+            <h3 style="margin-top:0; color:var(--admin);">Nouveau Lot (Produit)</h3>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:20px;">
+                <div class="form-group">
+                    <label>Catégorie *</label>
+                    <select id="lot-categorie" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">Sélectionner</option>
+                        <option value="frais">Produits frais</option>
+                        <option value="court">Cycle court</option>
+                        <option value="secs">Produits secs</option>
+                        <option value="manufactures_alim">Manufacturés alimentaires</option>
+                        <option value="manufactures_non_alim">Manufacturés non alimentaires</option>
+                        <option value="sensibles">Produits sensibles</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description *</label>
+                    <input type="text" id="lot-description" placeholder="Ex: Maïs jaune sec" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Prix de Référence (FCFA/Unité) *</label>
+                    <input type="number" id="lot-prix-ref" step="0.01" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Unités admises *</label>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px; font-size:13px; margin-top:5px;">
+                        <label><input type="checkbox" name="unite" value="kg"> Kilogrammes</label>
+                        <label><input type="checkbox" name="unite" value="gr"> Grammes</label>
+                        <label><input type="checkbox" name="unite" value="litres"> Litres</label>
+                        <label><input type="checkbox" name="unite" value="unites"> Unités</label>
+                        <label><input type="checkbox" name="unite" value="sacs"> Sacs</label>
+                        <label><input type="checkbox" name="unite" value="caisses"> Caisses</label>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:20px; border-top:1px solid #eee; padding-top:20px;">
+                <label>Critères d'admission (optionnel)</label>
+                <textarea id="lot-criteres" style="width:100%; height:80px; padding:10px; border:1px solid #ddd; border-radius:4px;" placeholder="Détails sur la qualité attendue..."></textarea>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+                <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee;">Annuler</button>
+                <button type="submit" class="btn" style="background:var(--admin); color:white; padding:12px 30px;">ENREGISTRER LE LOT</button>
+            </div>
+        </form>
+    `;
+
+    document.getElementById('form-lot').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // Récupérer les unités cochées
+        const unitesChecked = Array.from(document.querySelectorAll('input[name="unite"]:checked'))
+            .map(cb => cb.value);
+        
+        if (unitesChecked.length === 0) {
+            alert('❌ Veuillez sélectionner au moins une unité admise.');
+            return;
+        }
+        
+        const payload = {
+            categorie: document.getElementById('lot-categorie').value,
+            description: document.getElementById('lot-description').value.trim(),
+            prix_ref: parseFloat(document.getElementById('lot-prix-ref').value),
+            unites_admises: unitesChecked,
+            criteres_admission: document.getElementById('lot-criteres').value.trim() || null
+        };
+
+        try {
+            const res = await fetch('/api/lots', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (!res.ok) throw new Error(await res.text());
+
+            alert('✅ Lot créé avec succès !');
+            await refreshAdminTable();
+        } catch (err) {
+            alert('❌ Erreur : ' + err.message);
+        }
+    });
 }
 
 // 5. Moteur de Cascade (API-based)
