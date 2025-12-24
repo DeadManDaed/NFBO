@@ -165,7 +165,36 @@ async function onAdmissionLotChange() {
 
     calculateInternalFinance();
 }
+async function loadReferencesForForms() {
+    try {
+        // Chargement parallèle des deux listes
+        const [resLots, resProds] = await Promise.all([
+            fetch('/api/lots'),
+            fetch('/api/producteurs')
+        ]);
 
+        const lots = await resLots.json();
+        const producteurs = await resProds.json();
+
+        // 1. Remplir le select des Lots
+        const selectLot = document.getElementById('adm-lot-select');
+        if (selectLot) {
+            selectLot.innerHTML = '<option value="">-- Choisir un produit --</option>' + 
+                lots.map(l => `<option value="${l.id}">${l.description} (${l.prix_ref} FCFA)</option>`).join('');
+            
+            // On stocke les lots globalement pour y accéder lors du changement de sélection (prix_ref)
+            window.availableLots = lots; 
+        }
+
+        // 2. Remplir le select des Producteurs (si tu en as un)
+        // Ou simplement aider à l'auto-complétion de l'ID
+        console.log(`${producteurs.length} producteurs chargés.`);
+        window.availableProducers = producteurs;
+
+    } catch (err) {
+        console.error("Erreur lors du chargement des références:", err);
+    }
+}
 function calculateInternalFinance() {
     if(!activeLotData) return;
 
@@ -1091,7 +1120,7 @@ async function fetchCascade(type, parentId, targetId) {
 
     function applyPermissions(role) {
         const perms = {
-            'superadmin': ['tile-admission', 'tile-retrait', 'tile-audit', 'tile-messages', 'tile-admin'],
+            'superadmin': ['tile-admission', 'tile-retrait', 'tile-audit', 'tile-messages', 'tile-admin', 'title-transferts'],
             'admin': ['tile-admission', 'tile-retrait', 'tile-audit', 'tile-messages', 'tile-admin'],
             'magasinier': ['tile-admission', 'tile-messages'],
             'caissier': ['tile-retrait', 'tile-messages'],
@@ -1132,12 +1161,45 @@ async function logDeploymentError(context, error) {
         document.getElementById('main-grid').style.display = 'none';
         document.getElementById('module-' + id).style.display = 'block';
         // Ici, nous appellerons la fonction de chargement spécifique au fragment
+        if(id=='admissions')
+        { loadReferencesForForms();}
+        
     }
 
     function closeModule() {
         document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
         document.getElementById('main-grid').style.display = 'grid';
     }
+    async function loadReferencesForForms() {
+    try {
+        // Chargement parallèle des deux listes
+        const [resLots, resProds] = await Promise.all([
+            fetch('/api/lots'),
+            fetch('/api/producteurs')
+        ]);
+
+        const lots = await resLots.json();
+        const producteurs = await resProds.json();
+
+        // 1. Remplir le select des Lots
+        const selectLot = document.getElementById('adm-lot-select');
+        if (selectLot) {
+            selectLot.innerHTML = '<option value="">-- Choisir un produit --</option>' + 
+                lots.map(l => `<option value="${l.id}">${l.description} (${l.prix_ref} FCFA)</option>`).join('');
+            
+            // On stocke les lots globalement pour y accéder lors du changement de sélection (prix_ref)
+            window.availableLots = lots; 
+        }
+
+        // 2. Remplir le select des Producteurs (si tu en as un)
+        // Ou simplement aider à l'auto-complétion de l'ID
+        console.log(`${producteurs.length} producteurs chargés.`);
+        window.availableProducers = producteurs;
+
+    } catch (err) {
+        console.error("Erreur lors du chargement des références:", err);
+    }
+}
 
     window.onload = init;
 </script>
