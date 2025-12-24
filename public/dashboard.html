@@ -825,16 +825,101 @@ async function loadAdminSection(section) {
 }
 
 // 2. Chargement des données (API)
+// 2. Chargement des données (API)
 async function refreshAdminTable() {
     const wrapper = document.getElementById('admin-table-wrapper');
-    wrapper.innerHTML = "Chargement...";   
-
-    try {  
-        const res = await fetch(`/api/${section}`);
+    wrapper.innerHTML = "Chargement...";
+    
+    let endpoint;
+    let errorMessage;
+    
+    // Mapping précis des sections vers les endpoints API
+    switch(currentSection) {
+        case 'magasins':
+            endpoint = '/api/magasins';
+            errorMessage = 'Impossible de charger la liste des magasins.';
+            break;
+            
+        case 'users':
+        case 'utilisateurs':
+            endpoint = '/api/users';
+            errorMessage = 'Impossible de charger la liste des utilisateurs.';
+            break;
+            
+        case 'employers':
+        case 'employes':
+            endpoint = '/api/employers';
+            errorMessage = 'Impossible de charger la liste des employés.';
+            break;
+            
+        case 'producteurs':
+            endpoint = '/api/producteurs';
+            errorMessage = 'Impossible de charger la liste des producteurs.';
+            break;
+            
+        case 'lots':
+            endpoint = '/api/lots';
+            errorMessage = 'Impossible de charger le référentiel des lots.';
+            break;
+            
+        case 'validations':
+            endpoint = '/api/validations';
+            errorMessage = 'Impossible de charger les validations en attente.';
+            break;
+            
+        default:
+            wrapper.innerHTML = `<p style='color:orange; padding:20px;'>
+                ⚠️ Section "${currentSection}" non reconnue.<br>
+                Veuillez contacter l'administrateur système.
+            </p>`;
+            console.error(`Section admin inconnue : ${currentSection}`);
+            return; // On sort de la fonction
+    }
+    
+    try {
+        const res = await fetch(endpoint);
+        
+        // Gestion des codes HTTP d'erreur
+        if (!res.ok) {
+            if (res.status === 404) {
+                throw new Error(`Endpoint ${endpoint} introuvable (404)`);
+            } else if (res.status === 403) {
+                throw new Error(`Accès refusé (403). Droits insuffisants.`);
+            } else if (res.status === 500) {
+                throw new Error(`Erreur serveur (500)`);
+            } else {
+                throw new Error(`Erreur HTTP ${res.status}`);
+            }
+        }
+        
         const data = await res.json();
+        
+        // Vérification que les données sont bien un tableau
+        if (!Array.isArray(data)) {
+            throw new Error('Format de données invalide (tableau attendu)');
+        }
+        
         renderAdminTable(data);
+        
     } catch (err) {
-        wrapper.innerHTML = "<p style='color:red'>Erreur de connexion à l'API.</p>";
+        console.error('Erreur refreshAdminTable:', err);
+        
+        wrapper.innerHTML = `
+            <div style='background:#ffebee; padding:20px; border-radius:8px; border-left:4px solid #d32f2f;'>
+                <h4 style='color:#c62828; margin-top:0;'>
+                    <i class="fa-solid fa-triangle-exclamation"></i> ${errorMessage}
+                </h4>
+                <p style='color:#555; font-size:14px; margin:10px 0;'>
+                    <strong>Détails techniques :</strong> ${err.message}
+                </p>
+                <button class="btn" onclick="refreshAdminTable()" style="background:#d32f2f; color:white; margin-top:10px;">
+                    <i class="fa-solid fa-rotate"></i> Réessayer
+                </button>
+            </div>
+        `;
+        
+        // Log pour l'analyse système
+        logDeploymentError(`Admin-Load-${currentSection}`, err);
     }
 }
     function handleClickNouveau() {
