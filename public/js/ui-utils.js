@@ -11,7 +11,7 @@ async function loadReferencesForForms(type) {
 
             const lots = await resLots.json();
             const prods = await resProds.json();
-            const magasins = await resMagasins.json();
+           // const magasins = await resMagasins.json();
 
             const selectLot = document.getElementById('adm-lot-select');
             if (selectLot) {
@@ -23,12 +23,7 @@ async function loadReferencesForForms(type) {
             if (selectProd) {
                 selectProd.innerHTML = '<option value="">-- Choisir un producteur --</option>' + 
                     prods.map(p => `<option value="${p.id}">${p.nom} (${p.code_producteur || p.id})</option>`).join('');
-            }
-            const selectMag = document.getElementById('adm-magasin-select');
-            if (selectMag) {
-                selectMag.innerHTML = '<option value="">-- Choisir un magasin source --</option>' + 
-                    magasins.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
-            }
+            }            
         } 
         
         else if (type === 'retrait') {
