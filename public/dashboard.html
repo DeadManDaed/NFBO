@@ -245,34 +245,7 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
         <button class="tab-btn" onclick="switchTab('receptionner')">RÉCEPTIONNER</button>
     
 
-    <form id="form-expedition" class="tab-content">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-            <div class="form-group">
-                <label>Produit à transférer (Stock Local) *</label>
-                <select id="trans-lot" required style="width:100%; padding:10px;">
-                    </select>
-            </div>
-            <div class="form-group">
-                <label>Magasin Destinataire *</label>
-                <select id="trans-dest" required style="width:100%; padding:10px;">
-                    </select>
-            </div>
-            <div class="form-group">
-                <label>Quantité à envoyer *</label>
-                <input type="number" id="trans-qty" required style="width:100%; padding:10px;">
-            </div>
-            <div class="form-group">
-                <label>Transporteur / Chauffeur *</label>
-                <input type="text" id="trans-driver" placeholder="Nom et Matricule" required style="width:100%; padding:10px;">
-            </div>
-        </div>
-        <div style="margin-top:20px;">
-            <label>Note d'accompagnement (Optionnel)</label>
-            <textarea id="trans-note" style="width:100%; height:60px;"></textarea>
-        </div>
-        <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px;">LANCER L'EXPÉDITION</button>
-    </form>
-
+    
     <div id="list-reception" class="tab-content" style="display:none;">
         <table style="width:100%; border-collapse: collapse; margin-top:10px;">
             <thead>
@@ -857,8 +830,8 @@ if(currentSection === 'lots') {
                 </div>
 
                 <div class="form-group">
-                    <label>Prix de référence *</label>
-                    <input type="number" id="lot-prix-ref" required style="width:100%; padding:10px;">
+                    <label>Prix de Référence (FCFA/Unité)</label>
+                    <input type="number" id="lot-prix-ref" required style="width:100%; padding:10px;">                
                 </div>
 
                 <div class="form-group">
