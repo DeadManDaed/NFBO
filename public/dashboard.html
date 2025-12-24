@@ -829,8 +829,18 @@ async function refreshAdminTable() {
     const wrapper = document.getElementById('admin-table-wrapper');
     wrapper.innerHTML = "Chargement...";
     
-    try {
-        const res = await fetch(`/api/${currentSection}`);
+    // Mapping pour faire correspondre l'interface et le backend
+    const sectionToApi = {
+        'utilisateurs': 'users',
+        'employés': 'employers',
+        // 'magasins' et 'producteurs' restent identiques s'ils matchent déjà
+    };
+
+    // On utilise le nom mappé, ou le nom par défaut si pas de mapping
+    const apiName = sectionToApi[currentSection] || currentSection;
+
+    try {  
+        const res = await fetch(`/api/${apiName}`);
         const data = await res.json();
         renderAdminTable(data);
     } catch (err) {
