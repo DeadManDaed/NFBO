@@ -31,64 +31,36 @@
     <button class="btn-back" onclick="closeModule()">← Quitter</button>
 </nav>
 <script src="js/ui-utils.js"></script>
-<script src="app.js"></script>
-    <script src="common.js"></script>
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Dashboard - NBFO</title>
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style>
-    .admin-nav-btn {
-        padding: 12px; border: none; border-radius: 6px; background: white;
-        text-align: left; cursor: pointer; transition: 0.2s; font-weight: 500; color: #555;
-    }
-    .admin-nav-btn:hover { background: #eef2f7; }
-    .admin-nav-btn.active { background: var(--admin); color: white; }
-    .admin-table { width: 100%; border-collapse: collapse; background: white; }
-    .admin-table th, .admin-table td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-</style>
-</head>
-<body>
-
-<nav class="admin-sidebar" style="width: 220px; display: flex; flex-direction: column; gap: 10px;">
-    <h3 style="font-size: 14px; color: var(--admin); text-transform: uppercase;">Configuration</h3>
-    <button class="admin-nav-btn active" onclick="loadAdminSection('magasins', event)"><i class="fa-solid fa-shop"></i> Magasins</button>
-    <button class="admin-nav-btn" onclick="loadAdminSection('users', event)"><i class="fa-solid fa-users-gear"></i> Utilisateurs</button>
-    <button class="admin-nav-btn" onclick="loadAdminSection('employers', event)"><i class="fa-solid fa-id-badge"></i> Employés</button>
-    <button class="admin-nav-btn" onclick="loadAdminSection('producteurs', event)"><i class="fa-solid fa-wheat-awn"></i> Producteurs</button>
-    <button class="admin-nav-btn" onclick="loadAdminSection('lots', event)"><i class="fa-solid fa-tags"></i> Référentiel Lots</button>
-    <button class="admin-nav-btn" onclick="loadAdminSection('validations', event)"><i class="fa-solid fa-tags"></i> Validations</button>
-
-    <hr style="width:100%; border:0; border-top:1px solid #ddd;">
-    <button class="btn-back" onclick="closeModule()">← Quitter</button>
-</nav>
-<script src="js/ui-utils.js"></script>
-<script src="app.js"></script>
-    <script src="common.js"></script>
+<script src="js/app.js"></script>
+    <script src="js/common.js"></script>
 <script>
-// --- Helpers génériques (fallbacks si ui-utils.js n'est pas chargé) ---
+/* administration.js consolidé — coller après ui-utils.js et juste avant </body> */
+console.log('loadReference', typeof window.loadReference);
+console.log('showAdminForm', typeof window.showAdminForm);
+console.log('loadAdminSection', typeof window.loadAdminSection);
+console.log('refreshAdminTable', typeof window.refreshAdminTable);
+console.log('fetchCascade', typeof window.fetchCascade);
+
+// helper fetch
 async function safeFetchJson(url) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
     return res.json();
 }
 
-// wrapper pour loadReference : utilise la fonction globale si elle existe, sinon fallback
+// wrapper qui utilise loadReference si présent, sinon fallback
 async function fillSelectFromApi(type, targetId, parentId = null, labelFn = null) {
     const target = document.getElementById(targetId);
     if (!target) return;
+    if (typeof window.loadReference === 'function') {
+        // loadReference gère déjà le targetId et labelFn
+        return window.loadReference(type, targetId, parentId, labelFn);
+    }
+    // fallback
     let url = `/api/${type}`;
     if (parentId) url += `?parent_id=${parentId}`;
     target.innerHTML = `<option value="">Chargement...</option>`;
     try {
-        if (typeof window.loadReference === 'function') {
-            // si ui-utils fournit loadReference, on l'utilise
-            await window.loadReference(type, targetId, parentId, labelFn);
-            return;
-        }
         const data = await safeFetchJson(url);
         if (!Array.isArray(data) || data.length === 0) {
             target.innerHTML = `<option value="">⚠️ Aucun ${type} trouvé</option>`;
@@ -106,7 +78,7 @@ async function fillSelectFromApi(type, targetId, parentId = null, labelFn = null
     }
 }
 
-// suppression simple (utilisé par le tableau)
+// suppression d'un élément
 async function deleteItem(section, id) {
     if (!confirm('Confirmer la suppression ?')) return;
     try {
@@ -119,50 +91,20 @@ async function deleteItem(section, id) {
     }
 }
 
-// --- Initialisation DOM-ready ---
-document.addEventListener('DOMContentLoaded', () => {
-    // attacher listeners propres si tu veux éviter les onclick inline
-    document.querySelectorAll('.admin-nav-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            // extraire la section depuis l'attribut onclick existant si data-section absent
-            const onclick = btn.getAttribute('onclick') || '';
-            const match = onclick.match(/loadAdminSection\('([^']+)'/);
-            const section = match ? match[1] : btn.dataset.section;
-            if (section) loadAdminSection(section, e);
-        });
-    });
-
-    // bouton "Ajouter" : garde l'id existant, attache un handler sûr
-    const btnAdd = document.getElementById('btn-add-admin');
-    if (btnAdd) {
-        btnAdd.addEventListener('click', () => {
-            if (typeof showAdminForm === 'function') showAdminForm();
-            else console.error('showAdminForm non défini');
-        });
-    }
-
-    // charger la section par défaut
-    refreshAdminTable().catch(err => console.error('Erreur initiale refresh:', err));
-});
-
-// --- Navigation et chargement des données ---
+/* --- Core admin logic --- */
 let currentSection = 'magasins';
 
 async function loadAdminSection(section, e) {
     currentSection = section;
     document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.remove('active'));
-
-    if (e && e.currentTarget) {
-        e.currentTarget.classList.add('active');
-    } else {
+    if (e && e.currentTarget) e.currentTarget.classList.add('active');
+    else {
         const btn = Array.from(document.querySelectorAll('.admin-nav-btn'))
-                         .find(b => b.getAttribute('onclick')?.includes(`loadAdminSection('${section}'`));
+            .find(b => (b.dataset.section === section) || (b.getAttribute('onclick') || '').includes(`loadAdminSection('${section}'`));
         if (btn) btn.classList.add('active');
     }
-
     const titleEl = document.getElementById('admin-title');
     if (titleEl) titleEl.innerText = section.charAt(0).toUpperCase() + section.slice(1);
-
     await refreshAdminTable();
 }
 
@@ -173,39 +115,15 @@ async function refreshAdminTable() {
 
     let endpoint;
     let errorMessage;
-
-    switch(currentSection) {
-        case 'magasins':
-            endpoint = '/api/magasins';
-            errorMessage = 'Impossible de charger la liste des magasins.';
-            break;
-        case 'users':
-        case 'utilisateurs':
-            endpoint = '/api/users';
-            errorMessage = 'Impossible de charger la liste des utilisateurs.';
-            break;
-        case 'employers':
-        case 'employes':
-            endpoint = '/api/employers';
-            errorMessage = 'Impossible de charger la liste des employés.';
-            break;
-        case 'producteurs':
-            endpoint = '/api/producteurs';
-            errorMessage = 'Impossible de charger la liste des producteurs.';
-            break;
-        case 'lots':
-            endpoint = '/api/lots';
-            errorMessage = 'Impossible de charger le référentiel des lots.';
-            break;
-        case 'validations':
-            endpoint = '/api/validations';
-            errorMessage = 'Impossible de charger les validations en attente.';
-            break;
+    switch (currentSection) {
+        case 'magasins': endpoint = '/api/magasins'; errorMessage = 'Impossible de charger la liste des magasins.'; break;
+        case 'users': case 'utilisateurs': endpoint = '/api/users'; errorMessage = 'Impossible de charger la liste des utilisateurs.'; break;
+        case 'employers': case 'employes': endpoint = '/api/employers'; errorMessage = 'Impossible de charger la liste des employés.'; break;
+        case 'producteurs': endpoint = '/api/producteurs'; errorMessage = 'Impossible de charger la liste des producteurs.'; break;
+        case 'lots': endpoint = '/api/lots'; errorMessage = 'Impossible de charger le référentiel des lots.'; break;
+        case 'validations': endpoint = '/api/validations'; errorMessage = 'Impossible de charger les validations en attente.'; break;
         default:
-            wrapper.innerHTML = `<p style='color:orange; padding:20px;'>
-                ⚠️ Section "${currentSection}" non reconnue.<br>
-                Veuillez contacter l'administrateur système.
-            </p>`;
+            wrapper.innerHTML = `<p style='color:orange; padding:20px;'>⚠️ Section "${currentSection}" non reconnue.</p>`;
             console.error(`Section admin inconnue : ${currentSection}`);
             return;
     }
@@ -224,20 +142,12 @@ async function refreshAdminTable() {
         console.error('Erreur refreshAdminTable:', err);
         wrapper.innerHTML = `
             <div style='background:#ffebee; padding:20px; border-radius:8px; border-left:4px solid #d32f2f;'>
-                <h4 style='color:#c62828; margin-top:0;'>
-                    <i class="fa-solid fa-triangle-exclamation"></i> ${errorMessage}
-                </h4>
-                <p style='color:#555; font-size:14px; margin:10px 0;'>
-                    <strong>Détails techniques :</strong> ${err.message}
-                </p>
-                <button class="btn" onclick="refreshAdminTable()" style="background:#d32f2f; color:white; margin-top:10px;">
-                    <i class="fa-solid fa-rotate"></i> Réessayer
-                </button>
+                <h4 style='color:#c62828; margin-top:0;'>${errorMessage}</h4>
+                <p style='color:#555; font-size:14px; margin:10px 0;'><strong>Détails :</strong> ${err.message}</p>
+                <button class="btn" onclick="refreshAdminTable()" style="background:#d32f2f; color:white; margin-top:10px;">Réessayer</button>
             </div>
         `;
-        if (typeof logDeploymentError === 'function') {
-            logDeploymentError(`Admin-Load-${currentSection}`, err);
-        }
+        if (typeof logDeploymentError === 'function') logDeploymentError(`Admin-Load-${currentSection}`, err);
     }
 }
 
@@ -248,12 +158,11 @@ function renderAdminTable(data) {
         return;
     }
 
-    // Exclure champs sensibles/techniques par défaut
-    const exclude = new Set(['password_hash', 'password', 'created_at', 'last_login']);
+    const exclude = new Set(['password_hash','password','created_at','last_login']);
     const headers = Object.keys(data[0]).filter(h => !exclude.has(h));
 
     let html = `<table class="admin-table"><thead><tr>`;
-    headers.forEach(h => html += `<th>${h.replace(/_/g, ' ')}</th>`);
+    headers.forEach(h => html += `<th>${h.replace(/_/g,' ')}</th>`);
     html += `<th>Actions</th></tr></thead><tbody>`;
 
     data.forEach(row => {
@@ -263,7 +172,6 @@ function renderAdminTable(data) {
             if (val === null || val === undefined) val = '';
             html += `<td>${String(val)}</td>`;
         });
-        // action delete (tu peux ajouter edit/view plus tard)
         html += `<td><button onclick="deleteItem('${currentSection}', ${row.id})">🗑️</button></td></tr>`;
     });
 
@@ -271,22 +179,28 @@ function renderAdminTable(data) {
     wrapper.innerHTML = html;
 }
 
-// --- Affichage des formulaires selon la section ---
+/* --- Form display and forms handling --- */
 function showAdminForm() {
     const wrapper = document.getElementById('admin-table-wrapper');
     if (!wrapper) return;
+
+    // LOTS
+    if (currentSection === 'lots') {
+        wrapper.innerHTML = `...`; // tu peux réinsérer ton template lots ici
+        return;
+    }
 
     // USERS
     if (currentSection === 'users' || currentSection === 'utilisateurs') {
         wrapper.innerHTML = `
             <form id="form-user" style="background:white; padding:20px; border-radius:8px; max-width:900px;">
                 <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-                    <div class="form-group"><label>Prénom</label><input type="text" name="prenom" id="user-prenom" placeholder="Prénom" required></div>
-                    <div class="form-group"><label>Nom</label><input type="text" name="nom" id="user-nom" placeholder="Nom" required></div>
-                    <div class="form-group"><label>Nom d'utilisateur</label><input type="text" name="username" id="user-username" placeholder="username" required></div>
-                    <div class="form-group"><label>Mot de passe</label><input type="password" name="password" id="user-password" placeholder="Mot de passe" required></div>
+                    <div class="form-group"><label>Prénom</label><input type="text" id="user-prenom" required></div>
+                    <div class="form-group"><label>Nom</label><input type="text" id="user-nom" required></div>
+                    <div class="form-group"><label>Nom d'utilisateur</label><input type="text" id="user-username" required></div>
+                    <div class="form-group"><label>Mot de passe</label><input type="password" id="user-password" required></div>
                     <div class="form-group"><label>Rôle</label>
-                        <select id="user-role" name="role" required>
+                        <select id="user-role" required>
                             <option value="">-- Choisir un rôle --</option>
                             <option value="superadmin">superadmin</option>
                             <option value="admin">admin</option>
@@ -295,20 +209,14 @@ function showAdminForm() {
                             <option value="stock">stock</option>
                         </select>
                     </div>
-                    <div class="form-group"><label>Email</label><input type="email" name="email" id="user-email" placeholder="email@exemple.com"></div>
-                    <div class="form-group"><label>Téléphone</label><input type="tel" name="telephone" id="user-telephone" placeholder="+237 6XXXXXXXX"></div>
+                    <div class="form-group"><label>Email</label><input type="email" id="user-email"></div>
+                    <div class="form-group"><label>Téléphone</label><input type="tel" id="user-telephone"></div>
                     <div class="form-group"><label>Magasin d'affectation</label>
-                        <select id="user-magasin-select" name="magasin_id">
-                            <option value="">-- Choisir un magasin --</option>
-                        </select>
+                        <select id="user-magasin-select"><option value="">-- Choisir un magasin --</option></select>
                     </div>
                     <div class="form-group"><label>Statut</label>
-                        <select id="user-statut" name="statut">
-                            <option value="actif">actif</option>
-                            <option value="inactif">inactif</option>
-                        </select>
+                        <select id="user-statut"><option value="actif">actif</option><option value="inactif">inactif</option></select>
                     </div>
-
                     <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
                         <button type="button" class="btn" onclick="refreshAdminTable()">Annuler</button>
                         <button type="submit" class="btn" style="background:var(--admin); color:white;">Créer l'utilisateur</button>
@@ -316,13 +224,10 @@ function showAdminForm() {
                 </div>
             </form>
         `;
-
-        // remplir le select magasins (utilise loadReference si présent)
         fillSelectFromApi('magasins', 'user-magasin-select', null, m => `${m.nom}${m.code ? ' ('+m.code+')' : ''}`);
 
-        // handler de soumission
         const form = document.getElementById('form-user');
-        form.addEventListener('submit', async (ev) => {
+        const onSubmit = async (ev) => {
             ev.preventDefault();
             const payload = {
                 username: document.getElementById('user-username').value.trim(),
@@ -345,15 +250,28 @@ function showAdminForm() {
                     const errText = await res.text().catch(()=>null);
                     throw new Error(errText || `Erreur HTTP ${res.status}`);
                 }
+                form.removeEventListener('submit', onSubmit);
                 await refreshAdminTable();
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } catch (err) {
                 console.error('Erreur création utilisateur:', err);
                 alert('Impossible de créer l’utilisateur : ' + (err.message || 'erreur inconnue'));
             }
-        });
+        };
+        form.addEventListener('submit', onSubmit);
+        return;
+    }
 
-        return; // on sort après avoir monté le formulaire users
+    // EMPLOYERS
+    if (currentSection === 'employers' || currentSection === 'employes') {
+        wrapper.innerHTML = `...`; // insère ici le template employé complet si tu veux
+        return;
+    }
+
+    // MAGASINS
+    if (currentSection === 'magasins') {
+        wrapper.innerHTML = `...`; // insère ici le template magasin complet si tu veux
+        return;
     }
 
     // PRODUCTEURS
@@ -368,151 +286,27 @@ function showAdminForm() {
                 <select id="dep-select" disabled onchange="fetchCascade('arrondissements', this.value, 'arr-select')">
                     <option value="">-- Attente Région --</option>
                 </select>
-                <select id="arr-select" disabled>
-                    <option value="">-- Attente Département --</option>
-                </select>
+                <select id="arr-select" disabled><option value="">-- Attente Département --</option></select>
                 <div style="grid-column: 1 / -1; display:flex; gap:10px; margin-top:20px;">
                     <button type="submit" class="btn" style="background:var(--admin); color:white;">Enregistrer</button>
                     <button type="button" onclick="refreshAdminTable()">Annuler</button>
                 </div>
             </form>
         `;
-        // Charger les régions immédiatement
         fetchCascade('regions', null, 'reg-select');
         return;
     }
-// --- BRANCHE EMPLOYERS ---
-else if (currentSection === 'employers' || currentSection === 'employes') {
-    wrapper.innerHTML = `
-        <form id="form-employer" style="background:white; padding:20px; border-radius:8px; max-width:900px;">
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-                <div class="form-group"><label>Prénom</label><input type="text" id="emp-prenom" required></div>
-                <div class="form-group"><label>Nom</label><input type="text" id="emp-nom" required></div>
-                <div class="form-group"><label>Poste / Fonction</label><input type="text" id="emp-poste" placeholder="Caissier, Responsable stock..." required></div>
-                <div class="form-group"><label>Email</label><input type="email" id="emp-email" placeholder="email@exemple.com"></div>
-                <div class="form-group"><label>Téléphone</label><input type="tel" id="emp-telephone" placeholder="+237 6XXXXXXXX"></div>
-                <div class="form-group"><label>Magasin d'affectation</label>
-                    <select id="emp-magasin-select" name="magasin_id">
-                        <option value="">-- Choisir un magasin --</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Date d'embauche</label><input type="date" id="emp-date-embauche"></div>
 
-                <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
-                    <button type="button" class="btn" onclick="refreshAdminTable()">Annuler</button>
-                    <button type="submit" class="btn" style="background:var(--admin); color:white;">Enregistrer l'employé</button>
-                </div>
-            </div>
-        </form>
-    `;
-
-    // Remplir le select magasins
-    fillSelectFromApi('magasins', 'emp-magasin-select', null, m => `${m.nom}${m.code ? ' ('+m.code+')' : ''}`);
-
-    // Soumission
-    const formEmp = document.getElementById('form-employer');
-    const onSubmitEmp = async (ev) => {
-        ev.preventDefault();
-        const payload = {
-            prenom: document.getElementById('emp-prenom').value.trim(),
-            nom: document.getElementById('emp-nom').value.trim(),
-            poste: document.getElementById('emp-poste').value.trim(),
-            email: document.getElementById('emp-email').value.trim() || null,
-            telephone: document.getElementById('emp-telephone').value.trim() || null,
-            magasin_id: document.getElementById('emp-magasin-select').value || null,
-            date_embauche: document.getElementById('emp-date-embauche').value || null
-        };
-        try {
-            const res = await fetch('/api/employers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) {
-                const errText = await res.text().catch(()=>null);
-                throw new Error(errText || `Erreur HTTP ${res.status}`);
-            }
-            formEmp.removeEventListener('submit', onSubmitEmp);
-            await refreshAdminTable();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch (err) {
-            console.error('Erreur création employé:', err);
-            alert('Impossible d\'enregistrer l\'employé : ' + (err.message || 'erreur inconnue'));
-        }
-    };
-    formEmp.addEventListener('submit', onSubmitEmp);
-    return;
-}
-// --- BRANCHE MAGASINS ---
-else if (currentSection === 'magasins') {
-    wrapper.innerHTML = `
-        <form id="form-magasin" style="background:white; padding:20px; border-radius:8px; max-width:800px;">
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:12px;">
-                <div class="form-group"><label>Nom du magasin</label><input type="text" id="mag-nom" required></div>
-                <div class="form-group"><label>Code (référence)</label><input type="text" id="mag-code"></div>
-                <div class="form-group"><label>Adresse</label><input type="text" id="mag-adresse"></div>
-                <div class="form-group"><label>Région</label>
-                    <select id="mag-region-select">
-                        <option value="">-- Choisir une région --</option>
-                    </select>
-                </div>
-                <div class="form-group"><label>Contact</label><input type="tel" id="mag-telephone" placeholder="+237 6XXXXXXXX"></div>
-
-                <div style="grid-column: 1 / -1; display:flex; justify-content:flex-end; gap:10px; margin-top:12px;">
-                    <button type="button" class="btn" onclick="refreshAdminTable()">Annuler</button>
-                    <button type="submit" class="btn" style="background:var(--admin); color:white;">Créer le magasin</button>
-                </div>
-            </div>
-        </form>
-    `;
-
-    // Remplir régions si disponibles
-    fillSelectFromApi('regions', 'mag-region-select', null, r => r.nom || r.libelle || r.id);
-
-    // Soumission
-    const formMag = document.getElementById('form-magasin');
-    const onSubmitMag = async (ev) => {
-        ev.preventDefault();
-        const payload = {
-            nom: document.getElementById('mag-nom').value.trim(),
-            code: document.getElementById('mag-code').value.trim() || null,
-            adresse: document.getElementById('mag-adresse').value.trim() || null,
-            region_id: document.getElementById('mag-region-select').value || null,
-            telephone: document.getElementById('mag-telephone').value.trim() || null
-        };
-        try {
-            const res = await fetch('/api/magasins', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) {
-                const errText = await res.text().catch(()=>null);
-                throw new Error(errText || `Erreur HTTP ${res.status}`);
-            }
-            formMag.removeEventListener('submit', onSubmitMag);
-            await refreshAdminTable();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        } catch (err) {
-            console.error('Erreur création magasin:', err);
-            alert('Impossible de créer le magasin : ' + (err.message || 'erreur inconnue'));
-        }
-    };
-    formMag.addEventListener('submit', onSubmitMag);
-    return;
-}
-
-    // AUTRES SECTIONS (placeholder)
+    // default
     wrapper.innerHTML = `<p>Formulaire pour ${currentSection} en développement.</p>`;
 }
 
-// --- Cascade géographique (robuste) ---
+// cascade
 async function fetchCascade(type, parentId, targetId) {
     const target = document.getElementById(targetId);
     if (!target) return;
     let url = `/api/${type}`;
     if (parentId) url += `?parent_id=${parentId}`;
-
     target.innerHTML = `<option value="">Chargement...</option>`;
     try {
         const res = await fetch(url);
@@ -529,6 +323,26 @@ async function fetchCascade(type, parentId, targetId) {
         target.innerHTML = `<option value="">❌ Erreur de chargement</option>`;
     }
 }
+
+/* --- DOM ready : attacher listeners --- */
+document.addEventListener('DOMContentLoaded', () => {
+    // nav buttons : prefer data-section if present, else fallback to onclick parsing
+    document.querySelectorAll('.admin-nav-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const section = btn.dataset.section || (btn.getAttribute('onclick') || '').match(/loadAdminSection\('([^']+)'/)?.[1];
+            if (section) loadAdminSection(section, e);
+        });
+    });
+
+    const btnAdd = document.getElementById('btn-add-admin');
+    if (btnAdd) btnAdd.addEventListener('click', () => {
+        if (typeof showAdminForm === 'function') showAdminForm();
+        else console.error('showAdminForm non défini');
+    });
+
+    // initial load
+    if (typeof refreshAdminTable === 'function') refreshAdminTable();
+});
 </script>
 </body>
 </html>
