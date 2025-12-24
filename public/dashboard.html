@@ -847,6 +847,17 @@ async function refreshAdminTable() {
         wrapper.innerHTML = "<p style='color:red'>Erreur de connexion à l'API.</p>";
     }
 }
+    function handleClickNouveau() {
+    if (currentSection === 'lots') {
+        ouvrirModalLot();
+    }
+    } else if (currentSection === 'utilisateurs' || currentSection === 'users') {
+        // Appelle ton formulaire de création d'utilisateur
+        document.getElementById('modal-user').classList.add('active');
+    } else {
+        alert(`Le formulaire pour ${currentSection} est en cours de développement.`);
+    }
+}
 
 // 3. Rendu du tableau dynamique
 function renderAdminTable(data) {
