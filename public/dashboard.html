@@ -1216,7 +1216,7 @@ function showFormEmployers(wrapper) {
     });
 }
 
-// === FORMULAIRE PRODUCTEURS ===
+// === FORMULAIRE PRODUCTEURS (VERSION CORRIGÉE) ===
 function showFormProducteurs(wrapper) {
     wrapper.innerHTML = `
         <form id="form-producteur" style="background:white; padding:20px; border-radius:8px; max-width:800px;">
@@ -1231,29 +1231,38 @@ function showFormProducteurs(wrapper) {
                     <input type="tel" id="prod-tel" required placeholder="+237 6XX XX XX XX" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
-                    <label>Type de producteur</label>
-                    <input type="text" id="prod-type" placeholder="Ex: Agriculteur, Éleveur..." style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                    <label>Type de producteur *</label>
+                    <select id="prod-type" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="Agriculteur">Agriculteur</option>
+                        <option value="Éleveur">Éleveur</option>
+                        <option value="Pêcheur">Pêcheur</option>
+                        <option value="Transformateur">Transformateur</option>
+                        <option value="Collecteur">Collecteur</option>
+                        <option value="Coopérative">Coopérative</option>
+                        <option value="Autre">Autre</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Matricule</label>
                     <input type="text" id="prod-matricule" placeholder="Ex: PROD-001" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
                 <div class="form-group">
-                    <label>Région</label>
-                    <select id="prod-region" onchange="loadReference('departements', 'prod-departement', this.value)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
-                        <option value="">-- Sélectionner une région --</option>
+                    <label>Région *</label>
+                    <select id="prod-region" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Chargement... --</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Département</label>
-                    <select id="prod-departement" disabled onchange="loadReference('arrondissements', 'prod-arrondissement', this.value)" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
-                        <option value="">-- Attente région --</option>
+                    <label>Département *</label>
+                    <select id="prod-departement" disabled required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Sélectionner d'abord une région --</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Arrondissement</label>
                     <select id="prod-arrondissement" disabled style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
-                        <option value="">-- Attente département --</option>
+                        <option value="">-- Sélectionner d'abord un département --</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1268,14 +1277,54 @@ function showFormProducteurs(wrapper) {
         </form>
     `;
 
+    // Charger les régions au démarrage
     loadReference('regions', 'prod-region');
 
+    // Gestion de la cascade Région → Département
+    document.getElementById('prod-region').addEventListener('change', function() {
+        const regionId = this.value;
+        const depSelect = document.getElementById('prod-departement');
+        const arrSelect = document.getElementById('prod-arrondissement');
+        
+        if (!regionId) {
+            depSelect.disabled = true;
+            depSelect.innerHTML = '<option value="">-- Sélectionner d\'abord une région --</option>';
+            arrSelect.disabled = true;
+            arrSelect.innerHTML = '<option value="">-- Sélectionner d\'abord un département --</option>';
+            return;
+        }
+        
+        // Charger les départements de cette région
+        loadReference('departements', 'prod-departement', regionId);
+        
+        // Réinitialiser les arrondissements
+        arrSelect.disabled = true;
+        arrSelect.innerHTML = '<option value="">-- Sélectionner d\'abord un département --</option>';
+    });
+
+    // Gestion de la cascade Département → Arrondissement
+    document.getElementById('prod-departement').addEventListener('change', function() {
+        const departementId = this.value;
+        const arrSelect = document.getElementById('prod-arrondissement');
+        
+        if (!departementId) {
+            arrSelect.disabled = true;
+            arrSelect.innerHTML = '<option value="">-- Sélectionner d\'abord un département --</option>';
+            return;
+        }
+        
+        // Charger les arrondissements de ce département
+        loadReference('arrondissements', 'prod-arrondissement', departementId);
+    });
+
+    // Soumission du formulaire
     document.getElementById('form-producteur').addEventListener('submit', async (e) => {
         e.preventDefault();
+        
         const payload = {
             nom_producteur: document.getElementById('prod-nom').value.trim(),
             tel_producteur: document.getElementById('prod-tel').value.trim(),
-            type_producteur: document.getElementById('prod-type').value.trim() || null,
+            type_producteur: document.getElementById('prod-type').value,
             matricule: document.getElementById('prod-matricule').value.trim() || null,
             region_id: document.getElementById('prod-region').value || null,
             departement_id: document.getElementById('prod-departement').value || null,
@@ -1291,15 +1340,20 @@ function showFormProducteurs(wrapper) {
                 body: JSON.stringify(payload)
             });
 
-            if (!res.ok) throw new Error(await res.text());
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(errorText);
+            }
 
             alert('✅ Producteur créé avec succès !');
             await refreshAdminTable();
         } catch (err) {
+            console.error('Erreur création producteur:', err);
             alert('❌ Erreur : ' + err.message);
         }
     });
-}
+} 
+
 
 // === FORMULAIRE LOTS ===
 function showFormLots(wrapper) {
