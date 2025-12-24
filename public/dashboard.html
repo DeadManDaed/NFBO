@@ -145,8 +145,7 @@
         <button type="submit" class="btn" style="background:var(--primary); color:white; padding:15px 50px; font-weight:bold;">VALIDER L'ADMISSION</button>
     </div>
 </form>
-<script src="js/ui-utils.js"></script>
-<script src="js/dashboard-main.js"></script>
+
 <script>
     
 // --- LOGIQUE FINANCIERE (Simulation TRG-FINANCE-INSERT) ---
@@ -241,11 +240,7 @@ document.getElementById('admissionForm').onsubmit = async (e) => {
     <div style="margin-top:30px; text-align:right;">
         <button type="submit" class="btn" style="background:#d32f2f; color:white; padding:15px 40px;">VALIDER LA SORTIE</button>
     </div>
-</form></div>
-
-    
-
-
+</form></div> 
 <div id="module-transferts" class="module">
     <div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #546e7a; padding-bottom: 10px;">
         <h2 style="color:#546e7a; margin:0;"><i class="fa-solid fa-truck-arrow-right"></i> Transferts inter-magasins</h2>
@@ -1136,8 +1131,12 @@ async function logDeploymentError(context, error) {
         document.getElementById('main-grid').style.display = 'none';
         document.getElementById('module-' + id).style.display = 'block';
         // Ici, nous appellerons la fonction de chargement spécifique au fragment
-        if(id=='admission')
-        { loadReferencesForForms();}
+           if (id === 'admission') {
+        loadAdmissionData(); // On remplit les 3 selects de l'admission
+    } 
+    else if (id === 'retrait') {
+        loadRetraitData();   // On remplit le select magasin du retrait
+    }
         
     }
 
@@ -1148,5 +1147,7 @@ async function logDeploymentError(context, error) {
 
     window.onload = init;
 </script>
+    <script src="js/ui-utils.js"></script>
+<script src="js/dashboard-main.js"></script>
 </body>
 </html>
