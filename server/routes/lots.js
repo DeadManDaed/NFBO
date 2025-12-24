@@ -35,15 +35,14 @@ router.post('/', validateLotDefinition, async (req, res) => {
 });
 router.get('/', async (req, res) => {
     try {
-        console.log("Accès GET /api/lots"); // Pour voir dans les logs Render
+        console.log("Accès GET /api/lots");
+        // Plus simple : on récupère tout directement depuis 'lots'
         const query = `
-    SELECT l.*, c.nom as categorie_nom 
-    FROM lots l 
-    LEFT JOIN categorie c ON l.categorie_id = c.id 
-    ORDER BY l.date_creation DESC
-`;
-    const result = await pool.query(query);
-        res.json(result.rows); // Renvoie le tableau que .map() attend
+            SELECT * FROM lots 
+            ORDER BY date_creation DESC
+        `;
+        const result = await pool.query(query);
+        res.json(result.rows); 
     } catch (err) {
         console.error('Erreur GET /api/lots:', err);
         res.status(500).json({ message: 'Erreur lors de la récupération des lots' });
@@ -110,6 +109,7 @@ router.delete('/:id', async (req, res) => {
 
 // ... gardez vos routes GET, PUT et DELETE ...
 module.exports = router;
+
 
 
 
