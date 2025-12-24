@@ -35,7 +35,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // Attention : authRouter gérait /api/login, on le branche sur /api
 app.use('/api', authRouter); 
 app.use('/api/lots', lotsRouter);
-app.use('/api/lots', usersRouter);
+app.use('/api/users', usersRouter);
 app.use('/api/producteurs', producteursRouter);
 app.use('/api/admissions', admissionsRouter);
 app.use('/api/retraits', retraitsRouter);
@@ -65,6 +65,7 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
 
 
 
