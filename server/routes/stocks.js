@@ -1,4 +1,3 @@
--- Exemple de ce que ta route /api/stocks/disponible/:id devrait exécuter
 SELECT 
     a.lot_id, 
     l.description, 
