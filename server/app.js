@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 // 1. Déclarer les routeurs
 const authRouter = require('./routes/auth');
 const lotsRouter = require('./routes/lots');
+const usersRouter = require('./routes/users');
 const geoRoutes = require('./routes/geo');
 const producteursRouter = require('./routes/producteurs');
 const admissionsRouter = require('./routes/admissions');
@@ -34,6 +35,7 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 // Attention : authRouter gérait /api/login, on le branche sur /api
 app.use('/api', authRouter); 
 app.use('/api/lots', lotsRouter);
+app.use('/api/lots', usersRouter);
 app.use('/api/producteurs', producteursRouter);
 app.use('/api/admissions', admissionsRouter);
 app.use('/api/retraits', retraitsRouter);
@@ -63,6 +65,7 @@ app.use((err, req, res, next) => {
 });
 
 module.exports = app;
+
 
 
 
