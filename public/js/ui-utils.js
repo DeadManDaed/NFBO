@@ -3,7 +3,7 @@
 async function loadReferencesForForms(type) {
     try {
         if (type === 'admission') {
-            const [resLots, resProds] = await Promise.all([
+            const [resLots, resProds, resMagasins] = await Promise.all([
                 fetch('/api/lots'),
                 fetch('/api/magasins'),
                 fetch('/api/producteurs')
@@ -40,7 +40,7 @@ async function loadReferencesForForms(type) {
             const lots = await resLots.json();
             const magasins = await resMagasins.json();
 
-            const selectLot = document.getElementById('retraiLot');
+            const selectLot = document.getElementById('retraitLot');
             if (selectLot) {
                 selectLot.innerHTML = '<option value="">-- Choisir un lot --</option>' + 
                     lots.map(l => `<option value="${l.id}">${l.description}</option>`).join('');
@@ -70,5 +70,41 @@ function openModule(id) {
         if (normalizedId === 'admission' || normalizedId === 'retrait') {
             loadReferencesForForms(normalizedId);
         }
+    }
+}
+
+// public/js/ui-utils.js
+
+async function loadStockForMagasin(magasinId) {
+    const selectLot = document.getElementById('retraitLot');
+    
+    if (!magasinId) {
+        selectLot.innerHTML = '<option value="">-- Choisir un magasin d'abord --</option>';
+        return;
+    }
+
+    selectLot.innerHTML = '<option value="">Chargement du stock...</option>';
+
+    try {
+        // On appelle une route dédiée au stock par magasin
+        const res = await fetch(`/api/lots/magasin/${magasinId}`);
+        const stocks = await res.json();
+
+        if (stocks.length === 0) {
+            selectLot.innerHTML = '<option value="">⚠️ Aucun stock dans ce magasin</option>';
+            return;
+        }
+
+        // On remplit le select avec les lots dispos (l.quantite est le stock actuel)
+        selectLot.innerHTML = '<option value="">-- Choisir le produit à sortir --</option>' + 
+            stocks.map(s => `
+                <option value="${s.lot_id}">
+                    ${s.description} (Dispo: ${s.quantite} ${s.unite || ''})
+                </option>
+            `).join('');
+
+    } catch (err) {
+        console.error("Erreur chargement stock magasin:", err);
+        selectLot.innerHTML = '<option value="">❌ Erreur de chargement</option>';
     }
 }
