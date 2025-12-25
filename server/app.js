@@ -133,8 +133,59 @@ app.use((err, req, res, next) => {
   console.error('❌ Erreur serveur:', err);
   res.status(500).json({ message: 'Erreur interne serveur' });
 });
-
+//************************** Lots *************************//
+// GET /api/lots/:id - Récupérer un lot spécifique
+app.get('/api/lots/:id', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query(`
+            SELECT 
+                id,
+                description,
+                categorie,
+                date_creation,
+                criteres_admission,
+                unites_admises,
+                prix_ref,
+                stock_disponible,
+                valeur_estimee_stock
+            FROM lots
+            WHERE id = $1
+        `, [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Lot non trouvé' });
+        }
+        
+        const lot = result.rows[0];
+        
+        // Parser les champs JSONB
+        if (typeof lot.unites_admises === 'string') {
+            try {
+                lot.unites_admises = JSON.parse(lot.unites_admises);
+            } catch (e) {
+                lot.unites_admises = [];
+            }
+        }
+        
+        if (typeof lot.criteres_admission === 'string') {
+            try {
+                lot.criteres_admission = JSON.parse(lot.criteres_admission);
+            } catch (e) {
+                lot.criteres_admission = [];
+            }
+        }
+        
+        res.json(lot);
+        
+    } catch (err) {
+        console.error('❌ Erreur /api/lots/:id:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 module.exports = app;
+
 
 
 
