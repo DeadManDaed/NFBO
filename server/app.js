@@ -23,7 +23,6 @@ const stocksRoutes = require('./routes/stocks');
 const app = express();
 
 // 2. MIDDLEWARES DE CONFIGURATION
-// Supporte les JSON et les formulaires encodés
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -34,12 +33,16 @@ app.use((req, res, next) => {
 });
 
 // 3. FICHIERS STATIQUES
-// Sert le HTML/JS/CSS depuis le dossier public
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // 4. BRANCHEMENT DES ROUTES API
-// Toutes tes routes sont centralisées ici
-app.use('/api/auth', authRouter); // Pour /api/auth/login par exemple
+// CORRECTION : Nous ajoutons /api/login directement ou nous ajustons le préfixe
+app.use('/api/auth', authRouter); 
+
+// Ajout d'un alias pour correspondre à l'appel du frontend fetch('/api/login')
+// Cela redirige l'appel vers le routeur d'authentification
+app.use('/api/login', authRouter); 
+
 app.use('/api/lots', lotsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/producteurs', producteursRouter);
@@ -60,14 +63,12 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Route par défaut pour servir l'application (Single Page Application)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
-// 6. GESTION DES ERREURS (Dernière position)
+// 6. GESTION DES ERREURS
 
-// Capture des 404 (Route non trouvée)
 app.use((req, res) => {
     console.warn(`⚠️ 404 - Route introuvable : ${req.method} ${req.url}`);
     res.status(404).json({ 
@@ -76,7 +77,6 @@ app.use((req, res) => {
     });
 });
 
-// Capture des 500 (Erreurs fatales du serveur)
 app.use((err, req, res, next) => {
     console.error('❌ ERREUR SERVEUR FATALE :', err.stack);
     res.status(500).json({ 
