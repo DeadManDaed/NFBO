@@ -37,46 +37,45 @@
 
 <div class="container">
     <div id="main-grid" class="grid">
-        <div class="tile" id="tile-admission" onclick="openModule('admission')">
-            <i class="fa-solid fa-boxes-stacked"></i>
-            <h3>Admissions</h3>
-            <p>Gestion des entrées de stock</p>
-        </div>
-        
-        <div class="tile" id="tile-retrait" onclick="openModule('retrait')">
-            <i class="fa-solid fa-cart-shopping"></i>
-            <h3>Ventes & Retraits</h3>
-            <p>Sorties et facturation</p>
-        </div>
-
-<div class="tile" onclick="openModule('transferts')" style="position:relative; background: #546e7a; color: white; padding: 20px; border-radius: 12px; cursor: pointer;">
-    <div style="font-size: 24px; margin-bottom: 10px;">
-        <i class="fa-solid fa-truck-arrow-right"></i>
+    <div class="tile" id="tile-admission" data-role="admin,stock,auditeur" onclick="openModule('admission')">
+        <i class="fa-solid fa-boxes-stacked"></i>
+        <h3>Admissions</h3>
+        <p>Gestion des entrées de stock</p>
     </div>
-    <div style="font-weight: bold;">Transferts</div>
-    <div style="font-size: 12px; opacity: 0.8;">Expédier ou Recevoir</div>
     
-    <span id="badge-transfert" style="position:absolute; top:10px; right:10px; background:#ff5252; color:white; border-radius:50%; padding:2px 8px; font-size:12px; display:none;">
-        3
-    </span>
-</div>
-        
-        <div class="tile" id="tile-audit" onclick="openModule('audit')">
-            <i class="fa-solid fa-chart-line"></i>
-            <h3>Audit</h3>
-            <p>Performance et logs financiers</p>
-        </div>
-        <div class="tile" id="tile-messages" onclick="openModule('messages')">
-            <i class="fa-solid fa-envelope"></i>
-            <h3>Messagerie</h3>
-            <p>Alertes et notifications</p>
-        </div>
-        <div class="tile" id="tile-admin" onclick="openModule('admin')" style="border-color: #1565c033;">
-            <i class="fa-solid fa-user-gear" style="color:var(--admin)"></i>
-            <h3>Administration</h3>
-            <p>Configuration système</p>
-        </div>
+    <div class="tile" id="tile-retrait" data-role="admin,caisse" onclick="openModule('retrait')">
+        <i class="fa-solid fa-cart-shopping"></i>
+        <h3>Ventes & Retraits</h3>
+        <p>Sorties et facturation</p>
     </div>
+
+    <div class="tile" id="tile-transfert" data-role="admin,stock,auditeur" onclick="openModule('transferts')" style="position:relative;">
+        <i class="fa-solid fa-truck-arrow-right"></i>
+        <h3>Transferts</h3>
+        <p>Expédier ou Recevoir</p>
+        <span id="badge-transfert" style="position:absolute; top:10px; right:10px; background:#ff5252; color:white; border-radius:50%; padding:2px 8px; font-size:12px; display:none;">
+            0
+        </span>
+    </div>
+    
+    <div class="tile" id="tile-audit" data-role="admin,auditeur" onclick="openModule('audit')">
+        <i class="fa-solid fa-chart-line"></i>
+        <h3>Audit</h3>
+        <p>Performance et logs financiers</p>
+    </div>
+
+    <div class="tile" id="tile-messages" data-role="all" onclick="openModule('messages')">
+        <i class="fa-solid fa-envelope"></i>
+        <h3>Messagerie</h3>
+        <p>Alertes et notifications</p>
+    </div>
+
+    <div class="tile" id="tile-admin" data-role="admin,superadmin" onclick="openModule('admin')" style="border-color: #1565c033;">
+        <i class="fa-solid fa-user-gear" style="color:var(--admin)"></i>
+        <h3>Administration</h3>
+        <p>Configuration système</p>
+    </div>
+</div>
 
     <div id="module-admission" class="module">
     <div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
@@ -432,44 +431,109 @@
 
   // Script de contrôle principal (Dashboard)
 
+/**
+ * Ouvre une section spécifique et masque la grille principale.
+ * @param {string} id - L'identifiant du module (ex: 'audit', 'admission')
+ */
 function openModule(id) {
-    document.getElementById('main-grid').style.display = 'none';
-    document.querySelectorAll('.module').forEach(m => m.style.display = 'none'); // Sécurité
-    document.getElementById('module-' + id).style.display = 'block';
+    const user = AppUser.get();
     
-    // Initialisation spécifique via les scripts externes chargés
-    if (id === 'admission') typeof initModuleAdmission === 'function' && initModuleAdmission();
-    if (id === 'messages') typeof loadInbox === 'function' && loadInbox();
-    if (id === 'admin') typeof loadAdminSection === 'function' && loadAdminSection('magasins');
-    if (id === 'audit') typeof refreshAuditData === 'function' && refreshAuditData();
-    if (id === 'transferts') typeof initModuleTransfert === 'function' && initModuleTransfert();
+    // 1. Double vérification de sécurité (Rôles)
+    const moduleElement = document.getElementById('module-' + id);
+    if (!moduleElement) {
+        console.error("Module introuvable :", id);
+        return;
+    }
+
+    // 2. On vérifie si l'utilisateur a le droit (on réutilise la logique data-role)
+    // Optionnel mais recommandé si tu veux blinder la sécurité UI
+    
+    // 3. Masquage de la grille et de tous les autres modules
+    document.getElementById('main-grid').style.display = 'none';
+    document.querySelectorAll('.module-container').forEach(m => m.style.display = 'none');
+    
+    // 4. Affichage du module demandé
+    moduleElement.style.display = 'block';
+    
+    // 5. Initialisation spécifique selon le module
+    console.log(`🛠 Initialisation du module : ${id}`);
+    
+    switch(id) {
+        case 'admission':
+            if (typeof initModuleAdmission === 'function') initModuleAdmission();
+            break;
+        case 'messages':
+            if (typeof loadInbox === 'function') loadInbox();
+            break;
+        case 'admin':
+            // Par défaut, on ouvre sur la gestion des magasins
+            if (typeof loadAdminSection === 'function') loadAdminSection('magasins');
+            break;
+        case 'audit':
+            if (typeof refreshAuditData === 'function') refreshAuditData();
+            break;
+        case 'transferts':
+            if (typeof initModuleTransfert === 'function') initModuleTransfert();
+            break;
+    }
+    
+    // Scroll automatique vers le haut
+    window.scrollTo(0, 0);
 }
 
 function closeModule() {
     document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
     document.getElementById('main-grid').style.display = 'grid';
 }
+/**
+ * Initialise l'affichage des tuiles en fonction du rôle.
+ * @param {string} role - Le rôle de l'utilisateur (admin, auditeur, magasinier, etc.)
+ */
+function initDashboardTiles(role) {
+    console.log(`🔐 Filtrage des tuiles pour le rôle : ${role}`);
+    
+    // On récupère toutes les tuiles qui ont un attribut "data-role"
+    const tiles = document.querySelectorAll('.tile[data-role]');
+    
+    tiles.forEach(tile => {
+        const rolesAutorises = tile.getAttribute('data-role').split(',');
+        
+        // Si le rôle de l'utilisateur est dans la liste ou si la tuile est 'all'
+        if (rolesAutorises.includes(role) || rolesAutorises.includes('all')) {
+            tile.style.display = 'flex'; // Ou 'block' selon ton CSS
+        } else {
+            tile.style.display = 'none'; // On cache la tuile
+        }
+    });
 
-// Initialisation au chargement
+    // Mise à jour de l'interface (nom de l'utilisateur, etc.)
+    const user = AppUser.get();
+    if (user && document.getElementById('user-display-name')) {
+        document.getElementById('user-display-name').innerText = user.username;
+        document.getElementById('user-display-role').innerText = `(${role})`;
+    }
+}
 window.onload = () => {
-    // 1. Vérification de sécurité via auth.js
+    // 1. Sécurité : On récupère l'utilisateur (via AppUser.get interne à requireLogin)
     const user = requireLogin(); 
     if (!user) return;
 
-    // 2. Mise à jour de l'UI Header
-    document.getElementById('userName').textContent = user.username;
-    document.getElementById('userRole').textContent = user.role.toUpperCase();
+    // 2. Mise à jour de l'UI Header (on garde ta logique d'affichage du nom)
+    const nameEl = document.getElementById('userName');
+    const roleEl = document.getElementById('userRole');
+    if (nameEl) nameEl.textContent = user.username;
+    if (roleEl) roleEl.textContent = user.role.toUpperCase();
 
-    // 3. Restriction des tuiles selon le rôle (Instructions du 22-12)
-    const restrictedRoles = ['superadmin', 'admin', 'auditeur'];
-    if (!restrictedRoles.includes(user.role)) {
-        const adminTile = document.getElementById('tile-admin');
-        const auditTile = document.getElementById('tile-audit');
-        if (adminTile) adminTile.style.display = 'none';
-        if (auditTile) auditTile.style.display = 'none';
-    }
+    // 3. Masquage automatique des tuiles (remplace tes IF/ELSE manuels)
+    initDashboardTiles(user.role);
     
-    console.log("✅ Dashboard initialisé pour :", user.role);
-};  </script>
+    // 4. Lancement des services spécifiques (Audit / Transferts)
+    if (user.role === 'auditeur' || user.role === 'admin') {
+        checkPendingValidations(); // Vérifie les transferts en attente
+    }
+    console.log("🚀 Dashboard unique initialisé avec succès.");
+};
+    
+</script>
 </body>
 </html>
