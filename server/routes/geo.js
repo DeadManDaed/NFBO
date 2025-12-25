@@ -42,7 +42,7 @@ router.get('/arrondissements', async (req, res) => {
   }
 });
 
-
+*/
 
 
 router.get('/api/regions', async (req, res) => {
@@ -100,5 +100,5 @@ router.get('/api/arrondissements', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-module.exports = router;*/
+module.exports = router;
 
