@@ -78,130 +78,347 @@
         </div>
     </div>
 
-    <div id="module-admission" class="module"><div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
-    <h2 style="color:var(--primary); margin:0;"><i class="fa-solid fa-truck-ramp-box"></i> Réception de Lot (Admissions)</h2>
-    <button class="btn-back" onclick="closeModule()">← Dashboard</button>
-</div>
+    <div id="module-admission" class="module">
+    <div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px;">
+        <h2 style="color:var(--primary); margin:0;">
+            <i class="fa-solid fa-truck-ramp-box"></i> Réception de Lot (Admissions)
+        </h2>
+        <button class="btn-back" onclick="closeModule()">← Dashboard</button>
+    </div>
 
-<form id="admissionForm">
-    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:25px;">
-        
-        <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-            <h4 style="margin-top:0; color:#555;"><i class="fa-solid fa-id-card"></i> Source & Destination</h4>
+    <form id="admissionForm">
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:25px;">
             
-            <label>Produit (Lot défini par l'Admin) *</label>
-            <select id="adm-lot-select" required onchange="onAdmissionLotChange()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                <option value="">-- Sélectionner un lot --</option>
-            </select>
-
-            <label>Producteur (Déposant) *</label>
-            <select id="adm-producer-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                <option value="">-- Sélectionner un producteur --</option>
-            </select>
-
-            <label>Magasin de stockage *</label>
-            <select id="adm-magasin-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+            <!-- CARTE 1 : SOURCE & DESTINATION -->
+            <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <h4 style="margin-top:0; color:#555;">
+                    <i class="fa-solid fa-id-card"></i> Source & Destination
+                </h4>
+                
+                <label>Produit (Lot défini par l'Admin) *</label>
+                <select id="adm-lot-select" required onchange="onAdmissionLotChange()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                    <option value="">-- Chargement des lots... --</option>
                 </select>
-        </div>
 
-        <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-            <h4 style="margin-top:0; color:#555;"><i class="fa-solid fa-weight-hanging"></i> Mesures & Audit</h4>
-            
-            <div style="display:flex; gap:10px;">
-                <div style="flex:2;">
-                    <label>Quantité Brute *</label>
-                    <input type="number" id="adm-qty" step="0.01" required oninput="calculateInternalFinance()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                <div id="lot-info-preview" style="display:none; background:#e3f2fd; padding:12px; border-radius:6px; margin:10px 0; font-size:13px; border-left:4px solid #1565c0;">
+                    <div><strong>Prix de référence :</strong> <span id="lot-prix-display">0</span> FCFA</div>
+                    <div><strong>Unités acceptées :</strong> <span id="lot-unites-display">-</span></div>
+                    <div><strong>Catégorie :</strong> <span id="lot-categorie-display">-</span></div>
                 </div>
-                <div style="flex:1;">
-                    <label>Unité *</label>
-                    <select id="adm-unit" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+
+                <label>Producteur (Déposant) *</label>
+                <select id="adm-producer-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                    <option value="">-- Sélectionner un producteur --</option>
+                </select>
+
+                <label>Magasin de stockage *</label>
+                <select id="adm-magasin-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                    <option value="">-- Sélectionner un magasin --</option>
+                </select>
+            </div>
+
+            <!-- CARTE 2 : MESURES & AUDIT -->
+            <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                <h4 style="margin-top:0; color:#555;">
+                    <i class="fa-solid fa-weight-hanging"></i> Mesures & Audit
+                </h4>
+                
+                <div style="display:flex; gap:10px;">
+                    <div style="flex:2;">
+                        <label>Quantité Brute *</label>
+                        <input type="number" id="adm-qty" step="0.01" min="0" required oninput="calculateInternalFinance()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                    </div>
+                    <div style="flex:1;">
+                        <label>Unité *</label>
+                        <select id="adm-unit" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                            <option value="">-- Choisir d'abord un lot --</option>
                         </select>
+                    </div>
+                </div>
+
+                <label>Grade de Qualité (Coefficient d'Audit) *</label>
+                <select id="adm-quality" required onchange="calculateInternalFinance()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                    <option value="1.0">Grade A (Excellente - 100%)</option>
+                    <option value="0.9">Grade B (Bonne - 90%)</option>
+                    <option value="0.8">Grade C (Moyenne - 80%)</option>
+                    <option value="0.7">Grade D (Faible - 70%)</option>
+                </select>
+
+                <div id="finance-preview" style="background:#f1f8e9; padding:15px; border-radius:8px; border:1px solid #c5e1a5; margin-top:10px;">
+                    <div style="font-size:12px; color:#558b2f; font-weight:bold; text-transform:uppercase;">
+                        Simulation Banque Interne
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:10px;">
+                        <span style="font-size:13px;">Dû au Producteur :</span>
+                        <strong id="val-due">0 FCFA</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; color:#2e7d32;">
+                        <span style="font-size:13px;">Profit Virtuel (Surplus) :</span>
+                        <strong id="val-profit">0 FCFA</strong>
+                    </div>
                 </div>
             </div>
 
-            <label>Grade de Qualité (Coefficient d'Audit) *</label>
-            <select id="adm-quality" required onchange="calculateInternalFinance()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                <option value="1.0">Grade A (Excellente - 100%)</option>
-                <option value="0.9">Grade B (Bonne - 90%)</option>
-                <option value="0.8">Grade C (Moyenne - 80%)</option>
-                <option value="0.7">Grade D (Faible - 70%)</option>
-            </select>
-
-            <div id="finance-preview" style="background:#f1f8e9; padding:15px; border-radius:8px; border:1px solid #c5e1a5; margin-top:10px;">
-                <div style="font-size:12px; color:#558b2f; font-weight:bold; text-transform:uppercase;">Simulation Banque Interne</div>
-                <div style="display:flex; justify-content:space-between; margin-top:10px;">
-                    <span style="font-size:13px;">Dû au Producteur :</span>
-                    <strong id="val-due">0 FCFA</strong>
-                </div>
-                <div style="display:flex; justify-content:space-between; color:#2e7d32;">
-                    <span style="font-size:13px;">Profit Virtuel (Surplus) :</span>
-                    <strong id="val-profit">0 FCFA</strong>
+            <!-- CARTE 3 : CRITÈRES DE QUALITÉ (si disponibles) -->
+            <div id="criteres-qualite-card" class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:none;">
+                <h4 style="margin-top:0; color:#555;">
+                    <i class="fa-solid fa-clipboard-check"></i> Critères de Qualité
+                </h4>
+                <div id="checklist-criteres" style="display:grid; gap:8px;">
+                    <!-- Les critères seront insérés ici -->
                 </div>
             </div>
         </div>
-    </div>
 
-    <div style="margin-top:30px; text-align:right;">
-        <button type="submit" class="btn" style="background:var(--primary); color:white; padding:15px 50px; font-weight:bold;">VALIDER L'ADMISSION</button>
-    </div>
-</form>
+        <div style="margin-top:30px; text-align:right;">
+            <button type="submit" class="btn" style="background:var(--primary); color:white; padding:15px 50px; font-weight:bold; border:none; border-radius:6px; cursor:pointer;">
+                <i class="fa-solid fa-check-circle"></i> VALIDER L'ADMISSION
+            </button>
+        </div>
+    </form>
 
-<script>
-    
-// --- LOGIQUE FINANCIERE (Simulation TRG-FINANCE-INSERT) ---
+    <script>
+    // --- LOGIQUE DU MODULE ADMISSION ---
 
-let activeLotData = null;
+    let activeLotData = null;
 
-async function onAdmissionLotChange() {
-    const lotId = document.getElementById('adm-lot-select').value;
-    if(!lotId) return;
+    // Charger les données au démarrage du module
+    function initModuleAdmission() {
+        console.log('🔵 Initialisation module Admission');
+        chargerLots();
+        chargerProducteurs();
+        chargerMagasins();
+    }
 
-    // Récupérer les détails du lot (prix_ref, unites, mode_paiement)
-    const res = await fetch(`/api/lots/${lotId}`);
-    activeLotData = await res.json();
+    // 1. CHARGER LES LOTS
+    async function chargerLots() {
+        const select = document.getElementById('adm-lot-select');
+        select.innerHTML = '<option value="">-- Chargement des lots... --</option>';
+        
+        try {
+            console.log('🔵 Chargement des lots depuis /api/lots');
+            const res = await fetch('/api/lots');
+            
+            if (!res.ok) {
+                throw new Error(`Erreur HTTP ${res.status}`);
+            }
+            
+            const lots = await res.json();
+            console.log('✅ Lots chargés:', lots.length);
+            
+            if (!Array.isArray(lots) || lots.length === 0) {
+                select.innerHTML = '<option value="">⚠️ Aucun lot disponible</option>';
+                return;
+            }
+            
+            select.innerHTML = '<option value="">-- Sélectionner un lot --</option>' +
+                lots.map(lot => {
+                    const desc = lot.description || 'Sans description';
+                    const cat = lot.categorie || '';
+                    const prix = lot.prix_ref ? ` (${parseFloat(lot.prix_ref).toLocaleString()} FCFA)` : '';
+                    return `<option value="${lot.id}">${desc} ${cat ? '- ' + cat : ''}${prix}</option>`;
+                }).join('');
+            
+        } catch (err) {
+            console.error('❌ Erreur chargement lots:', err);
+            select.innerHTML = '<option value="">❌ Erreur de chargement</option>';
+            alert('Impossible de charger les lots. Vérifiez votre connexion.');
+        }
+    }
 
-    // 1. Remplir les unités autorisées par l'admin
-    const unitSelect = document.getElementById('adm-unit');
-    unitSelect.innerHTML = activeLotData.unites.map(u => `<option value="${u}">${u}</option>`).join('');
+    // 2. CHARGER LES PRODUCTEURS
+    async function chargerProducteurs() {
+        const select = document.getElementById('adm-producer-select');
+        
+        try {
+            const res = await fetch('/api/producteurs');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            
+            const producteurs = await res.json();
+            console.log('✅ Producteurs chargés:', producteurs.length);
+            
+            if (!Array.isArray(producteurs) || producteurs.length === 0) {
+                select.innerHTML = '<option value="">⚠️ Aucun producteur enregistré</option>';
+                return;
+            }
+            
+            select.innerHTML = '<option value="">-- Sélectionner un producteur --</option>' +
+                producteurs.map(p => {
+                    const nom = p.nom_producteur || p.nom || 'Sans nom';
+                    const tel = p.tel_producteur ? ` (${p.tel_producteur})` : '';
+                    return `<option value="${p.id}">${nom}${tel}</option>`;
+                }).join('');
+            
+        } catch (err) {
+            console.error('❌ Erreur chargement producteurs:', err);
+            select.innerHTML = '<option value="">❌ Erreur de chargement</option>';
+        }
+    }
 
-    calculateInternalFinance();
-}
+    // 3. CHARGER LES MAGASINS
+    async function chargerMagasins() {
+        const select = document.getElementById('adm-magasin-select');
+        
+        try {
+            const res = await fetch('/api/magasins');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            
+            const magasins = await res.json();
+            console.log('✅ Magasins chargés:', magasins.length);
+            
+            if (!Array.isArray(magasins) || magasins.length === 0) {
+                select.innerHTML = '<option value="">⚠️ Aucun magasin disponible</option>';
+                return;
+            }
+            
+            select.innerHTML = '<option value="">-- Sélectionner un magasin --</option>' +
+                magasins.map(m => {
+                    const nom = m.nom || 'Sans nom';
+                    const code = m.code ? ` (${m.code})` : '';
+                    return `<option value="${m.id}">${nom}${code}</option>`;
+                }).join('');
+            
+        } catch (err) {
+            console.error('❌ Erreur chargement magasins:', err);
+            select.innerHTML = '<option value="">❌ Erreur de chargement</option>';
+        }
+    }
 
-    /****************** Finance interne *************************/
-    
-function calculateInternalFinance() {
-    if(!activeLotData) return;
+    // 4. QUAND UN LOT EST SÉLECTIONNÉ
+    async function onAdmissionLotChange() {
+        const lotId = document.getElementById('adm-lot-select').value;
+        
+        if (!lotId) {
+            activeLotData = null;
+            document.getElementById('lot-info-preview').style.display = 'none';
+            document.getElementById('adm-unit').innerHTML = '<option value="">-- Choisir d\'abord un lot --</option>';
+            document.getElementById('criteres-qualite-card').style.display = 'none';
+            return;
+        }
 
-    const qty = parseFloat(document.getElementById('adm-qty').value) || 0;
-    const qualityCoef = parseFloat(document.getElementById('adm-quality').value);
-    const prixRef = activeLotData.prix_ref;
+        try {
+            console.log('🔵 Chargement détails lot:', lotId);
+            const res = await fetch(`/api/lots/${lotId}`);
+            
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            
+            activeLotData = await res.json();
+            console.log('✅ Lot chargé:', activeLotData);
+            
+            // Afficher les infos du lot
+            document.getElementById('lot-prix-display').innerText = parseFloat(activeLotData.prix_ref || 0).toLocaleString();
+            document.getElementById('lot-categorie-display').innerText = activeLotData.categorie || '-';
+            
+            // Remplir les unités
+            const unites = Array.isArray(activeLotData.unites_admises) 
+                ? activeLotData.unites_admises 
+                : (typeof activeLotData.unites_admises === 'string' 
+                    ? JSON.parse(activeLotData.unites_admises) 
+                    : []);
+            
+            document.getElementById('lot-unites-display').innerText = unites.join(', ') || 'Non défini';
+            
+            const unitSelect = document.getElementById('adm-unit');
+            if (unites.length > 0) {
+                unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
+            } else {
+                unitSelect.innerHTML = '<option value="kg">kg (par défaut)</option>';
+            }
+            
+            // Afficher les critères si disponibles
+            const criteres = Array.isArray(activeLotData.criteres_admission) 
+                ? activeLotData.criteres_admission 
+                : (typeof activeLotData.criteres_admission === 'string' 
+                    ? JSON.parse(activeLotData.criteres_admission) 
+                    : []);
+            
+            if (criteres.length > 0) {
+                const html = criteres.map(c => `
+                    <label style="display:flex; align-items:center; gap:10px; padding:8px; background:#f9f9f9; border-radius:4px; cursor:pointer;">
+                        <input type="checkbox" ${c.obligatoire ? 'required' : ''}>
+                        <span style="flex:1;">${c.critere} ${c.obligatoire ? '<span style="color:red;">*</span>' : ''}</span>
+                    </label>
+                `).join('');
+                
+                document.getElementById('checklist-criteres').innerHTML = html;
+                document.getElementById('criteres-qualite-card').style.display = 'block';
+            } else {
+                document.getElementById('criteres-qualite-card').style.display = 'none';
+            }
+            
+            document.getElementById('lot-info-preview').style.display = 'block';
+            
+            // Recalculer les finances
+            calculateInternalFinance();
+            
+        } catch (err) {
+            console.error('❌ Erreur chargement détails lot:', err);
+            alert('Impossible de charger les détails du lot');
+        }
+    }
 
-    // Logique simplifiée de TRG-FINANCE-INSERT
-    // 1. Calcul du montant théorique total
-    const totalTheorique = qty * prixRef;
-    
-    // 2. Calcul du versement réel au producteur (ajusté par qualité)
-    // On peut imaginer une taxe de gestion fixe de 5% ici
-    const taxeGestion = 0.05;
-    const versementReel = (qty * prixRef * qualityCoef) * (1 - taxeGestion);
+    // 5. CALCUL FINANCIER
+    function calculateInternalFinance() {
+        if (!activeLotData) {
+            document.getElementById('val-due').innerText = '0 FCFA';
+            document.getElementById('val-profit').innerText = '0 FCFA';
+            return;
+        }
 
-    // 3. Le Profit Virtuel (Surplus pour la coopérative)
-    const profitVirtuel = totalTheorique - versementReel;
+        const qty = parseFloat(document.getElementById('adm-qty').value) || 0;
+        const qualityCoef = parseFloat(document.getElementById('adm-quality').value);
+        const prixRef = parseFloat(activeLotData.prix_ref) || 0;
 
-    document.getElementById('val-due').innerText = Math.round(versementReel).toLocaleString() + " FCFA";
-    document.getElementById('val-profit').innerText = Math.round(profitVirtuel).toLocaleString() + " FCFA";
-}
+        // Logique simplifiée
+        const totalTheorique = qty * prixRef;
+        const taxeGestion = 0.05; // 5% de taxe
+        const versementReel = (qty * prixRef * qualityCoef) * (1 - taxeGestion);
+        const profitVirtuel = totalTheorique - versementReel;
 
-// Interception de la validation pour envoyer les logs d'audit
-document.getElementById('admissionForm').onsubmit = async (e) => {
-    e.preventDefault();
-    // Envoi à l'API qui exécutera TRG-FINANCE-INSERT en SQL
-    // ...
-    alert("Admission enregistrée et logs d'audit générés.");
-    closeModule();
-};
-</script></div>
-    <div id="module-retrait" class="module"><div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        document.getElementById('val-due').innerText = Math.round(versementReel).toLocaleString() + ' FCFA';
+        document.getElementById('val-profit').innerText = Math.round(profitVirtuel).toLocaleString() + ' FCFA';
+    }
+
+    // 6. SOUMISSION DU FORMULAIRE
+    document.getElementById('admissionForm').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const payload = {
+            lot_id: document.getElementById('adm-lot-select').value,
+            producteur_id: document.getElementById('adm-producer-select').value,
+            magasin_id: document.getElementById('adm-magasin-select').value,
+            quantite: parseFloat(document.getElementById('adm-qty').value),
+            unite: document.getElementById('adm-unit').value,
+            qualite: parseFloat(document.getElementById('adm-quality').value),
+            montant_du: parseFloat(document.getElementById('val-due').innerText.replace(/[^0-9]/g, '')),
+            profit_virtuel: parseFloat(document.getElementById('val-profit').innerText.replace(/[^0-9]/g, ''))
+        };
+        
+        try {
+            const res = await fetch('/api/admissions', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(errorText);
+            }
+            
+            alert('✅ Admission enregistrée avec succès !');
+            document.getElementById('admissionForm').reset();
+            activeLotData = null;
+            document.getElementById('lot-info-preview').style.display = 'none';
+            closeModule();
+            
+        } catch (err) {
+            console.error('❌ Erreur enregistrement admission:', err);
+            alert('❌ Erreur : ' + err.message);
+        }
+    };
+    </script>
+</div>    <div id="module-retrait" class="module"><div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
     <h2 style="color:#d32f2f"><i class="fa-solid fa-cart-arrow-down"></i> Sortie de Stock / Vente</h2>
     <button class="btn-back" onclick="closeModule()">← Retour</button>
 </div>
