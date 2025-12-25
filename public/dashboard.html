@@ -1849,8 +1849,18 @@ function ajouterCriterePersonnalise() {
     `;
     
     zone.appendChild(div);
-}
-    function openModule(id) {
+} 
+
+    function closeModule() {
+        document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
+        document.getElementById('main-grid').style.display = 'grid';
+    }
+const user = JSON.parse(sessionStorage.getItem('user'||'{"role": "guest", "nom", "inconnu"}');
+    window.onload = init;
+</script>
+        </div>
+<script>
+  function openModule(id) {
     document.getElementById('main-grid').style.display = 'none';
     document.getElementById('module-' + id).style.display = 'block';
     
@@ -1860,14 +1870,7 @@ function ajouterCriterePersonnalise() {
     if (id === 'admin') loadAdminSection('magasins');
     if (id === 'audit') refreshAuditData();
 }
-
-    function closeModule() {
-        document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
-        document.getElementById('main-grid').style.display = 'grid';
-    }
-const user = JSON.parse(sessionStorage.getItem('user'||'{"role": "guest", "nom", "inconnu"}');
-    window.onload = init;
-</script>
+     </script>   
     <script src="js/ui-utils.js"></script>
         <script src="js/app.js"></script>
         
