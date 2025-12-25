@@ -821,13 +821,5 @@ async function loadAdminSection(section) {
     document.getElementById('admin-title').innerText = section.charAt(0).toUpperCase() + section.slice(1);
     
     await refreshAdminTable();
-}
-    function closeModule() {
-        document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
-        document.getElementById('main-grid').style.display = 'grid';
-    }
-const user = JSON.parse(sessionStorage.getItem('user'||'{"role": "guest", "nom", "inconnu"}');
-    window.onload = init;       
-
- 
+}  
      </script>   
