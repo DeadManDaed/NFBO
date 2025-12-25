@@ -30,6 +30,11 @@ function initModuleAdmission() {
 
 // 2. CHARGEMENT DES RÉFÉRENTIELS (LOTS, PRODUCTEURS, MAGASINS)
 async function chargerLots() {
+    // Si déjà en cache, on gagne du temps
+    if (AppCache.lots.length > 0) {
+        renderLotsSelect(AppCache.lots); 
+        return;
+    }
     const select = document.getElementById('adm-lot-select');
     if (!select) return;
 
