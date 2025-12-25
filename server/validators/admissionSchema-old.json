@@ -1,0 +1,11 @@
+{
+  "$id": "https://example.com/schemas/lot",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LotAdmission",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "lot_id": { "type": ["integer", "string"] },
+    "quantite": { "type": ["number", "string"] }
+  }
+}
