@@ -430,21 +430,46 @@
         
 <script>
 
-     function openModule(id) {
+  // Script de contrôle principal (Dashboard)
+
+function openModule(id) {
     document.getElementById('main-grid').style.display = 'none';
+    document.querySelectorAll('.module').forEach(m => m.style.display = 'none'); // Sécurité
     document.getElementById('module-' + id).style.display = 'block';
     
-    // Initialisation selon le module
-    if (id === 'admission') initModuleAdmission();
-    if (id === 'messages') loadInbox();
-    if (id === 'admin') loadAdminSection('magasins');
-    if (id === 'audit') refreshAuditData();
+    // Initialisation spécifique via les scripts externes chargés
+    if (id === 'admission') typeof initModuleAdmission === 'function' && initModuleAdmission();
+    if (id === 'messages') typeof loadInbox === 'function' && loadInbox();
+    if (id === 'admin') typeof loadAdminSection === 'function' && loadAdminSection('magasins');
+    if (id === 'audit') typeof refreshAuditData === 'function' && refreshAuditData();
+    if (id === 'transferts') typeof initModuleTransfert === 'function' && initModuleTransfert();
 }
-        function closeModule() {
-        document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
-        document.getElementById('main-grid').style.display = 'grid';
+
+function closeModule() {
+    document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
+    document.getElementById('main-grid').style.display = 'grid';
+}
+
+// Initialisation au chargement
+window.onload = () => {
+    // 1. Vérification de sécurité via auth.js
+    const user = requireLogin(); 
+    if (!user) return;
+
+    // 2. Mise à jour de l'UI Header
+    document.getElementById('userName').textContent = user.username;
+    document.getElementById('userRole').textContent = user.role.toUpperCase();
+
+    // 3. Restriction des tuiles selon le rôle (Instructions du 22-12)
+    const restrictedRoles = ['superadmin', 'admin', 'auditeur'];
+    if (!restrictedRoles.includes(user.role)) {
+        const adminTile = document.getElementById('tile-admin');
+        const auditTile = document.getElementById('tile-audit');
+        if (adminTile) adminTile.style.display = 'none';
+        if (auditTile) auditTile.style.display = 'none';
     }
-const user = JSON.parse(sessionStorage.getItem('user'||'{"role": "guest", "nom", "inconnu"}'));
-    window.onload = init;    </script>
+    
+    console.log("✅ Dashboard initialisé pour :", user.role);
+};  </script>
 </body>
 </html>
