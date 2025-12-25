@@ -46,7 +46,7 @@ module.exports = router;*/
 
 
 
-app.get('/api/regions', async (req, res) => {
+router.get('/api/regions', async (req, res) => {
     try {
         const result = await pool.query('SELECT id, nom FROM regions ORDER BY nom');
         res.json(result.rows);
@@ -57,7 +57,7 @@ app.get('/api/regions', async (req, res) => {
 });
 
 // GET /api/departements?region_id=X
-app.get('/api/departements', async (req, res) => {
+router.get('/api/departements', async (req, res) => {
     const { region_id } = req.query;
     
     try {
@@ -80,7 +80,7 @@ app.get('/api/departements', async (req, res) => {
 });
 
 // GET /api/arrondissements?departement_id=X
-app.get('/api/arrondissements', async (req, res) => {
+router.get('/api/arrondissements', async (req, res) => {
     const { departement_id } = req.query;
     
     try {
