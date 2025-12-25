@@ -1850,6 +1850,16 @@ function ajouterCriterePersonnalise() {
     
     zone.appendChild(div);
 }
+    function openModule(id) {
+    document.getElementById('main-grid').style.display = 'none';
+    document.getElementById('module-' + id).style.display = 'block';
+    
+    // Initialisation selon le module
+    if (id === 'admission') initModuleAdmission();
+    if (id === 'messages') loadInbox();
+    if (id === 'admin') loadAdminSection('magasins');
+    if (id === 'audit') refreshAuditData();
+}
 
     function closeModule() {
         document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
