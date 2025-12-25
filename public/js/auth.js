@@ -1,7 +1,7 @@
 // public/js/auth.js - Gestion de la session client
 
 function getCurrentUser() {
-    const userInfo = sessionStorage.getItem("userInfo");
+    const userInfo = AppUser.get();
     if (!userInfo) return null;
     try {
         const data = JSON.parse(userInfo);
@@ -13,18 +13,34 @@ function getCurrentUser() {
     }
 }
 
+/**
+ * Vérifie qu'un utilisateur est connecté.
+ * @returns {Object|null} L'objet utilisateur ou redirige vers l'index.
+ */
 function requireLogin() {
-    const user = getCurrentUser();
+    // On utilise la source de vérité unique définie dans ui-utils.js ou AppCache
+    const user = AppUser.get(); 
+
     if (!user || !user.username || !user.role) {
-        console.warn("Accès non autorisé : redirection vers login.");
-        sessionStorage.clear();
+        console.warn("🛡️ Accès refusé : Session invalide ou expirée.");
+        
+        // On nettoie tout pour éviter les états hybrides
+        AppUser.clear(); 
+        sessionStorage.clear(); 
+        
+        // Redirection immédiate
         window.location.href = "/index.html";
         return null;
     }
+
     return user;
 }
 
+/**
+ * Déconnexion sécurisée
+ */
 function logout() {
+    AppUser.clear();
     sessionStorage.clear();
     window.location.href = "/index.html";
 }
@@ -45,18 +61,19 @@ function showError(message) {
  * Redirige l'utilisateur vers son tableau de bord spécifique.
  * Note : J'ai harmonisé les chemins vers la racine ou /pages/
  */
-function redirectToRolePage(role) {
-    const rolePages = {
-        'superadmin': '/administration.html',
-        'admin': '/administration.html',
-        'auditeur': '/dashboard.html',
-        'caisse': '/caisse.html',
-        'stock': '/stock.html'
-    };
-    
-    // Si tu utilises un dossier /pages/, ajoute le préfixe ici
-    const page = rolePages[role] || '/dashboard.html';
-    window.location.href = page;
+/**
+ * Remplace l'ancienne redirection. 
+ * Oriente l'utilisateur vers le dashboard unique.
+ */
+function goToDashboard() {
+    const user = AppUser.get();
+    if (!user) {
+        window.location.href = "/index.html";
+        return;
+    }
+    // On reste sur la même page (dashboard.html ou app.html)
+    // et on initialise l'affichage des tuiles
+    initDashboardTiles(user.role);
 }
 
 function checkPageAccess(allowedRoles) {
