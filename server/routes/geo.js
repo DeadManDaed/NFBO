@@ -42,7 +42,6 @@ router.get('/arrondissements', async (req, res) => {
   }
 });
 
-module.exports = router;*/
 
 
 
@@ -101,3 +100,5 @@ router.get('/api/arrondissements', async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
+module.exports = router;*/
+
