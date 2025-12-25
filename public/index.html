@@ -33,7 +33,8 @@
     </div>
 
     <script>
-        document.getElementById('loginForm').onsubmit = async (e) => {
+        /*
+document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
             const alertBox = document.getElementById('alert');
             const credentials = {
@@ -49,7 +50,7 @@
                 });
                 const data = await res.json();
 
-               /* if (res.ok) {
+                if (res.ok) {
                     sessionStorage.setItem('user', JSON.stringify(data.user));
                     window.location.href = 'dashboard.html';
                 } else {
