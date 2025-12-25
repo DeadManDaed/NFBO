@@ -6,6 +6,13 @@
  * @param {string|null} parentId - Optionnel, utilisé pour les cascades (ex: departements par région).
  * @param {function|null} labelFn - Optionnel, fonction pour formater le libellé affiché.
  */
+const AppUser = {
+    get: () => JSON.parse(sessionStorage.getItem('user')),
+    set: (data) => sessionStorage.setItem('user', JSON.stringify(data)),
+    clear: () => sessionStorage.removeItem('user'),
+    exists: () => sessionStorage.getItem('user') !== null
+};
+
 async function loadReference(type, targetId, parentId = null, labelFn = null) {
     const target = document.getElementById(targetId);
     if (!target) {
