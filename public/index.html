@@ -33,7 +33,6 @@
     </div>
 
     <script>
-        /*
 document.getElementById('loginForm').onsubmit = async (e) => {
             e.preventDefault();
             const alertBox = document.getElementById('alert');
@@ -41,7 +40,6 @@ document.getElementById('loginForm').onsubmit = async (e) => {
                 username: document.getElementById('username').value,
                 password: document.getElementById('password').value
             };
-
             try {
                 const res = await fetch('/api/login', {
                     method: 'POST',
@@ -61,7 +59,8 @@ document.getElementById('loginForm').onsubmit = async (e) => {
                 alertBox.innerText = "Serveur indisponible";
                 alertBox.style.display = 'block';
             }
-*/
+            }));
+/*
 // MODE DEBUG : Forcer un utilisateur de test
 sessionStorage.setItem('user', JSON.stringify({
     id: 1,
@@ -70,11 +69,12 @@ sessionStorage.setItem('user', JSON.stringify({
     prenom: 'John',
     nom: 'Doe',
     email: 'john@example.com'
-//}));
+//
 
 const user = JSON.parse(sessionStorage.getItem('user'));
 console.log('🔵 User forcé pour debug:', user);
         };
+        */
     </script>
 </body>
 </html>
