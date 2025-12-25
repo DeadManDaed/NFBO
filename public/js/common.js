@@ -1,6 +1,6 @@
 // Récupère l'utilisateur courant depuis sessionStorage
 function getCurrentUser() {
-  const userInfo = sessionStorage.getItem("userInfo");
+  const userInfo = AppUser.get();
   return userInfo ? JSON.parse(userInfo) : null;
 }
 
