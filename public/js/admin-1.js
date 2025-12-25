@@ -827,18 +827,7 @@ async function loadAdminSection(section) {
         document.getElementById('main-grid').style.display = 'grid';
     }
 const user = JSON.parse(sessionStorage.getItem('user'||'{"role": "guest", "nom", "inconnu"}');
-    window.onload = init;
-</script>
-        </div>
-<script>
-  function openModule(id) {
-    document.getElementById('main-grid').style.display = 'none';
-    document.getElementById('module-' + id).style.display = 'block';
-    
-    // Initialisation selon le module
-    if (id === 'admission') initModuleAdmission();
-    if (id === 'messages') loadInbox();
-    if (id === 'admin') loadAdminSection('magasins');
-    if (id === 'audit') refreshAuditData();
-}
+    window.onload = init;       
+
+ 
      </script>   
