@@ -1,103 +1,102 @@
 /**
- * admission.js - Logique corrigée
+ * admission.js - Version Mobile-Proof (Ultra-robuste)
+ * Emplacement : Remplace tout le contenu de ton fichier admission.js actuel.
  */
 
 let activeLotData = null;
 
 // 1. INITIALISATION
 function initModuleAdmission() {
-    console.log('🔵 Initialisation module Admission');
     activeLotData = null;
-
     chargerLots();
     chargerProducteurs();
     chargerMagasins();
-
-    // Reset des affichages financiers
+    
+    // Reset forcé des affichages
     document.getElementById('val-due').innerText = '0 FCFA';
     document.getElementById('val-profit').innerText = '0 FCFA';
+    
+    // Liaison manuelle des événements pour être sûr qu'ils s'activent
+    document.getElementById('adm-qty').oninput = calculateInternalFinance;
+    document.getElementById('adm-quality').onchange = calculateInternalFinance;
 }
 
-// 2. CHARGEMENT (CORRECTIONS DES TESTS DE CACHE)
+// 2. CHARGEMENT DES RÉFÉRENTIELS (CORRIGÉ)
 async function chargerLots() {
     const select = document.getElementById('adm-lot-select');
-    if (!select) return;
     try {
         const res = await fetch('/api/lots');
         const lots = await res.json();
         select.innerHTML = '<option value="">-- Sélectionner un lot --</option>' +
-            lots.map(lot => `<option value="${lot.id}">${lot.description || 'Lot'} (${lot.categorie || ''})</option>`).join('');
-    } catch (err) { console.error('Erreur lots:', err); }
+            lots.map(l => `<option value="${l.id}">${l.description || l.nom_produit} (${l.prix_ref} FCFA)</option>`).join('');
+    } catch (e) { select.innerHTML = '<option>Erreur chargement lots</option>'; }
 }
 
 async function chargerProducteurs() {
     const select = document.getElementById('adm-producer-select');
-    if (!select) return;
     try {
         const res = await fetch('/api/producteurs');
-        const producteurs = await res.json();
-        select.innerHTML = '<option value="">-- Sélectionner un producteur --</option>' +
-            producteurs.map(p => `<option value="${p.id}">${p.nom_producteur || p.nom}</option>`).join('');
-    } catch (err) { console.error('Erreur producteurs:', err); }
+        const data = await res.json();
+        select.innerHTML = '<option value="">-- Sélectionner --</option>' +
+            data.map(p => `<option value="${p.id}">${p.nom_producteur || p.nom}</option>`).join('');
+    } catch (e) { console.error(e); }
 }
 
 async function chargerMagasins() {
     const select = document.getElementById('adm-magasin-select');
-    if (!select) return;
     try {
         const res = await fetch('/api/magasins');
-        const magasins = await res.json();
-        select.innerHTML = '<option value="">-- Sélectionner un magasin --</option>' +
-            magasins.map(m => `<option value="${m.id}">${m.nom} (${m.code})</option>`).join('');
-    } catch (err) { console.error('Erreur magasins:', err); }
+        const data = await res.json();
+        select.innerHTML = '<option value="">-- Sélectionner --</option>' +
+            data.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
+    } catch (e) { console.error(e); }
 }
 
-// 3. LOGIQUE SÉLECTION LOT (FIX UNITÉS)
+// 3. LOGIQUE SÉLECTION LOT & UNITÉS (LA CORRECTION CRITIQUE)
 async function onAdmissionLotChange() {
     const lotId = document.getElementById('adm-lot-select').value;
     const unitSelect = document.getElementById('adm-unit');
-    
     if (!lotId) return;
 
     try {
         const res = await fetch(`/api/lots/${lotId}`);
         activeLotData = await res.json();
 
-        // Affichage des infos de base
-        document.getElementById('lot-prix-display').innerText = parseFloat(activeLotData.prix_ref || 0).toLocaleString();
+        // Affichage des infos
+        document.getElementById('lot-prix-display').innerText = activeLotData.prix_ref || 0;
         document.getElementById('lot-categorie-display').innerText = activeLotData.categorie || '-';
         document.getElementById('lot-info-preview').style.display = 'block';
 
-        // --- GESTION DES UNITÉS (SÉCURISÉE) ---
+        // GESTION UNITÉS : On gère le format String ("kg, sac") ET le format JSON (["kg"])
         let unitesArray = [];
-        let rawUnites = activeLotData.unites_admises;
+        let brute = activeLotData.unites_admises;
 
-        if (typeof rawUnites === 'string') {
-            try {
-                // On tente de parser si c'est du JSON ["kg","sac"]
-                unitesArray = JSON.parse(rawUnites);
-            } catch (e) {
-                // Si c've n'est pas du JSON, on split par la virgule "kg, sac"
-                unitesArray = rawUnites.split(',').map(u => u.trim());
+        if (brute) {
+            if (typeof brute === 'string') {
+                if (brute.startsWith('[')) {
+                    try { unitesArray = JSON.parse(brute); } catch(e) { unitesArray = [brute]; }
+                } else {
+                    unitesArray = brute.split(',').map(s => s.trim());
+                }
+            } else if (Array.isArray(brute)) {
+                unitesArray = brute;
             }
-        } else if (Array.isArray(rawUnites)) {
-            unitesArray = rawUnites;
         }
 
-        // Remplissage du select des unités
-        if (unitSelect) {
-            unitSelect.innerHTML = unitesArray.map(u => `<option value="${u}">${u}</option>`).join('');
-            document.getElementById('lot-unites-display').innerText = unitesArray.join(', ');
-        }
+        // Remplissage
+        unitSelect.innerHTML = unitesArray.length > 0 
+            ? unitesArray.map(u => `<option value="${u}">${u}</option>`).join('')
+            : '<option value="">Aucune unité</option>';
+            
+        document.getElementById('lot-unites-display').innerText = unitesArray.join(', ') || 'N/A';
 
         calculateInternalFinance();
-
     } catch (err) {
-        console.error('❌ Erreur détails lot:', err);
+        console.error("Erreur lot change:", err);
     }
 }
 
-// 4. CALCULS FINANCIERS (FIX AFFICHAGE)
+// 4. CALCULS FINANCIERS (MISE À JOUR RÉELLE)
 function calculateInternalFinance() {
     if (!activeLotData) return;
 
@@ -105,14 +104,15 @@ function calculateInternalFinance() {
     const qualityCoef = parseFloat(document.getElementById('adm-quality').value) || 1;
     const prixRef = parseFloat(activeLotData.prix_ref) || 0;
 
-    // Formule : (Quantité * Prix * Qualité) - 5% frais
+    // Tes formules :
     const totalTheorique = qty * prixRef;
-    const taxeGestion = 0.05; 
+    const taxeGestion = 0.05; // 5%
     
+    // Le versement au producteur tient compte de la qualité et retire les frais
     const versementReel = (qty * prixRef * qualityCoef) * (1 - taxeGestion);
     const profitVirtuel = totalTheorique - versementReel;
 
-    // Mise à jour immédiate du DOM
-    document.getElementById('val-due').innerText = Math.round(versementReel).toLocaleString('fr-FR') + ' FCFA';
-    document.getElementById('val-profit').innerText = Math.round(profitVirtuel).toLocaleString('fr-FR') + ' FCFA';
+    // Mise à jour visuelle (arrondi pour la monnaie)
+    document.getElementById('val-due').innerText = Math.round(versementReel).toLocaleString() + ' FCFA';
+    document.getElementById('val-profit').innerText = Math.round(profitVirtuel).toLocaleString() + ' FCFA';
 }
