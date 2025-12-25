@@ -3,9 +3,29 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "LotAdmission",
   "type": "object",
-  "additionalProperties": true,
+  "additionalProperties": false,
+  "required": ["categorie", "quantite", "prix_ref"],
   "properties": {
-    "lot_id": { "type": ["integer", "string"] },
-    "quantite": { "type": ["number", "string"] }
-  }
+    "nom_producteur": { "type": "string", "minLength": 1 },
+    "tel_producteur": { "type": "string", "minLength": 7 },
+    "producteur_id": { "type": "string", "minimum": 1 },
+    "type_producteur": { "type": "string" },
+    "categorie": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "quantite": { "type": "number", "exclusiveMinimum": 0 },
+    "unite": { "type": "string" },
+    "prix_ref": { "type": "number", "minimum": 0 },
+    "qualite": { "type": "string" },
+    "date_reception": { "type": ["string","null"], "format": "date" },
+    "date_expiration": { "type": ["string","null"], "format": "date" },
+    "region_id": { "type": ["integer","null"], "minimum": 1 },
+    "departement_id": { "type": ["integer","null"], "minimum": 1 },
+    "arrondissement_id": { "type": ["integer","null"], "minimum": 1 },
+    "localite": { "type": "string" },
+    "caisse_id": { "type": "integer", "minimum": 1 }
+  },
+  "oneOf": [
+    { "required": ["nom_producteur", "tel_producteur"]},
+      { "required": ["lot_id", "producteur_id", "quantite"]}
+  ]
 }
