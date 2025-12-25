@@ -10,7 +10,7 @@ addFormats(ajv);
 const lotSchema = require('./lotSchema.json');
 
 // Schéma d'admission mis à jour pour la reprise
-const admissionSchema = {
+/* const admissionSchema = {
   type: 'object',
   properties: {
     lot_id: { type: ['integer', 'string'] },
@@ -27,6 +27,26 @@ const admissionSchema = {
   required: ['lot_id', 'producteur_id', 'quantite', 'unite', 'magasin_id'],
   additionalProperties: true 
 };
+*/
+
+const admissionSchema = {
+  type: 'object',
+  properties: {
+    lot_id: { type: ['integer', 'string'] },
+    producteur_id: { type: ['integer', 'string', 'null'] },
+    quantite: { type: ['number', 'string'] }, // Accepte le texte si le cast échoue
+    unite: { type: ['string', 'null'] },
+    prix_unitaire: { type: ['number', 'string', 'null'] },
+    qualite: { type: ['string', 'number', 'null'] },
+    magasin_id: { type: ['integer', 'string', 'null'] },
+    date_expiration: { type: ['string', 'null'] },
+    utilisateur: { type: ['string', 'null'] }
+  },
+  // On ne garde que le strict minimum vital
+  required: ['lot_id'], 
+  additionalProperties: true 
+};
+
 
 const validateLotDef = ajv.compile(lotSchema);
 const validateAdm = ajv.compile(admissionSchema);
