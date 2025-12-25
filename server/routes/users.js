@@ -26,7 +26,7 @@ router.get('/magasin/:magasinId', async (req, res) => {
 });
 
 // POST nouvel utilisateur
-app.post('/api/users', async (req, res) => {
+rooter.post('/api/users', async (req, res) => {
     const { username, password, role, prenom, nom, email, telephone, magasin_id, statut } = req.body;
     
     console.log('🔵 Création utilisateur:', username, role);
