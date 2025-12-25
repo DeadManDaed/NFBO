@@ -35,6 +35,7 @@ async function chargerLots() {
         renderLotsSelect(AppCache.lots); 
         return;
     }
+    else{
     const select = document.getElementById('adm-lot-select');
     if (!select) return;
 
@@ -63,9 +64,16 @@ async function chargerLots() {
         console.error('❌ Erreur chargement lots:', err);
         select.innerHTML = '<option value="">❌ Erreur de chargement</option>';
     }
+    }
 }
 
 async function chargerProducteurs() {
+    // Si déjà en cache, on gagne du temps
+    if (AppCache.lots.length > 0) {
+        renderLotsSelect(AppCache.lots); 
+        return;
+    }
+    else{
     const select = document.getElementById('adm-producer-select');
     if (!select) return;
     
@@ -83,12 +91,18 @@ async function chargerProducteurs() {
     } catch (err) {
         console.error('❌ Erreur producteurs:', err);
     }
+    }
 }
 
 async function chargerMagasins() {
     const select = document.getElementById('adm-magasin-select');
     if (!select) return;
-    
+    // Si déjà en cache, on gagne du temps
+    if (AppCache.lots.length > 0) {
+        renderLotsSelect(AppCache.lots); 
+        return;
+    }
+    else{
     try {
         const res = await fetch('/api/magasins');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -98,6 +112,7 @@ async function chargerMagasins() {
             magasins.map(m => `<option value="${m.id}">${m.nom || 'Magasin'} (${m.code || '?'})</option>`).join('');
     } catch (err) {
         console.error('❌ Erreur magasins:', err);
+    }
     }
 }
 
