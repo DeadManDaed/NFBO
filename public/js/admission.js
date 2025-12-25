@@ -97,7 +97,7 @@ async function onAdmissionLotChange() {
 }
 
 // 4. CALCULS FINANCIERS (MISE À JOUR RÉELLE)
-function calculateInternalFinance() {
+/*function calculateInternalFinance() {
     if (!activeLotData) return;
 
     const qty = parseFloat(document.getElementById('adm-qty').value) || 0;
@@ -115,4 +115,35 @@ function calculateInternalFinance() {
     // Mise à jour visuelle (arrondi pour la monnaie)
     document.getElementById('val-due').innerText = Math.round(versementReel).toLocaleString() + ' FCFA';
     document.getElementById('val-profit').innerText = Math.round(profitVirtuel).toLocaleString() + ' FCFA';
+}
+*/
+
+function calculateInternalFinance() {
+    // On essaie de récupérer les valeurs, sinon 0
+    const qtyInput = document.getElementById('adm-qty');
+    const qualityInput = document.getElementById('adm-quality');
+    const prixDisplay = document.getElementById('lot-prix-display');
+
+    const qty = qtyInput ? parseFloat(qtyInput.value) || 0 : 0;
+    const qualityCoef = qualityInput ? parseFloat(qualityInput.value) || 1 : 1;
+    
+    // On nettoie le prix au cas où il contient "FCFA" ou des espaces
+    let prixTexte = prixDisplay ? prixDisplay.innerText.replace(/[^0-9.]/g, '') : "0";
+    const prixRef = parseFloat(prixTexte) || 0;
+
+    // Calculs
+    const totalTheorique = qty * prixRef;
+    const taxeGestion = 0.05; // 5%
+    
+    const versementReel = (qty * prixRef * qualityCoef) * (1 - taxeGestion);
+    const profitVirtuel = totalTheorique - versementReel;
+
+    // Mise à jour visuelle forcée
+    const dueEl = document.getElementById('val-due');
+    const profitEl = document.getElementById('val-profit');
+
+    if (dueEl) dueEl.innerText = Math.round(versementReel).toLocaleString('fr-FR') + ' FCFA';
+    if (profitEl) profitEl.innerText = Math.round(profitVirtuel).toLocaleString('fr-FR') + ' FCFA';
+    
+    console.log("Calcul effectué:", { qty, prixRef, versementReel });
 }
