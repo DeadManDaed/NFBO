@@ -458,6 +458,7 @@
         <button type="submit" class="btn" style="background:#d32f2f; color:white; padding:15px 40px;">VALIDER LA SORTIE</button>
     </div>
 </form></div> 
+
 <div id="module-transferts" class="module">
     <div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; border-bottom: 2px solid #546e7a; padding-bottom: 10px;">
         <h2 style="color:#546e7a; margin:0;"><i class="fa-solid fa-truck-arrow-right"></i> Transferts inter-magasins</h2>
@@ -1028,19 +1029,8 @@ async function sendMessage(e) {
 </style>
 
 <script>
-let currentSection = 'magasins';
 
-// 1. Navigation entre les sections Admin
-async function loadAdminSection(section) {
-    currentSection = section;
-    document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    document.getElementById('admin-title').innerText = section.charAt(0).toUpperCase() + section.slice(1);
-    
-    await refreshAdminTable();
-}
 
-// 2. Chargement des données (API)
 // 2. Chargement des données (API)
 async function refreshAdminTable() {
     const wrapper = document.getElementById('admin-table-wrapper');
@@ -1851,6 +1841,17 @@ function ajouterCriterePersonnalise() {
     zone.appendChild(div);
 } 
 
+let currentSection = 'magasins';
+
+// 1. Navigation entre les sections Admin
+async function loadAdminSection(section) {
+    currentSection = section;
+    document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    document.getElementById('admin-title').innerText = section.charAt(0).toUpperCase() + section.slice(1);
+    
+    await refreshAdminTable();
+}
     function closeModule() {
         document.querySelectorAll('.module').forEach(m => m.style.display = 'none');
         document.getElementById('main-grid').style.display = 'grid';
