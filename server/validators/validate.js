@@ -31,21 +31,10 @@ const lotSchema = require('./lotSchema.json');
 
 const admissionSchema = {
   type: 'object',
-  properties: {
-    lot_id: { type: ['integer', 'string'] },
-    producteur_id: { type: ['integer', 'string', 'null'] },
-    quantite: { type: ['number', 'string'] }, // Accepte le texte si le cast échoue
-    unite: { type: ['string', 'null'] },
-    prix_unitaire: { type: ['number', 'string', 'null'] },
-    qualite: { type: ['string', 'number', 'null'] },
-    magasin_id: { type: ['integer', 'string', 'null'] },
-    date_expiration: { type: ['string', 'null'] },
-    utilisateur: { type: ['string', 'null'] }
-  },
-  // On ne garde que le strict minimum vital
-  required: ['lot_id'], 
-  additionalProperties: true 
+  additionalProperties: true,
+  required: ['lot_id'] // On ne garde que l'ID du lot comme obligatoire
 };
+
 
 
 const validateLotDef = ajv.compile(lotSchema);
