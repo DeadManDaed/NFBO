@@ -7,8 +7,32 @@ const ajv = new Ajv({allErrors: true,
     allowUnionTypes: true});
 addFormats(ajv);
 
-const lotSchema = require('./lotSchema.json');
+// Schéma aligné sur votre table SQL
+const lotSchema = {
+    "type": "object",
+    "required": ["description", "categorie", "criteres_admission", "unites_admises", "prix_ref"],
+    "properties": {
+        "description": { "type": "string", "maxLength": 255 },
+        "categorie": { "type": "string", "maxLength": 100 },
+        "prix_ref": { "type": "number", "minimum": 0 },
+        "unites_admises": { "type": "array", "items": { "type": "string" } },
+        "criteres_admission": { "type": "array", "items": { "type": "object" } },
+        "notes": { "type": "string" } // Note: n'est pas dans votre table, sera ignoré ou à ajouter
+    }
+};
 
+const validate = ajv.compile(lotSchema);
+
+function validateLot(req, res, next) {
+    const valid = validate(req.body);
+    if (!valid) {
+        return res.status(400).json({ 
+            error: "Validation échouée", 
+            details: validate.errors 
+        });
+    }
+    next();
+}
 // Schéma d'admission mis à jour pour la reprise
 /* const admissionSchema = {
   type: 'object',
@@ -37,29 +61,8 @@ const admissionSchema = {
 
 
 
-const validateLotDef = ajv.compile(lotSchema);
+
 const validateAdm = ajv.compile(admissionSchema);
-
-function validateLot(req, res, next) {
-    const validate = ajv.compile(lotSchema);
-    const valid = validate(req.body);
-
-    if (!valid) {
-        // Extraction des messages d'erreur lisibles
-        const errors = validate.errors.map(err => {
-            return `${err.instancePath.replace('/', '')} ${err.message}`;
-        }).join(', ');
-
-        console.error('❌ Échec de validation du lot:', errors);
-        return res.status(400).json({ 
-            success: false, 
-            message: "Données invalides : " + errors 
-        });
-    }
-
-    // Si c'est valide, on passe à la suite (la route SQL)
-    next();
-}
 
 function validateAdmission(req, res, next) {
   const valid = validateAdm(req.body);
@@ -69,5 +72,6 @@ function validateAdmission(req, res, next) {
 }
 
 module.exports = { validateLot, validateAdmission };
+
 
 
