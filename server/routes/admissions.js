@@ -24,34 +24,27 @@ router.post('/', validateAdmission, async (req, res) => {
         // Horodatage complet pour date_reception
         const date_actuelle = new Date().toISOString(); 
 
-        const result = await pool.query(
-            `INSERT INTO admissions (
-                lot_id, 
-                producteur_id, 
-                quantite, 
-                unite, 
-                prix_ref, 
-                coef_qualite, 
-                date_reception, 
-                date_expiration, 
-                magasin_id, 
-                mode_paiement, 
-                utilisateur
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-            [
-                parseInt(lot_id),
-                parseInt(producteur_id),
-                parseFloat(quantite),
-                unite,
-                parseFloat(prix_ref || 0),
-                parseFloat(coef_qualite || 1),
-                date_actuelle, 
-                date_expiration || null,
-                parseInt(magasin_id),
-                mode_paiement || 'solde',
-                utilisateur || 'agent_system'
-            ]
-        );
+        // server/routes/admissions.js
+const result = await pool.query(
+    `INSERT INTO admissions (
+        lot_id, producteur_id, quantite, unite, prix_ref, 
+        coef_qualite, date_reception, date_expiration, 
+        magasin_id, mode_paiement, utilisateur
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    [
+        payload.lot_id,          // $1
+        payload.producteur_id,   // $2
+        payload.quantite,        // $3
+        payload.unite,           // $4
+        payload.prix_ref,        // $5 -> Très important pour le calcul de "estimee"
+        payload.coef_qualite,    // $6 -> Très important pour le calcul de "estimee"
+        payload.date_reception,  // $7
+        payload.date_expiration, // $8
+        payload.magasin_id,      // $9
+        payload.mode_paiement,   // $10
+        payload.utilisateur      // $11
+    ]
+);
 
         res.status(201).json(result.rows[0]);
 
