@@ -60,6 +60,7 @@ router.post('/', validateAdmission, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+  }
 /*    res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('❌ Erreur SQL Admission:', err.message);
