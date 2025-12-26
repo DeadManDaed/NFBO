@@ -157,3 +157,53 @@ function calculateInternalFinance() {
     
     console.log("Calcul effectué:", { qty, prixRef, versementReel });
 }
+/**
+ * Gère l'envoi des données d'admission au serveur
+ */
+async function soumettreAdmission(event) {
+    event.preventDefault(); // Empêche le rechargement de la page
+
+    // Récupération des données du formulaire
+    const payload = {
+        lot_id: parseInt(document.getElementById('adm-lot-select').value),
+        producteur_id: parseInt(document.getElementById('adm-producer-select').value),
+        magasin_id: parseInt(document.getElementById('adm-magasin-select').value),
+        quantite: parseFloat(document.getElementById('adm-qty').value),
+        unite: document.getElementById('adm-unit').value,
+        coef_qualite: parseFloat(document.getElementById('adm-quality').value),
+        // On récupère la lettre (A, B, C ou D) dans le texte de l'option sélectionnée
+        grade_qualite: document.getElementById('adm-quality').options[document.getElementById('adm-quality').selectedIndex].text.split(' ')[1],
+        prix_ref: parseFloat(document.getElementById('lot-prix-display').innerText),
+        utilisateur: localStorage.getItem('username') || 'Anonyme',
+        date_reception: new Date().toISOString().split('T')[0],
+        mode_paiement: 'solde'
+    };
+
+    console.log("📤 Envoi de l'admission :", payload);
+
+    try {
+        const response = await fetch('/api/admissions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (response.ok) {
+            alert("✅ Admission réussie ! Le stock et le solde producteur ont été mis à jour.");
+            event.target.reset(); // Vide le formulaire
+            if(typeof refreshAdminTable === 'function') refreshAdminTable('admissions');
+        } else {
+            const error = await response.json();
+            alert("❌ Erreur : " + error.details || error.error);
+        }
+    } catch (err) {
+        console.error("Erreur réseau :", err);
+        alert("Impossible de contacter le serveur.");
+    }
+}
+
+// Liaison de l'événement au chargement du script
+const formAdmission = document.getElementById('admissionForm');
+if (formAdmission) {
+    formAdmission.onsubmit = soumettreAdmission;
+}
