@@ -1,4 +1,3 @@
-<script>
 // --- LOGIQUE DE MESSAGERIE (API-based) ---
 
 // 1. Charger la boîte de réception
@@ -105,4 +104,3 @@ async function sendMessage(e) {
         }
     } catch (err) { alert("Erreur lors de l'envoi"); }
 }
-</script>
