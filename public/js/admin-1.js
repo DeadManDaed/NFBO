@@ -255,65 +255,89 @@ function showFormMagasins(wrapper) {
     };
 }
 
-// --- FORMULAIRE LOTS (PRODUITS) ---
-function showFormLots(wrapper) {
+// --- FORMULAIRE LOTS (PRODUITS) ---function showFormLots(wrapper) {
     wrapper.innerHTML = `
-        <form id="form-lot" class="admin-form-large">
-            <h3>Nouveau Lot (Produit)</h3>
-            <div class="form-grid-3">
+        <form id="form-lot" style="background:white; padding:25px; border-radius:8px; max-width:1000px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h3 style="margin-top:0; color:var(--admin); border-bottom:2px solid #eee; padding-bottom:10px;">
+                <i class="fa-solid fa-box-open"></i> Référentiel Produit : Création d'un Lot
+            </h3>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:20px;">
                 <div class="form-group">
-                    <label>Catégorie *</label>
-                    <select id="lot-categorie" required onchange="chargerCriteresParCategorie()">
-                        <option value="">Sélectionner</option>
-                        <option value="frais">Produits frais</option>
-                        <option value="secs">Produits secs</option>
-                        <option value="manufactures_alim">Alimentaire transformé</option>
-                        <option value="sensibles">Produits sensibles</option>
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Catégorie *</label>
+                    <select id="lot-categorie" required onchange="chargerCriteresParCategorie()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Sélectionner --</option>
+                        <option value="frais">Produits Frais (Vivres frais)</option>
+                        <option value="secs">Céréales, Grains et Légumineuses</option>
+                        <option value="huiles_liquides">Huiles et Produits Liquides</option>
+                        <option value="produits_foret">Produits de la Forêt (NTFP)</option>
+                        <option value="manufactures_alim">Manufacturés Alimentaires</option>
+                        <option value="manufactures_non_alim">Manufacturés Non Alimentaires</option>
+                        <option value="sensibles">Produits de Haute Valeur / Sensibles</option>
                     </select>
                 </div>
+
                 <div class="form-group">
-                    <label>Description *</label>
-                    <input type="text" id="lot-description" required>
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Description du produit *</label>
+                    <input type="text" id="lot-description" placeholder="Ex: Huile de palme raffinée" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
+
                 <div class="form-group">
-                    <label>Prix Ref (FCFA) *</label>
-                    <input type="number" id="lot-prix-ref" required>
+                    <label style="font-weight:bold; display:block; margin-bottom:5px;">Prix de Référence (FCFA/Unité) *</label>
+                    <input type="number" id="lot-prix-ref" step="0.01" min="0" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
                 </div>
             </div>
 
-            <div class="form-section">
-                <label><strong>Unités admises *</strong></label>
-                <div class="checkbox-group">
-                    <label><input type="checkbox" name="unite" value="kg"> kg</label>
-                    <label><input type="checkbox" name="unite" value="litres"> Litres</label>
-                    <label><input type="checkbox" name="unite" value="unites"> Unités</label>
-                    <label><input type="checkbox" name="unite" value="sacs"> Sacs</label>
+            <div style="margin-top:25px;">
+                <label style="font-weight:bold; display:block; margin-bottom:10px;">Unités de mesure admises *</label>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; background:#f8f9fa; padding:15px; border-radius:6px; border:1px solid #eee;">
+                    ${['kg', 'gr', 'litres', 'unites', 'sacs', 'caisses', 'bottes', 'plateaux'].map(u => `
+                        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:14px;">
+                            <input type="checkbox" name="unite" value="${u}"> ${u === 'unites' ? 'Unités (pièces)' : u.charAt(0).toUpperCase() + u.slice(1)}
+                        </label>
+                    `).join('')}
                 </div>
             </div>
 
-            <div class="form-section">
-                <div class="flex-between">
-                    <h4>Critères Qualité</h4>
-                    <button type="button" class="btn-small" onclick="ajouterCriterePersonnalise()">+ Ajouter</button>
+            <div style="margin-top:25px; border-top:2px solid #eee; padding-top:20px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                    <h4 style="margin:0; color:#555;">
+                        <i class="fa-solid fa-clipboard-check"></i> Critères de Contrôle Qualité (Admission)
+                    </h4>
+                    <button type="button" onclick="ajouterCriterePersonnalise()" style="background:#f0f0f0; padding:6px 12px; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px;">
+                        <i class="fa-solid fa-plus"></i> Critère personnalisé
+                    </button>
                 </div>
-                <div id="zone-criteres-auto" class="criteres-suggere" style="display:none;">
-                    <div id="liste-criteres-auto"></div>
+                
+                <div id="zone-criteres-auto" style="background:#f1f8e9; padding:15px; border-radius:6px; border-left:4px solid #4caf50; margin-bottom:15px; display:none;">
+                    <div style="font-size:11px; font-weight:bold; color:#2e7d32; margin-bottom:10px; text-transform:uppercase;">
+                        📋 Critères standards recommandés
+                    </div>
+                    <div id="liste-criteres-auto" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                        </div>
                 </div>
-                <div id="zone-criteres-personnalises"></div>
-                <textarea id="lot-criteres-notes" placeholder="Notes ou instructions..."></textarea>
+
+                <div id="zone-criteres-personnalises" style="display:grid; gap:10px;"></div>
+
+                <textarea id="lot-criteres-notes" placeholder="Instructions spéciales pour les agents de réception..." style="width:100%; height:70px; padding:10px; border:1px solid #ddd; border-radius:4px; margin-top:15px; font-family:inherit; resize:vertical;"></textarea>
             </div>
 
-            <div class="form-actions">
-                <button type="button" class="btn" onclick="refreshAdminTable()">Annuler</button>
-                <button type="submit" class="btn btn-save">Enregistrer le Lot</button>
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:25px; padding-top:20px; border-top:1px solid #eee;">
+                <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee; padding:12px 25px; border:none; border-radius:6px; cursor:pointer;">Annuler</button>
+                <button type="submit" class="btn" style="background:var(--admin); color:white; padding:12px 35px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;">
+                    <i class="fa-solid fa-save"></i> ENREGISTRER LE PRODUIT
+                </button>
             </div>
-        </form>`;
+        </form>
+    `;
 
+    // Script de soumission
     document.getElementById('form-lot').onsubmit = async (e) => {
         e.preventDefault();
+        
         const unitesChecked = Array.from(document.querySelectorAll('input[name="unite"]:checked')).map(cb => cb.value);
-        if (unitesChecked.length === 0) return alert('Sélectionnez au moins une unité.');
-
+        if (unitesChecked.length === 0) return alert('❌ Sélectionnez au moins une unité.');
+        
         const criteresAuto = Array.from(document.querySelectorAll('#liste-criteres-auto input:checked'))
             .map(cb => ({ type: 'standard', critere: cb.value, obligatoire: true }));
         
@@ -323,16 +347,80 @@ function showFormLots(wrapper) {
                 critere: div.querySelector('input').value,
                 obligatoire: div.querySelector('select').value === 'obligatoire'
             })).filter(c => c.critere.trim() !== '');
-
+        
         const payload = {
             categorie: document.getElementById('lot-categorie').value,
-            description: document.getElementById('lot-description').value,
+            description: document.getElementById('lot-description').value.trim(),
             prix_ref: parseFloat(document.getElementById('lot-prix-ref').value),
             unites_admises: unitesChecked,
-            criteres_admission: [...criteresAuto, ...criteresPerso]
+            criteres_admission: [...criteresAuto, ...criteresPerso],
+            notes: document.getElementById('lot-criteres-notes').value.trim()
         };
-        await submitForm('/api/lots', payload);
+
+        try {
+            const res = await fetch('/api/lots', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(await res.text());
+            alert('✅ Produit enregistré dans le référentiel.');
+            refreshAdminTable();
+        } catch (err) {
+            alert('❌ Erreur : ' + err.message);
+        }
     };
+}
+
+// === FONCTION : CHARGEMENT DES CRITÈRES PAR CATÉGORIE ===
+function chargerCriteresParCategorie() {
+    const cat = document.getElementById('lot-categorie').value;
+    const zoneAuto = document.getElementById('zone-criteres-auto');
+    const listeAuto = document.getElementById('liste-criteres-auto');
+    
+    const categoriesMapping = {
+        'frais': ['Vivacité/Fraîcheur visuelle', 'Absence de pourriture', 'Absence insectes/parasites', 'Calibrage homogène', 'Date récolte < 48h'],
+        'secs': ['Humidité < 12% (Test manuel)', 'Absence de charançons', 'Grains entiers/non brisés', 'Odeur saine (pas de moisi)', 'Absence de cailloux'],
+        'huiles_liquides': ['Scellé de sécurité intact', 'Limpidité (pas de dépôt)', 'Absence de fuite', 'DLC visible', 'Couleur naturelle'],
+        'produits_foret': ['Séchage optimal (Djansang/Poivre)', 'Arôme puissant', 'Tri effectué', 'Absence moisissure blanche'],
+        'manufactures_alim': ['Emballage intact/non gonflé', 'Date péremption valide', 'Étiquetage conforme (ANOR)', 'Numéro de lot présent'],
+        'manufactures_non_alim': ['Emballage scellé', 'Absence de chocs', 'Notice présente', 'Conformité standards'],
+        'sensibles': ['⚠️ Certificat vétérinaire requis', 'Chaîne du froid intacte', 'Traçabilité origine', 'Emballage hermétique']
+    };
+
+    listeAuto.innerHTML = "";
+    if (categoriesMapping[cat]) {
+        zoneAuto.style.display = 'block';
+        categoriesMapping[cat].forEach(critere => {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label style="display:flex; align-items:center; gap:8px; background:white; padding:8px; border-radius:4px; border:1px solid #e0e0e0; cursor:pointer; font-size:13px;">
+                    <input type="checkbox" value="${critere}" checked> 
+                    <span>${critere}</span>
+                </label>
+            `;
+            listeAuto.appendChild(div);
+        });
+    } else {
+        zoneAuto.style.display = 'none';
+    }
+}
+
+// AJOUT DE CRITERE PERSONNALISE
+function ajouterCriterePersonnalise() {
+    const zone = document.getElementById('zone-criteres-personnalises');
+    const div = document.createElement('div');
+    div.className = 'critere-personnalise';
+    div.style = "display:flex; gap:10px; margin-bottom:10px; align-items:center; background:#fff; padding:5px; border-radius:4px;";
+    div.innerHTML = `
+        <input type="text" placeholder="Nouveau critère..." style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+        <select style="padding:8px; border:1px solid #ddd; border-radius:4px; width:110px; font-size:12px;">
+            <option value="obligatoire">Obligatoire</option>
+            <option value="optionnel">Optionnel</option>
+        </select>
+        <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:#d32f2f; cursor:pointer; font-size:18px;">&times;</button>
+    `;
+    zone.appendChild(div);
 }
 
 // 6. FONCTIONS UTILITAIRES INTERNES
@@ -351,36 +439,6 @@ async function submitForm(url, payload) {
     }
 }
 
-function chargerCriteresParCategorie() {
-    const categorie = document.getElementById('lot-categorie').value;
-    const zoneAuto = document.getElementById('zone-criteres-auto');
-    const listeAuto = document.getElementById('liste-criteres-auto');
-    
-    if (!categorie) { zoneAuto.style.display = 'none'; return; }
-    
-    const base = {
-        'frais': ['Aspect visuel', 'Absence de moisissure', 'Fermeté'],
-        'secs': ['Humidité < 14%', 'Absence d\'insectes', 'Grains sains'],
-        'sensibles': ['Certificat vétérinaire', 'Chaîne du froid', 'Traçabilité']
-    };
-
-    const criteres = base[categorie] || [];
-    listeAuto.innerHTML = criteres.map(c => `
-        <label class="check-item"><input type="checkbox" value="${c}" checked> ${c}</label>
-    `).join('');
-    zoneAuto.style.display = criteres.length ? 'block' : 'none';
-}
-
-function ajouterCriterePersonnalise() {
-    const zone = document.getElementById('zone-criteres-personnalises');
-    const div = document.createElement('div');
-    div.className = 'critere-personnalise';
-    div.innerHTML = `
-        <input type="text" placeholder="Critère spécifique">
-        <select><option value="obligatoire">Obligatoire</option><option value="recommande">Optionnel</option></select>
-        <button type="button" onclick="this.parentElement.remove()">❌</button>`;
-    zone.appendChild(div);
-}
 
 async function deleteItem(section, id) {
     if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.")) return;
