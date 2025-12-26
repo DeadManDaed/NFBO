@@ -95,7 +95,7 @@ async function onAdmissionLotChange() {
         console.error("Erreur lot change:", err);
     }
 // Force la suppression du blocage navigateur sur l'unité
-const unitSelect = document.getElementById('adm-unit');
+//const unitSelect = document.getElementById('adm-unit');
 if (unitSelect) {
     unitSelect.removeAttribute('required');
     // On ajoute une option factice si c'est vide pour éviter l'erreur de sélection
