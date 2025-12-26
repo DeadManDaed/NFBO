@@ -11,7 +11,7 @@ router.post('/', validateAdmission, async (req, res) => {
     quantite, 
     unite, 
     prix_ref,       // Aligné sur le payload
-    grade_qualite,  // Aligné sur le payload ("A", "B"...)
+    //grade_qualite,  // Aligné sur le payload ("A", "B"...)
     date_expiration, 
     magasin_id,
     mode_paiement,  // Nouveau : pour gérer le 7% MM
