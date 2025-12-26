@@ -105,26 +105,91 @@ async function refreshAdminTable() {
     }
 }
 
-// 4. RENDU DU TABLEAU
+// Variable globale pour savoir où on est
+let currentSection = ''; 
+
+// 4. RENDU DU TABLEAU (Version Intelligente)
 function renderAdminTable(data) {
     const wrapper = document.getElementById('admin-table-wrapper');
+    
     if(!data || data.length === 0) {
-        wrapper.innerHTML = "<p style='padding:20px;'>Aucune donnée trouvée.</p>";
+        wrapper.innerHTML = "<div style='padding:40px; text-align:center; color:#888;'><i class='fa-solid fa-inbox fa-2x'></i><br>Aucune donnée disponible pour le moment.</div>";
         return;
     }
 
-    const headers = Object.keys(data[0]);
+    // A. DÉFINITION DES COLONNES PAR SECTION
+    // Cela permet de ne pas afficher les mots de passe ou les ID techniques
+    const columnsConfig = {
+        'users': [
+            { key: 'username', label: 'Utilisateur' },
+            { key: 'role', label: 'Rôle', type: 'badge' },
+            { key: 'magasin_id', label: 'Magasin' },
+            { key: 'statut', label: 'Statut' }
+        ],
+        'lots': [
+            { key: 'categorie', label: 'Catégorie', type: 'badge' },
+            { key: 'description', label: 'Désignation' },
+            { key: 'prix_ref', label: 'Prix Réf.', type: 'money' },
+            { key: 'unites_admises', label: 'Unités', type: 'json_list' }, // Spécial pour nos arrays
+            { key: 'stock_disponible', label: 'Stock' }
+        ],
+        // Fallback pour les sections simples (magasins, etc.)
+        'default': Object.keys(data[0]).map(k => ({ key: k, label: k.replace(/_/g, ' ').toUpperCase() }))
+    };
+
+    // Choix de la config ou fallback automatique
+    const columns = columnsConfig[currentSection] || columnsConfig['default'];
+
+    // B. CONSTRUCTION HTML
     let html = `<table class="admin-table"><thead><tr>`;
-    headers.forEach(h => html += `<th>${h.replace(/_/g, ' ')}</th>`);
-    html += `<th>Actions</th></tr></thead><tbody>`;
+    columns.forEach(col => html += `<th>${col.label}</th>`);
+    html += `<th style="width:100px; text-align:center;">Actions</th></tr></thead><tbody>`;
     
     data.forEach(row => {
         html += `<tr>`;
-        headers.forEach(h => html += `<td>${row[h] !== null ? row[h] : ''}</td>`);
-        html += `<td><button class="btn-delete" onclick="deleteItem('${currentSection}', ${row.id})">🗑️</button></td></tr>`;
+        columns.forEach(col => {
+            let value = row[col.key];
+
+            // C. FORMATAGE INTELLIGENT
+            if (col.type === 'badge') {
+                value = `<span class="badge-${value}">${value}</span>`;
+            } 
+            else if (col.type === 'money') {
+                value = value ? `${parseFloat(value).toLocaleString('fr-FR')} FCFA` : '0 FCFA';
+            }
+            else if (col.type === 'json_list') {
+                // Gestion spécifique pour vos colonnes JSONB (Lots)
+                if (Array.isArray(value)) {
+                    value = value.join(', ');
+                } else if (typeof value === 'object' && value !== null) {
+                    value = Object.keys(value).length + ' éléments';
+                } else {
+                    value = '-';
+                }
+            }
+            // Gestion des valeurs nulles
+            else if (value === null || value === undefined) {
+                value = '-';
+            }
+
+            html += `<td>${value}</td>`;
+        });
+        
+        // Bouton supprimer avec ID sécurisé
+        html += `
+            <td style="text-align:center;">
+                <button class="btn-icon delete" onclick="deleteItem('${currentSection}', ${row.id})" title="Supprimer">
+                    <i class="fa-solid fa-trash"></i>
+                </button>
+            </td>
+        </tr>`;
     });
     
     html += `</tbody></table>`;
+    
+    // Ajout d'un petit compteur en bas
+    html += `<div style="margin-top:10px; font-size:12px; color:#666; text-align:right;">${data.length} enregistrements trouvés</div>`;
+
     wrapper.innerHTML = html;
 }
 
@@ -311,9 +376,32 @@ function ajouterCriterePersonnalise() {
     zone.appendChild(div);
 }
 
-function deleteItem(section, id) {
-    if(confirm(`Supprimer l'élément ${id} de la section ${section} ?`)) {
-        fetch(`/api/${section}/${id}`, { method: 'DELETE' })
-            .then(res => { if(res.ok) refreshAdminTable(); });
+async function deleteItem(section, id) {
+    if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.")) return;
+
+    // Mapping pour s'assurer que 'users' tape bien sur '/api/users'
+    // Utile si section s'appelle 'utilisateurs' mais l'api 'users'
+    const apiMap = {
+        'utilisateurs': 'users',
+        'employes': 'employers',
+        'magasins': 'magasins',
+        'lots': 'lots'
+    };
+    
+    const endpoint = apiMap[section] || section;
+
+    try {
+        const res = await fetch(`/api/${endpoint}/${id}`, { method: 'DELETE' });
+        
+        if (res.ok) {
+            // Animation visuelle de suppression (optionnel mais sympa)
+            refreshAdminTable(); // On recharge le tableau
+        } else {
+            const err = await res.json();
+            alert("Erreur: " + (err.message || "Impossible de supprimer"));
+        }
+    } catch (error) {
+        console.error("Erreur delete:", error);
+        alert("Erreur serveur lors de la suppression.");
     }
 }
