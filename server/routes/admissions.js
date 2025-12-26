@@ -4,12 +4,6 @@ const router = express.Router();
 const { validateAdmission } = require('../validators/validate'); 
 const pool = require('../db');
 
-// server/routes/admissions.js
-const express = require('express');
-const router = express.Router();
-const { validateAdmission } = require('../validators/validate'); 
-const pool = require('../db');
-
 // ✅ POST : Créer une admission
 // J'ai laissé validateAdmission, assure-toi que ton schéma AJV accepte coef_qualite
 router.post('/', validateAdmission, async (req, res) => {
