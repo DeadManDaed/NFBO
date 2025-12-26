@@ -6,36 +6,46 @@ const pool = require('../db');
 
 router.post('/', validateAdmission, async (req, res) => {
   const {
-    lot_id, producteur_id, quantite, unite, prix_unitaire, 
-    qualite, // Reçoit "A", "B", etc.
-    date_expiration, magasin_id
+    lot_id, 
+    producteur_id, 
+    quantite, 
+    unite, 
+    prix_ref,       // Aligné sur le payload
+    grade_qualite,  // Aligné sur le payload ("A", "B"...)
+    date_expiration, 
+    magasin_id,
+    mode_paiement,  // Nouveau : pour gérer le 7% MM
+    utilisateur
   } = req.body;
 
-  // Conversion de la lettre vers le chiffre attendu par le type NUMERIC de la DB
-  const mapQualite = { 'A': 1.0, 'B': 0.9, 'C': 0.85, 'D': 0.7 };
-  const coefNumerique = mapQualite[qualite] || 1.0;
+  // Correspondance pour le coefficient numérique
+  const mapQualite = { 'A': 1.0, 'B': 0.9, 'C': 0.8, 'D': 0.7 };
+  const coefNumerique = mapQualite[grade_qualite] || 1.0;
 
   try {
     const result = await pool.query(
       `INSERT INTO admissions (
-        lot_id, producteur_id, quantite, unite, prix_ref, coef_qualite,
-        date_reception, date_expiration, magasin_id, utilisateur
-      ) VALUES ($1,$2,$3,$4,$5,$6, NOW(), $7, $8, $9) RETURNING *`,
+        lot_id, producteur_id, quantite, unite, prix_ref, 
+        coef_qualite, grade_qualite, date_reception, 
+        date_expiration, magasin_id, mode_paiement, utilisateur
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, $11) RETURNING *`,
       [
-        parseInt(lot_id), 
-        producteur_id, 
-        parseFloat(quantite), 
-        unite, 
-        parseFloat(prix_unitaire || 0), 
-        coefNumerique, // Envoi du nombre
-        date_expiration || null, 
-        magasin_id, 
-        req.body.utilisateur || 'admin'
+        parseInt(lot_id),
+        parseInt(producteur_id),
+        parseFloat(quantite),
+        unite,
+        parseFloat(prix_ref || 0),
+        coefNumerique,    // Nombre pour le calcul (ex: 1.0)
+        grade_qualite,   // Lettre pour la DB (ex: "A")
+        date_expiration || null,
+        parseInt(magasin_id),
+        mode_paiement || 'solde',
+        utilisateur || 'agent_system'
       ]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('Erreur SQL:', err.message);
+    console.error('❌ Erreur SQL Admission:', err.message);
     res.status(400).json({ error: 'Erreur SQL', details: err.message });
   }
 });
