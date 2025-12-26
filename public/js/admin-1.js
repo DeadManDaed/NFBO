@@ -105,9 +105,6 @@ async function refreshAdminTable() {
     }
 }
 
-// Variable globale pour savoir où on est
-let currentSection = ''; 
-
 // 4. RENDU DU TABLEAU (Version Intelligente)
 function renderAdminTable(data) {
     const wrapper = document.getElementById('admin-table-wrapper');
