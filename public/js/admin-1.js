@@ -370,7 +370,6 @@ function showFormMagasins(wrapper) {
             alert('❌ Erreur : ' + err.message);
         }
     };
-}
 
 // === FONCTION : CHARGEMENT DES CRITÈRES PAR CATÉGORIE ===
 function chargerCriteresParCategorie() {
