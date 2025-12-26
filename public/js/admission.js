@@ -199,7 +199,7 @@ async function soumettreAdmission(event) {
         
         // 3. Utilisation de la table de correspondance
         coef_qualite: infoQualite.coef,     // Ira dans numeric(4,2)
-        grade_qualite: infoQualite.grade,   // Ira dans varchar(1)
+       // grade_qualite: infoQualite.grade,   // Ira dans varchar(1)
         
         prix_ref: parseFloat(document.getElementById('lot-prix-display').innerText),
         date_reception: new Date().toISOString().split('T')[0],
