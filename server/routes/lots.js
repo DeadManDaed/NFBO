@@ -4,34 +4,33 @@ const router = express.Router();
 const { validateLotDefinition } = require('../validators/validate'); // ✅ Harmonisé
 const pool = require('../db');
 
-router.post('/', validateLotDefinition, async (req, res) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const insertText = `
-      INSERT INTO lots (
-        description, categorie, criteres_admission, unites_admises, prix_ref, stock_disponible
-      ) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`;
-    
-    const vals = [
-      req.body.description,
-      req.body.categorie,
-      JSON.stringify(req.body.criteres_admission || []), // ✅ Convertit en chaîne JSON valide
-  JSON.stringify(req.body.unites_admises || []),    // ✅ Convertit en chaîne JSON valide
-      req.body.prix_ref || 0,
-      req.body.stock_disponible || 0
-    ];
-    
-    const result = await client.query(insertText, vals);
-    await client.query('COMMIT');
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error('POST /api/lots error', err);
-    res.status(500).json({ message: 'Erreur serveur' });
-  } finally {
-    client.release();
-  }
+router.post('/', validateLot, async (req, res) => {
+    const { categorie, description, prix_ref, unites_admises, criteres_admission, notes } = req.body;
+
+    try {
+        const query = `
+            INSERT INTO lots (categorie, description, prix_ref, unites_admises, criteres_admission, notes)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *;
+        `;
+        
+        // Note : On stocke les tableaux et objets au format JSONB si vous utilisez PostgreSQL
+        const values = [
+            categorie, 
+            description, 
+            prix_ref, 
+            JSON.stringify(unites_admises), 
+            JSON.stringify(criteres_admission), 
+            notes
+        ];
+
+        const result = await pool.query(query, values);
+        res.status(201).json(result.rows[0]);
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send('Erreur lors de la sauvegarde en base de données');
+    }
 });
 router.get('/', async (req, res) => {
     try {
@@ -109,6 +108,7 @@ router.delete('/:id', async (req, res) => {
 
 // ... gardez vos routes GET, PUT et DELETE ...
 module.exports = router;
+
 
 
 
