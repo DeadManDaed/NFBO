@@ -23,20 +23,31 @@ router.post('/', validateAdmission, async (req, res) => {
   const coefNumerique = mapQualite[grade_qualite] || 1.0;*/
 
   try {
+   router.post('/', async (req, res) => {
+  try {
+    const {
+      lot_id, producteur_id, quantite, unite, 
+      prix_ref, coef_qualite, date_expiration, 
+      magasin_id, mode_paiement, utilisateur
+    } = req.body;
+
+    // On crée l'horodatage précis ici
+    const date_actuelle = new Date().toISOString(); 
+
     const result = await pool.query(
       `INSERT INTO admissions (
         lot_id, producteur_id, quantite, unite, prix_ref, 
-        coef_qualite, date_reception, 
-        date_expiration, magasin_id, mode_paiement, utilisateur
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, $11) RETURNING *`,
+        coef_qualite, date_reception, date_expiration, 
+        magasin_id, mode_paiement, utilisateur
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
       [
         parseInt(lot_id),
         parseInt(producteur_id),
         parseFloat(quantite),
         unite,
         parseFloat(prix_ref || 0),
-        //coefNumerique,    // Nombre pour le calcul (ex: 1.0)
-       // grade_qualite,   // Lettre pour la DB (ex: "A")
+        parseFloat(coef_qualite || 1),
+        date_actuelle, // <-- Date et heure envoyées ici
         date_expiration || null,
         parseInt(magasin_id),
         mode_paiement || 'solde',
@@ -45,10 +56,16 @@ router.post('/', validateAdmission, async (req, res) => {
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error('❌ Erreur SQL:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+/*    res.status(201).json(result.rows[0]);
+  } catch (err) {
     console.error('❌ Erreur SQL Admission:', err.message);
     res.status(400).json({ error: 'Erreur SQL', details: err.message });
   }
-});
+});*/
 
 // ✅ DELETE : supprimer une admission
 router.delete('/:id', async (req, res) => {
