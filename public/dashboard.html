@@ -37,19 +37,19 @@
 
 <div class="container">
     <div id="main-grid" class="grid">
-    <div class="tile" id="tile-admission" data-role="admin,stock,auditeur" onclick="openModule('admission')">
+    <div class="tile" id="tile-admission" data-role="superadmin,admin,stock,auditeur" onclick="openModule('admission')">
         <i class="fa-solid fa-boxes-stacked"></i>
         <h3>Admissions</h3>
         <p>Gestion des entrées de stock</p>
     </div>
     
-    <div class="tile" id="tile-retrait" data-role="admin,caisse" onclick="openModule('retrait')">
+    <div class="tile" id="tile-retrait" data-role="superadmin,admin,caisse" onclick="openModule('retrait')">
         <i class="fa-solid fa-cart-shopping"></i>
         <h3>Ventes & Retraits</h3>
         <p>Sorties et facturation</p>
     </div>
 
-    <div class="tile" id="tile-transfert" data-role="admin,stock,auditeur" onclick="openModule('transferts')" style="position:relative;">
+    <div class="tile" id="tile-transfert" data-role="superadmin,admin,stock,auditeur" onclick="openModule('transferts')" style="position:relative;">
         <i class="fa-solid fa-truck-arrow-right"></i>
         <h3>Transferts</h3>
         <p>Expédier ou Recevoir</p>
@@ -58,7 +58,7 @@
         </span>
     </div>
     
-    <div class="tile" id="tile-audit" data-role="admin,auditeur" onclick="openModule('audit')">
+    <div class="tile" id="tile-audit" data-role="superadmin,admin,auditeur" onclick="openModule('audit')">
         <i class="fa-solid fa-chart-line"></i>
         <h3>Audit</h3>
         <p>Performance et logs financiers</p>
