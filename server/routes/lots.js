@@ -1,7 +1,7 @@
 // server/routes/lots.js
 const express = require('express');
 const router = express.Router();
-const { validateLotDefinition } = require('../validators/validate'); // ✅ Harmonisé
+const { validateLotDefinition: validateLot } = require('../validators/validate');
 const pool = require('../db');
 
 router.post('/', validateLot, async (req, res) => {
@@ -123,6 +123,7 @@ router.delete('/:id', async (req, res) => {
 
 // ... gardez vos routes GET, PUT et DELETE ...
 module.exports = router;
+
 
 
 
