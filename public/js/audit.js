@@ -1,4 +1,3 @@
-<script>
 // --- LOGIQUE AUDIT (API-based) ---
 
 async function refreshAuditData() {
@@ -173,4 +172,3 @@ function renderAuditLogs(logs) {
         </div>
     `).join('');
 }
-</script>
