@@ -9,8 +9,22 @@
     "categorie": { "type": "string", "minLength": 1 },
     "description": { "type": "string", "minLength": 1 },
     "prix_ref": { "type": "number", "minimum": 0 },
-    "unites_admises": { "type": "array", "items": { "type": "string" } },
-    "criteres_admission": { "type": "array", "items": { "type": "string" } },
+    "unites_admises": { 
+        "type": "array", 
+        "items": { "type": "string" } 
+    },
+    "criteres_admission": { 
+        "type": "array", 
+        "items": { 
+            "type": "object",
+            "required": ["critere"],
+            "properties": {
+                "type": { "type": "string" },
+                "critere": { "type": "string" },
+                "obligatoire": { "type": "boolean" }
+            }
+        } 
+    },
     "stock_disponible": { "type": "number" }
   }
 }
