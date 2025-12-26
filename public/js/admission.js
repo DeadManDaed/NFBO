@@ -129,54 +129,83 @@ if (unitSelect) {
 */
 
 function calculateInternalFinance() {
-    // On essaie de récupérer les valeurs, sinon 0
-    const qtyInput = document.getElementById('adm-qty');
-    const qualityInput = document.getElementById('adm-quality');
-    const prixDisplay = document.getElementById('lot-prix-display');
+    if (!activeLotData) return;
 
-    const qty = qtyInput ? parseFloat(qtyInput.value) || 0 : 0;
-    const qualityCoef = qualityInput ? parseFloat(qualityInput.value) || 1 : 1;
+    const qty = parseFloat(document.getElementById('adm-qty').value) || 0;
+    const qualityCoef = parseFloat(document.getElementById('adm-quality').value) || 1;
+    const prixRef = parseFloat(activeLotData.prix_ref) || 0;
+    const modePaiement = document.getElementById('adm-payment-mode').value;
+    const expiryDate = document.getElementById('adm-expiry').value;
+
+    // 1. Base du montant brut selon qualité
+    const montantBrutQualite = qty * prixRef * qualityCoef;
+
+    // 2. Calcul de la Taxe Dynamique (Simulant le Trigger SQL)
+    let tauxTaxe = 0.05; // 5% de base
+
+    // Pénalité Mobile Money (+2%)
+    if (modePaiement === 'mobile_money') {
+        tauxTaxe += 0.02;
+    }
+
+    // Pénalité Fraîcheur (si < 30 jours avant expiration)
+    if (expiryDate) {
+        const today = new Date();
+        const exp = new Date(expiryDate);
+        const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+        
+        if (diffDays < 30) {
+            const joursManquants = 30 - Math.max(diffDays, 0);
+            tauxTaxe += (0.005 * joursManquants); // +0.5% par jour sous les 30j
+        }
+    }
+
+    const montantTaxe = montantBrutQualite * tauxTaxe;
+    const versementReel = montantBrutQualite - montantTaxe;
+    const profitVirtuel = montantTaxe; // Dans votre système, la taxe = le bénéfice espéré
+
+    // Affichage
+    document.getElementById('val-due').innerText = Math.round(versementReel).toLocaleString('fr-FR') + ' FCFA';
+    document.getElementById('val-profit').innerText = Math.round(profitVirtuel).toLocaleString('fr-FR') + ' FCFA';
     
-    // On nettoie le prix au cas où il contient "FCFA" ou des espaces
-    let prixTexte = prixDisplay ? prixDisplay.innerText.replace(/[^0-9.]/g, '') : "0";
-    const prixRef = parseFloat(prixTexte) || 0;
-
-    // Calculs
-    const totalTheorique = qty * prixRef;
-    const taxeGestion = 0.05; // 5%
-    
-    const versementReel = (qty * prixRef * qualityCoef) * (1 - taxeGestion);
-    const profitVirtuel = totalTheorique - versementReel;
-
-    // Mise à jour visuelle forcée
-    const dueEl = document.getElementById('val-due');
-    const profitEl = document.getElementById('val-profit');
-
-    if (dueEl) dueEl.innerText = Math.round(versementReel).toLocaleString('fr-FR') + ' FCFA';
-    if (profitEl) profitEl.innerText = Math.round(profitVirtuel).toLocaleString('fr-FR') + ' FCFA';
-    
+    // On affiche le taux appliqué pour transparence
+    console.log(`Taux appliqué : ${(tauxTaxe * 100).toFixed(2)}%`);
     console.log("Calcul effectué:", { qty, prixRef, versementReel });
 }
 /**
  * Gère l'envoi des données d'admission au serveur
  */
-async function soumettreAdmission(event) {
-    event.preventDefault(); // Empêche le rechargement de la page
+// 1. Définition de la table de correspondance
+const MAP_GRADES = {
+    "1.0": { grade: "A", coef: 1.0 },
+    "0.9": { grade: "B", coef: 0.9 },
+    "0.8": { grade: "C", coef: 0.8 },
+    "0.7": { grade: "D", coef: 0.7 }
+};
 
-    // Récupération des données du formulaire
+async function soumettreAdmission(event) {
+    event.preventDefault();
+    
+    // 2. Récupération de la clé sélectionnée (le value de l'option)
+    const selectedKey = document.getElementById('adm-quality').value;
+    const infoQualite = MAP_GRADES[selectedKey] || { grade: "D", coef: 0.7 };
+
     const payload = {
         lot_id: parseInt(document.getElementById('adm-lot-select').value),
         producteur_id: parseInt(document.getElementById('adm-producer-select').value),
         magasin_id: parseInt(document.getElementById('adm-magasin-select').value),
         quantite: parseFloat(document.getElementById('adm-qty').value),
         unite: document.getElementById('adm-unit').value,
-        coef_qualite: parseFloat(document.getElementById('adm-quality').value),
-        // On récupère la lettre (A, B, C ou D) dans le texte de l'option sélectionnée
-        coef_qualite: document.getElementById('adm-quality').options[document.getElementById('adm-quality').selectedIndex].text.split(' ')[1],
+        
+        // 3. Utilisation de la table de correspondance
+        coef_qualite: infoQualite.coef,     // Ira dans numeric(4,2)
+        grade_qualite: infoQualite.grade,   // Ira dans varchar(1)
+        
         prix_ref: parseFloat(document.getElementById('lot-prix-display').innerText),
-        utilisateur: localStorage.getItem('username') || 'Anonyme',
         date_reception: new Date().toISOString().split('T')[0],
-        mode_paiement: 'solde'
+        date_expiration: document.getElementById('adm-expiry').value || null,
+        mode_paiement: document.getElementById('adm-payment-mode').value,
+        utilisateur: localStorage.getItem('username') || 'agent_system'
     };
 
     console.log("📤 Envoi de l'admission :", payload);
