@@ -126,12 +126,13 @@ function renderAdminTable(data) {
     // A. DÉFINITION DES COLONNES PAR SECTION
     // Cela permet de ne pas afficher les mots de passe ou les ID techniques
     const columnsConfig = {
-        'users': [
-            { key: 'username', label: 'Utilisateur' },
-            { key: 'role', label: 'Rôle', type: 'badge' },
-            { key: 'magasin_id', label: 'Magasin' },
-            { key: 'statut', label: 'Statut' }
-        ],
+    'users': [
+        { key: 'id', label: 'Matricule/ID' }, // Affichera l'ID généré par le trigger
+        { key: 'username', label: 'Login' },
+        { key: 'role', label: 'Rôle', type: 'badge' },
+        { key: 'prenom', label: 'Prénom' },
+        { key: 'statut', label: 'Statut' }
+    ],
         'lots': [
             { key: 'categorie', label: 'Catégorie', type: 'badge' },
             { key: 'description', label: 'Désignation' },
@@ -254,7 +255,134 @@ function showFormMagasins(wrapper) {
         await submitForm('/api/magasins', payload);
     };
 }
+// --- FROMULAIRE DES UTILISATEURS ---
+/**
+ * Affiche le formulaire de création d'un utilisateur
+ * @param {HTMLElement} wrapper - Le conteneur où injecter le formulaire
+ */
+function showFormUsers(wrapper) {
+    wrapper.innerHTML = `
+        <div class="form-container" style="background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+            <h3 style="margin-top:0;"><i class="fa-solid fa-user-plus"></i> Créer un nouvel utilisateur</h3>
+            <form id="form-user-creation">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    
+                    <div class="form-group">
+                        <label>Nom d'utilisateur (Identifiant de connexion) *</label>
+                        <input type="text" id="u-username" name="username" required placeholder="ex: jdoe">
+                    </div>
 
+                    <div class="form-group">
+                        <label>Mot de passe *</label>
+                        <input type="password" id="u-password" name="password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rôle Système *</label>
+                        <select id="u-role" name="role" required>
+                            <option value="stock">Agent de Stock (Admission)</option>
+                            <option value="caisse">Agent de Caisse</option>
+                            <option value="admin">Gestionnaire de Magasin</option>
+                            <option value="auditeur">Auditeur (Lecture seule)</option>
+                            <option value="superadmin">Super-Administrateur</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Magasin d'affectation</label>
+                        <select id="u-magasin" name="magasin_id">
+                            <option value="">-- Aucun (Utilisateur Central) --</option>
+                            </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Prénom</label>
+                        <input type="text" id="u-prenom" name="prenom">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nom</label>
+                        <input type="text" id="u-nom" name="nom">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="u-email" name="email">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Téléphone</label>
+                        <input type="tel" id="u-telephone" name="telephone">
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn" onclick="refreshAdminTable()">Annuler</button>
+                    <button type="submit" class="btn btn-save" style="background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">
+                        Enregistrer l'utilisateur
+                    </button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    // Charger dynamiquement les magasins dans le select
+    fetchMagasinsForSelect('u-magasin');
+
+    // Gestion de la soumission
+    document.getElementById('form-user-creation').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const payload = {
+            username: document.getElementById('u-username').value,
+            password: document.getElementById('u-password').value,
+            role: document.getElementById('u-role').value,
+            magasin_id: document.getElementById('u-magasin').value || null,
+            prenom: document.getElementById('u-prenom').value,
+            nom: document.getElementById('u-nom').value,
+            email: document.getElementById('u-email').value,
+            telephone: document.getElementById('u-telephone').value,
+            statut: 'actif'
+        };
+
+        try {
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                alert('Utilisateur créé avec succès !');
+                refreshAdminTable(); // Recharge le tableau des utilisateurs
+            } else {
+                const err = await response.json();
+                alert('Erreur : ' + err.error);
+            }
+        } catch (error) {
+            console.error('Erreur soumission utilisateur:', error);
+        }
+    };
+}
+
+/**
+ * Charge les magasins depuis l'API pour remplir un <select>
+ */
+async function fetchMagasinsForSelect(selectId) {
+    try {
+        const res = await fetch('/api/magasins');
+        const magasins = await res.json();
+        const select = document.getElementById(selectId);
+        magasins.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            opt.textContent = `${m.nom} (${m.code})`;
+            select.appendChild(opt);
+        });
+    } catch (err) {
+        console.error('Impossible de charger les magasins', err);
+    }
+}
 // --- FORMULAIRE LOTS (PRODUITS) ---
 function showFormLots(wrapper) {
     wrapper.innerHTML = `
