@@ -1,5 +1,4 @@
-<script>
-        function switchTab(tab) {
+function switchTab(tab) {
             const tabs = document.querySelectorAll('.tab-btn');
             tabs.forEach(t => {
                 t.style.background = '#eee';
@@ -86,4 +85,3 @@
             `);
             win.print();
         }
-    </script>
