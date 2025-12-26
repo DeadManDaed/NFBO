@@ -140,8 +140,6 @@ function renderAdminTable(data) {
             { key: 'unites_admises', label: 'Unités', type: 'json_list' }, // Spécial pour nos arrays
             { key: 'stock_disponible', label: 'Stock' }
         ],
-        // Dans admin-1.js -> renderAdminTable
-const columnsConfig = {
     // ... vos autres configs (users, lots) ...
     
     'producteurs': [
@@ -231,6 +229,65 @@ function showAdminForm() {
     }
 }
 
+// --- FORMULAIRE PRODUCTEURS ---
+function showFormProducteurs(wrapper) {
+    wrapper.innerHTML = `
+        <form id="form-producteur" class="admin-form" style="background:white; padding:25px; border-radius:8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h3 style="margin-top:0; color:var(--admin); border-bottom:2px solid #eee; padding-bottom:10px;">
+                <i class="fa-solid fa-user-tie"></i> Nouveau Producteur / Fournisseur
+            </h3>
+            
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;">
+                <div class="form-group">
+                    <label>Nom Complet / Raison Sociale *</label>
+                    <input type="text" id="prod-nom" placeholder="Ex: GIC des Producteurs de Penja" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+
+                <div class="form-group">
+                    <label>Type de Producteur *</label>
+                    <select id="prod-type" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="individuel">Individuel / Particulier</option>
+                        <option value="cooperative">Coopérative / GIC</option>
+                        <option value="artisan">Artisan / Transformateur</option>
+                        <option value="pecheur">Pêcheur / Éleveur</option>
+                        <option value="autre">Autre</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Téléphone *</label>
+                    <input type="tel" id="prod-tel" placeholder="+237..." required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+
+                <div class="form-group">
+                    <label>Localité / Village</label>
+                    <input type="text" id="prod-localite" placeholder="Ex: Ekondo-Titi" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+            </div>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:25px; padding-top:20px; border-top:1px solid #eee;">
+                <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee;">Annuler</button>
+                <button type="submit" class="btn" style="background:var(--admin); color:white; font-weight:bold;">
+                    <i class="fa-solid fa-save"></i> ENREGISTRER LE PRODUCTEUR
+                </button>
+            </div>
+        </form>
+    `;
+
+    document.getElementById('form-producteur').onsubmit = async (e) => {
+        e.preventDefault();
+        
+        const payload = {
+            nom_producteur: document.getElementById('prod-nom').value.trim(),
+            type_producteur: document.getElementById('prod-type').value,
+            telephone: document.getElementById('prod-tel').value.trim(),
+            localite: document.getElementById('prod-localite').value.trim(),
+            statut: 'en_attente' // Par défaut pour validation
+        };
+
+        await submitForm('/api/producteurs', payload);
+    };
+}
 // --- FORMULAIRE MAGASINS ---
 function showFormMagasins(wrapper) {
     wrapper.innerHTML = `
