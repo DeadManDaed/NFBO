@@ -172,7 +172,7 @@ async function soumettreAdmission(event) {
         unite: document.getElementById('adm-unit').value,
         coef_qualite: parseFloat(document.getElementById('adm-quality').value),
         // On récupère la lettre (A, B, C ou D) dans le texte de l'option sélectionnée
-        grade_qualite: document.getElementById('adm-quality').options[document.getElementById('adm-quality').selectedIndex].text.split(' ')[1],
+        coef_qualite: document.getElementById('adm-quality').options[document.getElementById('adm-quality').selectedIndex].text.split(' ')[1],
         prix_ref: parseFloat(document.getElementById('lot-prix-display').innerText),
         utilisateur: localStorage.getItem('username') || 'Anonyme',
         date_reception: new Date().toISOString().split('T')[0],
