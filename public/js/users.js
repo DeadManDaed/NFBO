@@ -14,7 +14,9 @@ async function ouvrirModalUtilisateur() {
     document.getElementById('modal-utilisateur').style.display = 'block';
 }
 
-document.getElementById('form-creer-utilisateur').onsubmit = async (e) => {
+const formUser = document.getElementById('form-creer-utilisateur');
+if (formUser) { // On ne lie l'événement QUE si le formulaire est présent à l'écran
+    formUser.onsubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
     
@@ -40,3 +42,4 @@ document.getElementById('form-creer-utilisateur').onsubmit = async (e) => {
         alert("Erreur lors de la création");
     }
 };
+}
