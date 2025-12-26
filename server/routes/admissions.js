@@ -26,7 +26,7 @@ router.post('/', validateAdmission, async (req, res) => {
     const result = await pool.query(
       `INSERT INTO admissions (
         lot_id, producteur_id, quantite, unite, prix_ref, 
-        coef_qualite, grade_qualite, date_reception, 
+        coef_qualite, date_reception, 
         date_expiration, magasin_id, mode_paiement, utilisateur
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), $8, $9, $10, $11) RETURNING *`,
       [
@@ -36,7 +36,7 @@ router.post('/', validateAdmission, async (req, res) => {
         unite,
         parseFloat(prix_ref || 0),
         coefNumerique,    // Nombre pour le calcul (ex: 1.0)
-        grade_qualite,   // Lettre pour la DB (ex: "A")
+       // grade_qualite,   // Lettre pour la DB (ex: "A")
         date_expiration || null,
         parseInt(magasin_id),
         mode_paiement || 'solde',
