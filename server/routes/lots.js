@@ -82,7 +82,22 @@ router.put('/:id', async (req, res) => {
         res.status(500).json({ message: 'Erreur lors de la modification' });
     }
 });
-
+// Récupérer un lot spécifique pour l'admission
+router.get('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await pool.query('SELECT * FROM public.lots WHERE id = $1', [id]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "Lot non trouvé" });
+        }
+        
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: "Erreur lors de l'extraction du lot" });
+    }
+});
 // Supprimer un lot : DELETE /api/lots/:id
 router.get('/:id', async (req, res) => { // Correction : utilisez router.delete en production
     // Note : Pour tester rapidement via un navigateur, on utilise parfois GET, 
@@ -108,6 +123,7 @@ router.delete('/:id', async (req, res) => {
 
 // ... gardez vos routes GET, PUT et DELETE ...
 module.exports = router;
+
 
 
 
