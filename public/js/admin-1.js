@@ -230,61 +230,104 @@ function showAdminForm() {
 }
 
 // --- FORMULAIRE PRODUCTEURS ---
+/**
+ * Formulaire Producteurs avec Géographie en Cascade
+ */
 function showFormProducteurs(wrapper) {
     wrapper.innerHTML = `
-        <form id="form-producteur" class="admin-form" style="background:white; padding:25px; border-radius:8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-            <h3 style="margin-top:0; color:var(--admin); border-bottom:2px solid #eee; padding-bottom:10px;">
-                <i class="fa-solid fa-user-tie"></i> Nouveau Producteur / Fournisseur
+        <form id="form-producteur" class="admin-form" style="background:white; padding:25px; border-radius:8px;">
+            <h3 style="margin-top:0; color:#2c3e50; border-bottom:2px solid #3498db; padding-bottom:10px;">
+                <i class="fa-solid fa-address-card"></i> Fiche Nouveau Producteur
             </h3>
             
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:20px;">
                 <div class="form-group">
-                    <label>Nom Complet / Raison Sociale *</label>
-                    <input type="text" id="prod-nom" placeholder="Ex: GIC des Producteurs de Penja" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                    <label>Nom / Raison Sociale *</label>
+                    <input type="text" id="p-nom" required placeholder="Ex: Jean Planteur">
                 </div>
-
-                <div class="form-group">
-                    <label>Type de Producteur *</label>
-                    <select id="prod-type" required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
-                        <option value="individuel">Individuel / Particulier</option>
-                        <option value="cooperative">Coopérative / GIC</option>
-                        <option value="artisan">Artisan / Transformateur</option>
-                        <option value="pecheur">Pêcheur / Éleveur</option>
-                        <option value="autre">Autre</option>
-                    </select>
-                </div>
-
                 <div class="form-group">
                     <label>Téléphone *</label>
-                    <input type="tel" id="prod-tel" placeholder="+237..." required style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                    <input type="tel" id="p-tel" required placeholder="6XXXXXXXX">
                 </div>
-
                 <div class="form-group">
-                    <label>Localité / Village</label>
-                    <input type="text" id="prod-localite" placeholder="Ex: Ekondo-Titi" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                    <label>Type *</label>
+                    <select id="p-type" required>
+                        <option value="individuel">Individuel</option>
+                        <option value="agriculteur">Agriculteur</option>
+                        <option value="éleveur">Éleveur</option>
+                        <option value="pêcheur">Pêcheur</option>
+                        <option value="artisan">Artisan</option>
+                        <option value="coopérative">Coopérative</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Carte Membre</label>
+                    <select id="p-carte">
+                        <option value="false">Non Membre</option>
+                        <option value="true">Membre Actif</option>
+                    </select>
                 </div>
             </div>
 
-            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:25px; padding-top:20px; border-top:1px solid #eee;">
-                <button type="button" class="btn" onclick="refreshAdminTable()" style="background:#eee;">Annuler</button>
-                <button type="submit" class="btn" style="background:var(--admin); color:white; font-weight:bold;">
-                    <i class="fa-solid fa-save"></i> ENREGISTRER LE PRODUCTEUR
+            <fieldset style="margin-top:20px; border:1px solid #ddd; padding:15px; border-radius:8px;">
+                <legend style="padding:0 10px; font-weight:bold;">Localisation Géographique</legend>
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:15px;">
+                    <div class="form-group">
+                        <label>Région *</label>
+                        <select id="p-region" required onchange="chargerGeographie('departements', this.value, 'p-departement')">
+                            <option value="">Chargement...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Département *</label>
+                        <select id="p-departement" required onchange="chargerGeographie('arrondissements', this.value, 'p-arrondissement')">
+                            <option value="">-- Choisir Région --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Arrondissement *</label>
+                        <select id="p-arrondissement" required>
+                            <option value="">-- Choisir Dept --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Localité spécifique</label>
+                        <input type="text" id="p-localite" placeholder="Village, Quartier...">
+                    </div>
+                </div>
+            </fieldset>
+
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:25px;">
+                <button type="button" class="btn" onclick="refreshAdminTable()">Annuler</button>
+                <button type="submit" class="btn btn-save" style="background:#27ae60; color:white;">
+                    VALIDER L'INSCRIPTION
                 </button>
             </div>
         </form>
     `;
 
+    // Chargement initial des régions
+    fetch('/api/geo/api/regions')
+        .then(res => res.json())
+        .then(data => {
+            const sel = document.getElementById('p-region');
+            sel.innerHTML = '<option value="">-- Sélectionner --</option>';
+            data.forEach(r => sel.innerHTML += `<option value="${r.id}">${r.nom}</option>`);
+        });
+
     document.getElementById('form-producteur').onsubmit = async (e) => {
         e.preventDefault();
-        
         const payload = {
-            nom_producteur: document.getElementById('prod-nom').value.trim(),
-            type_producteur: document.getElementById('prod-type').value,
-            telephone: document.getElementById('prod-tel').value.trim(),
-            localite: document.getElementById('prod-localite').value.trim(),
-            statut: 'en_attente' // Par défaut pour validation
+            nom_producteur: document.getElementById('p-nom').value,
+            tel_producteur: document.getElementById('p-tel').value,
+            type_producteur: document.getElementById('p-type').value,
+            carte_membre: document.getElementById('p-carte').value === 'true',
+            region_id: parseInt(document.getElementById('p-region').value),
+            departement_id: parseInt(document.getElementById('p-departement').value),
+            arrondissement_id: parseInt(document.getElementById('p-arrondissement').value),
+            localite: document.getElementById('p-localite').value,
+            statut: 'actif'
         };
-
         await submitForm('/api/producteurs', payload);
     };
 }
@@ -619,6 +662,41 @@ async function submitForm(url, payload) {
         refreshAdminTable();
     } catch (err) {
         alert('❌ Erreur : ' + err.message);
+    }
+}
+
+/**
+ * Charge les données géographiques en cascade depuis geo.js
+ */
+async function chargerGeographie(type, parentId, targetSelectId) {
+    const select = document.getElementById(targetSelectId);
+    if (!parentId) {
+        select.innerHTML = '<option value="">-- Sélectionner --</option>';
+        return;
+    }
+
+    // On définit le nom du paramètre en fonction du type (region_id ou departement_id)
+    const paramName = (type === 'departements') ? 'region_id' : 'departement_id';
+
+    try {
+        const res = await fetch(`/api/geo/api/${type}?${paramName}=${parentId}`);
+        const data = await res.json();
+        
+        select.innerHTML = '<option value="">-- Sélectionner --</option>';
+        data.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item.id;
+            opt.textContent = item.nom;
+            select.appendChild(opt);
+        });
+        
+        // Si on change de région, on réinitialise aussi les arrondissements
+        if (type === 'departements') {
+            const arrSelect = document.getElementById('p-arrondissement');
+            if (arrSelect) arrSelect.innerHTML = '<option value="">-- Choisir Dept --</option>';
+        }
+    } catch (err) {
+        console.error(`❌ Erreur chargement ${type}:`, err);
     }
 }
 
