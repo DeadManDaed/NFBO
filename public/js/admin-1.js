@@ -22,23 +22,32 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // 3. NAVIGATION ET CHARGEMENT DES DONNÉES
-async function loadAdminSection(section, event) {
-    currentSection = section;
+// On s'assure que la fonction est globale
+window.loadAdminSection = async function(section, event) {
+    currentSection = section; // Utilise la variable déjà définie dans votre code
     
-    // Gestion visuelle des boutons de navigation
+    console.log("Chargement de la section admin :", section);
+
+    // Votre logique existante de gestion visuelle
     document.querySelectorAll('.admin-nav-btn').forEach(b => b.classList.remove('active'));
+    
+    // Si l'event est passé, on active le bouton
     if (event && event.currentTarget) {
         event.currentTarget.classList.add('active');
+    } else {
+        // Fallback si l'event n'est pas passé (appel direct)
+        const btn = document.querySelector(`button[onclick*="'${section}'"]`);
+        if (btn) btn.classList.add('active');
     }
     
-    // Mise à jour du titre
     const titleElem = document.getElementById('admin-title');
     if (titleElem) {
         titleElem.innerText = section.charAt(0).toUpperCase() + section.slice(1);
     }
     
+    // Appel de votre fonction de rafraîchissement déjà existante
     await refreshAdminTable();
-}
+};
 
 async function refreshAdminTable() {
     const wrapper = document.getElementById('admin-table-wrapper');
