@@ -19,8 +19,8 @@ router.post('/', validateAdmission, async (req, res) => {
   } = req.body;
 
   // Correspondance pour le coefficient numérique
-  const mapQualite = { 'A': 1.0, 'B': 0.9, 'C': 0.8, 'D': 0.7 };
-  const coefNumerique = mapQualite[grade_qualite] || 1.0;
+  /*const mapQualite = { 'A': 1.0, 'B': 0.9, 'C': 0.8, 'D': 0.7 };
+  const coefNumerique = mapQualite[grade_qualite] || 1.0;*/
 
   try {
     const result = await pool.query(
