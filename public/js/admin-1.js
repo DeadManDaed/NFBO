@@ -140,7 +140,20 @@ function renderAdminTable(data) {
             { key: 'unites_admises', label: 'Unités', type: 'json_list' }, // Spécial pour nos arrays
             { key: 'stock_disponible', label: 'Stock' }
         ],
-        // Fallback pour les sections simples (magasins, etc.)
+        // Dans admin-1.js -> renderAdminTable
+const columnsConfig = {
+    // ... vos autres configs (users, lots) ...
+    
+    'producteurs': [
+        { key: 'matricule', label: 'Matricule' },
+        { key: 'nom_producteur', label: 'Nom / Organisation' },
+        { key: 'type_producteur', label: 'Type', type: 'badge' },
+        { key: 'telephone', label: 'Contact' },
+        { key: 'localite', label: 'Localité' },
+        { key: 'solde', label: 'Solde (FCFA)', type: 'money' },
+        { key: 'statut', label: 'Statut', type: 'badge' }
+    ],
+            // Fallback pour les sections simples (magasins, etc.)
         'default': Object.keys(data[0]).map(k => ({ key: k, label: k.replace(/_/g, ' ').toUpperCase() }))
     };
 
