@@ -66,3 +66,12 @@ async function loadReference(type, targetId, parentId = null, labelFn = null) {
         target.disabled = false;
     }
 }
+function showError(message) {
+  const errorBox = document.getElementById("errorBox");
+  if (errorBox) {
+    errorBox.textContent = message;
+    errorBox.style.display = "block";
+  } else {
+    alert(message);
+  }
+}
