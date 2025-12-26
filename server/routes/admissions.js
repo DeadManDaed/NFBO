@@ -35,7 +35,7 @@ router.post('/', validateAdmission, async (req, res) => {
         parseFloat(quantite),
         unite,
         parseFloat(prix_ref || 0),
-        coefNumerique,    // Nombre pour le calcul (ex: 1.0)
+        //coefNumerique,    // Nombre pour le calcul (ex: 1.0)
        // grade_qualite,   // Lettre pour la DB (ex: "A")
         date_expiration || null,
         parseInt(magasin_id),
