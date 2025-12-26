@@ -255,7 +255,8 @@ function showFormMagasins(wrapper) {
     };
 }
 
-// --- FORMULAIRE LOTS (PRODUITS) ---function showFormLots(wrapper) {
+// --- FORMULAIRE LOTS (PRODUITS) ---
+function showFormLots(wrapper) {
     wrapper.innerHTML = `
         <form id="form-lot" style="background:white; padding:25px; border-radius:8px; max-width:1000px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <h3 style="margin-top:0; color:var(--admin); border-bottom:2px solid #eee; padding-bottom:10px;">
@@ -313,8 +314,7 @@ function showFormMagasins(wrapper) {
                     <div style="font-size:11px; font-weight:bold; color:#2e7d32; margin-bottom:10px; text-transform:uppercase;">
                         📋 Critères standards recommandés
                     </div>
-                    <div id="liste-criteres-auto" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                        </div>
+                    <div id="liste-criteres-auto" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;"></div>
                 </div>
 
                 <div id="zone-criteres-personnalises" style="display:grid; gap:10px;"></div>
@@ -331,10 +331,8 @@ function showFormMagasins(wrapper) {
         </form>
     `;
 
-    // Script de soumission
     document.getElementById('form-lot').onsubmit = async (e) => {
         e.preventDefault();
-        
         const unitesChecked = Array.from(document.querySelectorAll('input[name="unite"]:checked')).map(cb => cb.value);
         if (unitesChecked.length === 0) return alert('❌ Sélectionnez au moins une unité.');
         
@@ -357,19 +355,9 @@ function showFormMagasins(wrapper) {
             notes: document.getElementById('lot-criteres-notes').value.trim()
         };
 
-        try {
-            const res = await fetch('/api/lots', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (!res.ok) throw new Error(await res.text());
-            alert('✅ Produit enregistré dans le référentiel.');
-            refreshAdminTable();
-        } catch (err) {
-            alert('❌ Erreur : ' + err.message);
-        }
+        await submitForm('/api/lots', payload);
     };
+} // <--- C'est CETTE ACCOLADE qui manquait !
 
 // === FONCTION : CHARGEMENT DES CRITÈRES PAR CATÉGORIE ===
 function chargerCriteresParCategorie() {
@@ -405,7 +393,6 @@ function chargerCriteresParCategorie() {
     }
 }
 
-// AJOUT DE CRITERE PERSONNALISE
 function ajouterCriterePersonnalise() {
     const zone = document.getElementById('zone-criteres-personnalises');
     const div = document.createElement('div');
@@ -422,7 +409,6 @@ function ajouterCriterePersonnalise() {
     zone.appendChild(div);
 }
 
-// 6. FONCTIONS UTILITAIRES INTERNES
 async function submitForm(url, payload) {
     try {
         const res = await fetch(url, {
@@ -438,33 +424,19 @@ async function submitForm(url, payload) {
     }
 }
 
-
 async function deleteItem(section, id) {
-    if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.")) return;
-
-    // Mapping pour s'assurer que 'users' tape bien sur '/api/users'
-    // Utile si section s'appelle 'utilisateurs' mais l'api 'users'
-    const apiMap = {
-        'utilisateurs': 'users',
-        'employes': 'employers',
-        'magasins': 'magasins',
-        'lots': 'lots'
-    };
-    
+    if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ?")) return;
+    const apiMap = { 'utilisateurs': 'users', 'employes': 'employers', 'magasins': 'magasins', 'lots': 'lots' };
     const endpoint = apiMap[section] || section;
 
     try {
         const res = await fetch(`/api/${endpoint}/${id}`, { method: 'DELETE' });
-        
-        if (res.ok) {
-            // Animation visuelle de suppression (optionnel mais sympa)
-            refreshAdminTable(); // On recharge le tableau
-        } else {
+        if (res.ok) refreshAdminTable();
+        else {
             const err = await res.json();
             alert("Erreur: " + (err.message || "Impossible de supprimer"));
         }
     } catch (error) {
         console.error("Erreur delete:", error);
-        alert("Erreur serveur lors de la suppression.");
     }
 }
