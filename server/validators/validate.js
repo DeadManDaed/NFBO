@@ -23,7 +23,7 @@ const lotSchema = {
 
 const validate = ajv.compile(lotSchema);
 
-function validateLot(req, res, next) {
+function validateLotDefinition(req, res, next) {
     const valid = validate(req.body);
     if (!valid) {
         return res.status(400).json({ 
@@ -71,7 +71,8 @@ function validateAdmission(req, res, next) {
   return res.status(400).json({ message: 'Payload invalide (Admission)', errors });
 }
 
-module.exports = { validateLot, validateAdmission };
+module.exports = { validateLotDefinition, validateAdmission };
+
 
 
 
