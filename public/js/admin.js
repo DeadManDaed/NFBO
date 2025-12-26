@@ -202,7 +202,7 @@ function showFormLots(wrapper) {
 
 // === FONCTION : CHARGEMENT DES CRITÈRES PAR CATÉGORIE ===
 function chargerCriteresParCategorie() {
-    const categorie = document.getElementById('lot-categorie').value;
+    const cat = document.getElementById('lot-categorie').value;
     const zoneAuto = document.getElementById('zone-criteres-auto');
     const listeAuto = document.getElementById('liste-criteres-auto');
     
@@ -212,7 +212,7 @@ function chargerCriteresParCategorie() {
     }
     
     // Base de critères par catégorie
-    const criteresParCategorie = {
+     const categoriesMapping = {
         'frais': [
             'Aspect visuel (couleur, fermeté)',
             'Absence de moisissure ou pourriture',
@@ -270,46 +270,42 @@ function chargerCriteresParCategorie() {
             'Autorisation de transport'
         ]
     };
-    
-    const criteres = criteresParCategorie[categorie] || [];
-    
-    if (criteres.length === 0) {
+    listeAuto.innerHTML = "";
+    if (categoriesMapping[cat]) {
+        zoneAuto.style.display = 'block';
+        categoriesMapping[cat].forEach(critere => {
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label style="display:flex; align-items:center; gap:8px; background:white; padding:8px; border-radius:4px; border:1px solid #e0e0e0; cursor:pointer;">
+                    <input type="checkbox" value="${critere}" checked> 
+                    <span>${critere}</span>
+                    <span style="margin-left:auto; font-size:10px; color:#888;">(Obligatoire)</span>
+                </label>
+            `;
+            listeAuto.appendChild(div);
+        });
+    } else {
         zoneAuto.style.display = 'none';
-        return;
     }
-    
-    // Afficher les critères suggérés
-    listeAuto.innerHTML = criteres.map(c => `
-        <label style="display:flex; align-items:center; gap:10px; padding:8px; background:white; border-radius:4px; cursor:pointer; border:1px solid #ddd;">
-            <input type="checkbox" value="${c}" checked style="width:18px; height:18px;">
-            <span style="flex:1; font-size:14px;">${c}</span>
-        </label>
-    `).join('');
-    
-    zoneAuto.style.display = 'block';
 }
 
 // === FONCTION : AJOUTER UN CRITÈRE PERSONNALISÉ ===
 let critereCounter = 0;
 function ajouterCriterePersonnalise() {
     const zone = document.getElementById('zone-criteres-personnalises');
-    critereCounter++;
-    
     const div = document.createElement('div');
     div.className = 'critere-personnalise';
-    div.style.cssText = 'display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; padding:10px; background:#fff3e0; border-radius:6px; border-left:4px solid #ff9800;';
-    
+    div.style = "display:flex; gap:10px; align-items:center;";
     div.innerHTML = `
-        <input type="text" placeholder="Ex: Certificat d'origine obligatoire" style="padding:8px; border:1px solid #ddd; border-radius:4px;">
+        <input type="text" placeholder="Nom du critère spécifique..." style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;">
         <select style="padding:8px; border:1px solid #ddd; border-radius:4px;">
             <option value="obligatoire">Obligatoire</option>
-            <option value="recommande">Recommandé</option>
+            <option value="optionnel">Optionnel</option>
         </select>
-        <button type="button" onclick="this.parentElement.remove()" style="padding:8px 12px; background:#d32f2f; color:white; border:none; border-radius:4px; cursor:pointer;">
+        <button type="button" onclick="this.parentElement.remove()" style="color:red; border:none; background:none; cursor:pointer;">
             <i class="fa-solid fa-trash"></i>
         </button>
     `;
-    
     zone.appendChild(div);
-} 
+}
 loadGeo();
