@@ -40,11 +40,25 @@ const admissionSchema = {
 const validateLotDef = ajv.compile(lotSchema);
 const validateAdm = ajv.compile(admissionSchema);
 
-function validateLotDefinition(req, res, next) {
-  const valid = validateLotDef(req.body);
-  if (valid) return next();
-  const errors = validateLotDef.errors.map(e => `${e.instancePath.replace(/^\//, '')} ${e.message}`);
-  return res.status(400).json({ message: 'Payload invalide (Lot)', errors });
+function validateLot(req, res, next) {
+    const validate = ajv.compile(lotSchema);
+    const valid = validate(req.body);
+
+    if (!valid) {
+        // Extraction des messages d'erreur lisibles
+        const errors = validate.errors.map(err => {
+            return `${err.instancePath.replace('/', '')} ${err.message}`;
+        }).join(', ');
+
+        console.error('❌ Échec de validation du lot:', errors);
+        return res.status(400).json({ 
+            success: false, 
+            message: "Données invalides : " + errors 
+        });
+    }
+
+    // Si c'est valide, on passe à la suite (la route SQL)
+    next();
 }
 
 function validateAdmission(req, res, next) {
@@ -54,5 +68,6 @@ function validateAdmission(req, res, next) {
   return res.status(400).json({ message: 'Payload invalide (Admission)', errors });
 }
 
-module.exports = { validateLotDefinition, validateAdmission };
+module.exports = { validateLot, validateAdmission };
+
 
