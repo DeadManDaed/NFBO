@@ -6,7 +6,7 @@ const pool = require('../db');
 // Middleware de vérification de rôle
 const requireAuditRole = (req, res, next) => {
     const userRole = req.headers['x-user-role'] || req.query.role;
-    if (userRole !== 'admin' && userRole !== 'auditeur') {
+    if (userRole !== 'superadmin' && userRole !== 'admin' && userRole !== 'auditeur') {
         return res.status(403).json({ error: 'Accès refusé : Droits insuffisants' });
     }
     next();
