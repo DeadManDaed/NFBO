@@ -98,18 +98,26 @@ async function loadGlobalStats() {
         
         const stats = await res.json();
         
-        // Mise à jour des cartes statistiques
-        document.getElementById('audit-total-profit').textContent = 
-            Math.round(stats.profit_total).toLocaleString('fr-FR');
-        document.getElementById('audit-total-qty').textContent = 
-            Math.round(stats.quantite_totale).toLocaleString('fr-FR');
-        document.getElementById('audit-alerts').textContent = 
-            stats.alertes_qualite;
-            
+        console.log('📊 Stats reçues:', stats); // Debug
+        
+        // Mise à jour des cartes statistiques avec vérification
+        const profitEl = document.getElementById('audit-total-profit');
+        const qtyEl = document.getElementById('audit-total-qty');
+        const alertsEl = document.getElementById('audit-alerts');
+        
+        if (profitEl) {
+            profitEl.textContent = Math.round(parseFloat(stats.profit_total || 0)).toLocaleString('fr-FR');
+        }
+        if (qtyEl) {
+            qtyEl.textContent = Math.round(parseFloat(stats.quantite_totale || 0)).toLocaleString('fr-FR');
+        }
+        if (alertsEl) {
+            alertsEl.textContent = stats.alertes_qualite || 0;
+        }
+        
         // Coloration conditionnelle des alertes
-        const alertCard = document.getElementById('audit-alerts').parentElement;
-        if (stats.alertes_qualite > 5) {
-            alertCard.style.background = '#ffebee';
+        if (alertsEl && alertsEl.parentElement && stats.alertes_qualite > 5) {
+            alertsEl.parentElement.style.background = '#ffebee';
         }
         
     } catch (err) {
@@ -149,47 +157,65 @@ function renderPerformanceChart(data) {
         const heightPercentage = Math.max((profit / maxProfit) * 100, 5); // Minimum 5% pour visibilité
         const color = profit > 0 ? 'var(--primary, #1565c0)' : '#d32f2f';
         
-        html += `
-            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; min-width:60px;">
-                <!-- Valeur au-dessus -->
-                <div style="font-size: 10px; margin-bottom: 5px; font-weight: bold; color:${color};">
-                    ${Math.round(profit).toLocaleString('fr-FR')}
-                </div>
-                
-                <!-- Barre -->
-                <div style="
-                    width: 100%; 
-                    max-width: 50px;
-                    height: ${heightPercentage}%; 
-                    background: linear-gradient(180deg, ${color} 0%, ${color}dd 100%); 
-                    border-radius: 4px 4px 0 0;
-                    transition: all 0.3s ease;
-                    cursor: pointer;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
-                    title="Magasin: ${store.nom_magasin}
-Admissions: ${store.nombre_admissions}
-Quantité: ${Math.round(store.quantite_totale)} unités
-Profit: ${Math.round(profit).toLocaleString('fr-FR')} FCFA"
-                    onmouseover="this.style.transform='scaleY(1.05)'; this.style.opacity='0.8';"
-                    onmouseout="this.style.transform='scaleY(1)'; this.style.opacity='1';">
-                </div>
-                
-                <!-- Nom du magasin -->
-                <div style="
-                    font-size: 9px; 
-                    margin-top: 8px; 
-                    text-align: center; 
-                    white-space: nowrap; 
-                    overflow: hidden; 
-                    text-overflow: ellipsis; 
-                    max-width: 60px;
-                    font-weight: 500;">
-                    ${store.nom_magasin}
-                </div>
-            </div>`;
-    });
+        data.forEach(store => {
+    const profit = parseFloat(store.profit_virtuel_genere) || 0;
+    const color = profit > 0 ? 'var(--primary, #1565c0)' : '#d32f2f';
+    const quantite = parseFloat(store.quantite_totale) || 0;
+    
+    html += `
+        <div style="
+            background: white; 
+            border: 2px solid ${color}20; 
+            border-radius: 12px; 
+            padding: 20px; 
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
+            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';"
+            title="Quantité: ${Math.round(quantite).toLocaleString('fr-FR')} unités">
+            
+            <!-- Nom du magasin -->
+            <div style="
+                font-size: 13px; 
+                font-weight: 600; 
+                margin-bottom: 12px; 
+                color: #333;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;">
+                ${store.nom_magasin}
+            </div>
+            
+            <!-- Profit (valeur principale) -->
+            <div style="
+                font-size: 22px; 
+                font-weight: bold; 
+                color: ${color}; 
+                margin-bottom: 8px;">
+                ${Math.round(profit).toLocaleString('fr-FR')}
+            </div>
+            
+            <!-- Label FCFA -->
+            <div style="font-size: 10px; color: #999; margin-bottom: 10px;">
+                FCFA
+            </div>
+            
+            <!-- Nombre d'admissions -->
+            <div style="
+                font-size: 11px; 
+                color: #666; 
+                padding: 6px 12px; 
+                background: ${color}10; 
+                border-radius: 20px;
+                display: inline-block;">
+                📦 ${store.nombre_admissions} admission${store.nombre_admissions > 1 ? 's' : ''}
+            </div>
+        </div>`;
+});
 
-    html += `</div>`;
+html += `</div>`;
     container.innerHTML = html;
 }
 
