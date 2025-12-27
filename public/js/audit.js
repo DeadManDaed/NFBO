@@ -6,15 +6,35 @@
 // Variable globale pour stocker les données de performance
 let performanceData = [];
 
+// Récupération des informations utilisateur
+function getCurrentUser() {
+    // Essayer de récupérer depuis la variable globale (si définie dans app.js)
+    if (typeof user !== 'undefined' && user) {
+        return user;
+    }
+    
+    // Sinon, récupérer depuis localStorage
+    return {
+        username: localStorage.getItem('username') || 'anonyme',
+        nom: localStorage.getItem('nom') || localStorage.getItem('username') || 'Utilisateur',
+        role: localStorage.getItem('role') || 'guest'
+    };
+}
+
+const user = getCurrentUser();
+
 /**
  * Initialisation du module audit
  */
 async function initModuleAudit() {
+    // Mise à jour de l'objet user au cas où il aurait changé
+    const currentUser = getCurrentUser();
+    
     await refreshAuditData();
     await loadGlobalStats();
     
     // Vérification des validations en attente (si auditeur)
-    if (user.role === 'auditeur' || user.role === 'admin') {
+    if (currentUser.role === 'auditeur' || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
         await checkPendingValidations();
     }
 }
@@ -23,14 +43,16 @@ async function initModuleAudit() {
  * Charge et affiche toutes les données d'audit
  */
 async function refreshAuditData() {
+    const currentUser = getCurrentUser();
+    
     try {
         // Chargement parallèle des données
         const [perfRes, logsRes] = await Promise.all([
             fetch('/api/audit/performance-by-store', {
-                headers: { 'x-user-role': user.role }
+                headers: { 'x-user-role': currentUser.role }
             }),
             fetch('/api/audit/recent-logs', {
-                headers: { 'x-user-role': user.role }
+                headers: { 'x-user-role': currentUser.role }
             })
         ]);
 
@@ -59,9 +81,11 @@ async function refreshAuditData() {
  * Charge les statistiques globales dans les cartes
  */
 async function loadGlobalStats() {
+    const currentUser = getCurrentUser();
+    
     try {
         const res = await fetch('/api/audit/global-stats', {
-            headers: { 'x-user-role': user.role }
+            headers: { 'x-user-role': currentUser.role }
         });
         
         if (!res.ok) throw new Error('Erreur chargement stats');
@@ -92,10 +116,10 @@ async function loadGlobalStats() {
  */
 function renderPerformanceChart(data) {
     const container = document.getElementById('performance-chart-container');
-    const role = user.role;
+    const currentUser = getCurrentUser();
 
     // Vérification de sécurité
-    if (role !== 'admin' && role !== 'auditeur') {
+    if (currentUser.role !== 'superadmin' && currentUser.role !== 'admin' && currentUser.role !== 'auditeur') {
         container.innerHTML = `<p style="color:red; padding:20px;">⛔ Accès refusé : Droits insuffisants.</p>`;
         return;
     }
@@ -214,7 +238,9 @@ function renderAuditLogs(logs) {
  * Vérifie les transferts en attente de validation
  */
 async function checkPendingValidations() {
-    if (user.role !== 'auditeur' && user.role !== 'admin') return;
+    const currentUser = getCurrentUser();
+    
+    if (currentUser.role !== 'auditeur' && currentUser.role !== 'admin' && currentUser.role !== 'superadmin') return;
 
     try {
         const res = await fetch('/api/transferts/pending-audit');
@@ -275,9 +301,9 @@ async function checkPendingValidations() {
  * Exporte le rapport d'audit en PDF/Impression
  */
 function exportAuditPDF() {
-    const role = user.role;
+    const currentUser = getCurrentUser();
     
-    if (role !== 'admin' && role !== 'auditeur') {
+    if (currentUser.role !== 'superadmin' && currentUser.role !== 'admin' && currentUser.role !== 'auditeur') {
         alert("⛔ Action non autorisée.");
         return;
     }
@@ -352,7 +378,7 @@ function exportAuditPDF() {
                     <h1>📊 Rapport de Performance par Magasin</h1>
                     <div class="meta">
                         <strong>Généré le:</strong> ${new Date().toLocaleString('fr-FR')}<br>
-                        <strong>Auditeur:</strong> ${user.nom || user.username}<br>
+                        <strong>Auditeur:</strong> ${currentUser.nom || currentUser.username}<br>
                         <strong>Période:</strong> 30 derniers jours
                     </div>
                 </div>
@@ -411,11 +437,13 @@ function exportAuditPDF() {
 
 // Fonctions de validation de transferts (si elles n'existent pas déjà)
 async function approveTransfer(transferId) {
+    const currentUser = getCurrentUser();
+    
     try {
         const res = await fetch(`/api/transferts/${transferId}/approve`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auditeur: user.username })
+            body: JSON.stringify({ auditeur: currentUser.username })
         });
         
         if (res.ok) {
@@ -431,6 +459,7 @@ async function approveTransfer(transferId) {
 }
 
 async function rejectTransfer(transferId) {
+    const currentUser = getCurrentUser();
     const raison = prompt('Raison du blocage:');
     if (!raison) return;
     
@@ -438,7 +467,7 @@ async function rejectTransfer(transferId) {
         const res = await fetch(`/api/transferts/${transferId}/reject`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ auditeur: user.username, raison })
+            body: JSON.stringify({ auditeur: currentUser.username, raison })
         });
         
         if (res.ok) {
