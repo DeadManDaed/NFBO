@@ -100,26 +100,30 @@ async function loadGlobalStats() {
         
         const stats = await res.json();
         
-        console.log('📊 Stats reçues:', stats); // Debug
+        console.log('📊 Stats reçues:', stats);
         
-        // Mise à jour des cartes statistiques avec vérification
+        // Vérifier que les éléments existent
         const profitEl = document.getElementById('audit-total-profit');
         const qtyEl = document.getElementById('audit-total-qty');
         const alertsEl = document.getElementById('audit-alerts');
         
+        console.log('🎯 Éléments trouvés:', { profitEl, qtyEl, alertsEl }); // DEBUG
+        
         if (profitEl) {
             profitEl.textContent = Math.round(parseFloat(stats.profit_total || 0)).toLocaleString('fr-FR');
-        }
-        if (qtyEl) {
-            qtyEl.textContent = Math.round(parseFloat(stats.quantite_totale || 0)).toLocaleString('fr-FR');
-        }
-        if (alertsEl) {
-            alertsEl.textContent = stats.alertes_qualite || 0;
+            console.log('✅ Profit mis à jour');
+        } else {
+            console.error('❌ Element audit-total-profit introuvable');
         }
         
-        // Coloration conditionnelle des alertes
-        if (alertsEl && alertsEl.parentElement && stats.alertes_qualite > 5) {
-            alertsEl.parentElement.style.background = '#ffebee';
+        if (qtyEl) {
+            qtyEl.textContent = Math.round(parseFloat(stats.quantite_totale || 0)).toLocaleString('fr-FR');
+            console.log('✅ Quantité mise à jour');
+        }
+        
+        if (alertsEl) {
+            alertsEl.textContent = stats.alertes_qualite || 0;
+            console.log('✅ Alertes mises à jour');
         }
         
     } catch (err) {
