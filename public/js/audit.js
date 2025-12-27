@@ -365,20 +365,35 @@ async function checkPendingValidations() {
 /**
  * Exporte le rapport d'audit en PDF/Impression
  */
+/**
+ * Exporte le rapport d'audit en PDF/Impression
+ * Transforme les données visuelles (cartes) en tableau structuré
+ */
 function exportAuditPDF() {
     const currentUser = getCurrentUser();
     
+    // 1. Sécurité
     if (currentUser.role !== 'superadmin' && currentUser.role !== 'admin' && currentUser.role !== 'auditeur') {
         alert("⛔ Action non autorisée.");
         return;
     }
 
+    // 2. Récupération des stats globales affichées à l'écran
     const stats = {
         profit: document.getElementById('audit-total-profit').textContent,
         qty: document.getElementById('audit-total-qty').textContent,
         alerts: document.getElementById('audit-alerts').textContent
     };
 
+    // 3. Calcul des totaux pour le bas du tableau
+    const tableTotals = performanceData.reduce((acc, store) => {
+        acc.admissions += parseInt(store.nombre_admissions) || 0;
+        acc.qty += parseFloat(store.quantite_totale) || 0;
+        acc.profit += parseFloat(store.profit_virtuel_genere) || 0;
+        return acc;
+    }, { admissions: 0, qty: 0, profit: 0 });
+
+    // 4. Ouverture de la fenêtre d'impression
     const printWindow = window.open('', '_blank', 'height=800,width=1000');
 
     printWindow.document.write(`
@@ -387,117 +402,150 @@ function exportAuditPDF() {
                 <title>Rapport d'Audit NBFO - ${new Date().toLocaleDateString('fr-FR')}</title>
                 <style>
                     body { 
-                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
                         padding: 40px; 
-                        line-height: 1.6;
+                        color: #333;
                     }
                     .header {
-                        border-bottom: 3px solid #1565c0;
+                        border-bottom: 2px solid #1565c0;
                         padding-bottom: 20px;
                         margin-bottom: 30px;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: flex-end;
                     }
-                    h1 { color: #1565c0; margin: 0; }
-                    .meta { color: #666; font-size: 13px; margin-top: 10px; }
-                    .stat-card { 
-                        border: 1px solid #ddd; 
-                        padding: 15px; 
-                        margin: 15px 0; 
-                        border-radius: 8px;
-                        background: #f9f9f9;
+                    .brand { font-size: 24px; font-weight: bold; color: #1565c0; }
+                    .meta { font-size: 12px; color: #666; text-align: right; }
+                    
+                    /* Cartes résumées en haut */
+                    .summary-grid {
+                        display: grid;
+                        grid-template-columns: repeat(3, 1fr);
+                        gap: 15px;
+                        margin-bottom: 40px;
                     }
-                    .stat-card h3 { margin: 0 0 8px 0; color: #333; font-size: 14px; }
-                    .stat-card .value { font-size: 24px; font-weight: bold; color: #1565c0; }
+                    .summary-card {
+                        background: #f8f9fa;
+                        border: 1px solid #ddd;
+                        padding: 15px;
+                        border-radius: 6px;
+                        text-align: center;
+                    }
+                    .summary-label { font-size: 11px; text-transform: uppercase; color: #666; letter-spacing: 1px; }
+                    .summary-value { font-size: 20px; font-weight: bold; color: #333; margin-top: 5px; }
+
+                    /* Le Tableau de données */
                     table { 
                         width: 100%; 
                         border-collapse: collapse; 
-                        margin-top: 30px; 
-                    }
-                    th, td { 
-                        border: 1px solid #ddd; 
-                        padding: 12px 8px; 
-                        text-align: left; 
+                        margin-top: 10px; 
                         font-size: 12px;
                     }
                     th { 
                         background-color: #1565c0; 
-                        color: white;
+                        color: white; 
+                        padding: 10px; 
+                        text-align: left; 
                         font-weight: 600;
                     }
+                    td { 
+                        border-bottom: 1px solid #eee; 
+                        padding: 10px; 
+                    }
                     tr:nth-child(even) { background-color: #f9f9f9; }
+                    
+                    /* Ligne de total */
+                    .total-row td {
+                        border-top: 2px solid #333;
+                        font-weight: bold;
+                        background-color: #e3f2fd;
+                        font-size: 13px;
+                    }
+
                     .footer {
                         margin-top: 50px;
-                        padding-top: 20px;
-                        border-top: 1px solid #ddd;
-                        text-align: center;
+                        font-size: 10px;
                         color: #999;
-                        font-size: 11px;
-                    }
-                    @media print {
-                        body { padding: 20px; }
-                        .no-print { display: none; }
+                        text-align: center;
+                        border-top: 1px solid #eee;
+                        padding-top: 10px;
                     }
                 </style>
             </head>
             <body>
                 <div class="header">
-                    <h1>📊 Rapport de Performance par Magasin</h1>
+                    <div class="brand">NBFO SYSTEM</div>
                     <div class="meta">
-                        <strong>Généré le:</strong> ${new Date().toLocaleString('fr-FR')}<br>
-                        <strong>Auditeur:</strong> ${currentUser.nom || currentUser.username}<br>
-                        <strong>Période:</strong> 30 derniers jours
+                        Rapport généré le ${new Date().toLocaleString('fr-FR')}<br>
+                        Auditeur: ${currentUser.nom || currentUser.username}
                     </div>
                 </div>
                 
-                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
-                    <div class="stat-card">
-                        <h3>💰 Profit Virtuel Total</h3>
-                        <div class="value">${stats.profit} FCFA</div>
+                <h2>📊 Rapport de Performance Global</h2>
+
+                <div class="summary-grid">
+                    <div class="summary-card">
+                        <div class="summary-label">Profit Virtuel</div>
+                        <div class="summary-value" style="color:#1565c0">${stats.profit} FCFA</div>
                     </div>
-                    <div class="stat-card">
-                        <h3>📦 Flux Admissions</h3>
-                        <div class="value">${stats.qty} Unités</div>
+                    <div class="summary-card">
+                        <div class="summary-label">Flux Quantité</div>
+                        <div class="summary-value" style="color:#2e7d32">${stats.qty} Unités</div>
                     </div>
-                    <div class="stat-card">
-                        <h3>⚠️ Alertes Qualité</h3>
-                        <div class="value">${stats.alerts}</div>
+                    <div class="summary-card">
+                        <div class="summary-label">Alertes</div>
+                        <div class="summary-value" style="color:#d32f2f">${stats.alerts}</div>
                     </div>
                 </div>
 
-                <h2 style="margin-top:40px; color:#333;">Détails par Magasin</h2>
+                <h3>Détail par Magasin</h3>
                 <table>
                     <thead>
                         <tr>
                             <th>Magasin</th>
-                            <th>Admissions</th>
-                            <th>Quantité (unités)</th>
-                            <th>Profit (FCFA)</th>
-                            <th>Alertes</th>
+                            <th style="text-align:center">Admissions (Lots)</th>
+                            <th style="text-align:right">Quantité (Unités)</th>
+                            <th style="text-align:right">Profit Généré (FCFA)</th>
+                            <th style="text-align:center">Alertes</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${performanceData.map(store => `
                             <tr>
                                 <td><strong>${store.nom_magasin}</strong></td>
-                                <td>${store.nombre_admissions}</td>
-                                <td>${Math.round(store.quantite_totale).toLocaleString('fr-FR')}</td>
-                                <td style="color:#2e7d32; font-weight:bold;">
+                                <td style="text-align:center">${store.nombre_admissions}</td>
+                                <td style="text-align:right">${Math.round(store.quantite_totale).toLocaleString('fr-FR')}</td>
+                                <td style="text-align:right; color:${store.profit_virtuel_genere >= 0 ? '#2e7d32' : '#c62828'}">
                                     ${Math.round(store.profit_virtuel_genere).toLocaleString('fr-FR')}
                                 </td>
-                                <td>${store.alertes_qualite || 0}</td>
+                                <td style="text-align:center">${store.alertes_qualite || '-'}</td>
                             </tr>
                         `).join('')}
+                        
+                        <tr class="total-row">
+                            <td>TOTAL GÉNÉRAL</td>
+                            <td style="text-align:center">${tableTotals.admissions}</td>
+                            <td style="text-align:right">${Math.round(tableTotals.qty).toLocaleString('fr-FR')}</td>
+                            <td style="text-align:right">${Math.round(tableTotals.profit).toLocaleString('fr-FR')}</td>
+                            <td style="text-align:center">${stats.alerts}</td>
+                        </tr>
                     </tbody>
                 </table>
 
                 <div class="footer">
-                    <p>Document confidentiel - NBFO System - ${new Date().getFullYear()}</p>
+                    Document confidentiel interne - Ne pas diffuser sans autorisation.<br>
+                    © ${new Date().getFullYear()} NBFO System
                 </div>
             </body>
         </html>
     `);
 
     printWindow.document.close();
-    setTimeout(() => printWindow.print(), 500);
+    // Petit délai pour assurer le chargement des styles avant l'impression
+    setTimeout(() => {
+        printWindow.focus();
+        printWindow.print();
+    }, 500);
 }
 
 // Fonctions de validation de transferts (si elles n'existent pas déjà)
