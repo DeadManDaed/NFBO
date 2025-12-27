@@ -21,8 +21,6 @@ function getCurrentUser() {
     };
 }
 
-const user = getCurrentUser();
-
 /**
  * Initialisation du module audit
  */
