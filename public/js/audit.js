@@ -50,11 +50,11 @@ async function refreshAuditData() {
                 headers: { 'x-user-role': currentUser.role }                
         
             }),
-            console.log('📊 Perf status:', perfRes.status); // AJOUTE
+           /* console.log('📊 Perf status:', perfRes.status); // AJOUTE
         console.log('📋 Logs status:', logsRes.status); // AJOUTE
         
         performanceData = await perfRes.json();
-        console.log('📊 Performance data:', performanceData); // AJOUTE
+        console.log('📊 Performance data:', performanceData); // AJOUTE*/
             fetch('/api/audit/recent-logs', {
                 headers: { 'x-user-role': currentUser.role }
             })
