@@ -150,72 +150,45 @@ function renderPerformanceChart(data) {
     // Calcul de la valeur maximale pour l'échelle
     const maxProfit = Math.max(...data.map(d => parseFloat(d.profit_virtuel_genere) || 0), 1);
 
-    let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; padding: 10px 0;">`;
+    let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; padding: 10px 0;">`;
 
+    // UNE SEULE BOUCLE ICI
     data.forEach(store => {
         const profit = parseFloat(store.profit_virtuel_genere) || 0;
-        const heightPercentage = Math.max((profit / maxProfit) * 100, 5); // Minimum 5% pour visibilité
+        const quantite = parseFloat(store.quantite_totale) || 0;
         const color = profit > 0 ? 'var(--primary, #1565c0)' : '#d32f2f';
         
-        data.forEach(store => {
-    const profit = parseFloat(store.profit_virtuel_genere) || 0;
-    const color = profit > 0 ? 'var(--primary, #1565c0)' : '#d32f2f';
-    const quantite = parseFloat(store.quantite_totale) || 0;
-    
-    html += `
-        <div style="
-            background: white; 
-            border: 2px solid ${color}20; 
-            border-radius: 12px; 
-            padding: 20px; 
-            text-align: center;
-            transition: all 0.3s ease;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
-            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
-            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';"
-            title="Quantité: ${Math.round(quantite).toLocaleString('fr-FR')} unités">
-            
-            <!-- Nom du magasin -->
+        html += `
             <div style="
-                font-size: 13px; 
-                font-weight: 600; 
-                margin-bottom: 12px; 
-                color: #333;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;">
-                ${store.nom_magasin}
-            </div>
-            
-            <!-- Profit (valeur principale) -->
-            <div style="
-                font-size: 22px; 
-                font-weight: bold; 
-                color: ${color}; 
-                margin-bottom: 8px;">
-                ${Math.round(profit).toLocaleString('fr-FR')}
-            </div>
-            
-            <!-- Label FCFA -->
-            <div style="font-size: 10px; color: #999; margin-bottom: 10px;">
-                FCFA
-            </div>
-            
-            <!-- Nombre d'admissions -->
-            <div style="
-                font-size: 11px; 
-                color: #666; 
-                padding: 6px 12px; 
-                background: ${color}10; 
-                border-radius: 20px;
-                display: inline-block;">
-                📦 ${store.nombre_admissions} admission${store.nombre_admissions > 1 ? 's' : ''}
-            </div>
-        </div>`;
-});
+                background: white; 
+                border: 2px solid ${color}20; 
+                border-radius: 12px; 
+                padding: 20px; 
+                text-align: center;
+                transition: all 0.3s ease;
+                cursor: pointer;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
+                onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+                onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';"
+                title="Quantité: ${Math.round(quantite).toLocaleString('fr-FR')} unités">
+                
+                <div style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #333; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${store.nom_magasin}
+                </div>
+                
+                <div style="font-size: 22px; font-weight: bold; color: ${color}; margin-bottom: 8px;">
+                    ${Math.round(profit).toLocaleString('fr-FR')}
+                </div>
+                
+                <div style="font-size: 10px; color: #999; margin-bottom: 10px;">FCFA</div>
+                
+                <div style="font-size: 11px; color: #666; padding: 6px 12px; background: ${color}10; border-radius: 20px; display: inline-block;">
+                    📦 ${store.nombre_admissions} admission${store.nombre_admissions > 1 ? 's' : ''}
+                </div>
+            </div>`;
+    }); // Fermeture de la boucle forEach (Ligne cruciale qui manquait)
 
-html += `</div>`;
+    html += `</div>`;
     container.innerHTML = html;
 }
 
