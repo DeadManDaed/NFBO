@@ -9,8 +9,8 @@ let performanceData = [];
 // Récupération des informations utilisateur
 function getCurrentUser() {
     // Essayer de récupérer depuis la variable globale (si définie dans app.js)
-    if (typeof user !== 'undefined' && user) {
-        return user;
+    if (typeof window.user !== 'undefined' && window.user) {
+    return window.user;
     }
     
     // Sinon, récupérer depuis localStorage
@@ -42,12 +42,18 @@ async function initModuleAudit() {
  */
 async function refreshAuditData() {
     const currentUser = getCurrentUser();
-    
+     console.log('👤 User actuel:', currentUser); // AJOUTE
     try {
         // Chargement parallèle des données
         const [perfRes, logsRes] = await Promise.all([
             fetch('/api/audit/performance-by-store', {
                 headers: { 'x-user-role': currentUser.role }
+                
+        console.log('📊 Perf status:', perfRes.status); // AJOUTE
+        console.log('📋 Logs status:', logsRes.status); // AJOUTE
+        
+        performanceData = await perfRes.json();
+        console.log('📊 Performance data:', performanceData); // AJOUTE
             }),
             fetch('/api/audit/recent-logs', {
                 headers: { 'x-user-role': currentUser.role }
