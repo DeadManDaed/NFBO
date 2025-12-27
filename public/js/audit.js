@@ -25,13 +25,15 @@ function getCurrentUser() {
  * Initialisation du module audit
  */
 async function initModuleAudit() {
-    // Mise à jour de l'objet user au cas où il aurait changé
     const currentUser = getCurrentUser();
     
-    await refreshAuditData();
-    await loadGlobalStats();
+    // ✅ ATTENDRE que le DOM soit prêt (augmente le délai)
+    await new Promise(resolve => setTimeout(resolve, 300));
     
-    // Vérification des validations en attente (si auditeur)
+    // ✅ Charger les stats APRÈS le DOM
+    await loadGlobalStats();
+    await refreshAuditData();
+    
     if (currentUser.role === 'auditeur' || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
         await checkPendingValidations();
     }
