@@ -91,6 +91,9 @@ async function refreshAuditData() {
 async function loadGlobalStats() {
     const currentUser = getCurrentUser();
     
+    // ✅ ATTENDRE que les éléments existent dans le DOM
+    await waitForElements(['audit-total-profit', 'audit-total-qty', 'audit-alerts']);
+    
     try {
         const res = await fetch('/api/audit/global-stats', {
             headers: { 'x-user-role': currentUser.role }
@@ -102,33 +105,42 @@ async function loadGlobalStats() {
         
         console.log('📊 Stats reçues:', stats);
         
-        // Vérifier que les éléments existent
-        const profitEl = document.getElementById('audit-total-profit');
-        const qtyEl = document.getElementById('audit-total-qty');
-        const alertsEl = document.getElementById('audit-alerts');
+        // Maintenant on est sûr que les éléments existent
+        document.getElementById('audit-total-profit').textContent = 
+            Math.round(parseFloat(stats.profit_total || 0)).toLocaleString('fr-FR');
+        document.getElementById('audit-total-qty').textContent = 
+            Math.round(parseFloat(stats.quantite_totale || 0)).toLocaleString('fr-FR');
+        document.getElementById('audit-alerts').textContent = 
+            stats.alertes_qualite || 0;
         
-        console.log('🎯 Éléments trouvés:', { profitEl, qtyEl, alertsEl }); // DEBUG
-        
-        if (profitEl) {
-            profitEl.textContent = Math.round(parseFloat(stats.profit_total || 0)).toLocaleString('fr-FR');
-            console.log('✅ Profit mis à jour');
-        } else {
-            console.error('❌ Element audit-total-profit introuvable');
-        }
-        
-        if (qtyEl) {
-            qtyEl.textContent = Math.round(parseFloat(stats.quantite_totale || 0)).toLocaleString('fr-FR');
-            console.log('✅ Quantité mise à jour');
-        }
-        
-        if (alertsEl) {
-            alertsEl.textContent = stats.alertes_qualite || 0;
-            console.log('✅ Alertes mises à jour');
-        }
+        console.log('✅ Stats affichées');
         
     } catch (err) {
         console.error('❌ Erreur stats globales:', err);
     }
+}
+
+// ✅ Fonction helper pour attendre que les éléments existent
+function waitForElements(elementIds, maxAttempts = 50) {
+    return new Promise((resolve, reject) => {
+        let attempts = 0;
+        
+        const checkElements = setInterval(() => {
+            attempts++;
+            
+            const allExist = elementIds.every(id => document.getElementById(id) !== null);
+            
+            if (allExist) {
+                console.log(`✅ Tous les éléments trouvés après ${attempts} tentatives`);
+                clearInterval(checkElements);
+                resolve();
+            } else if (attempts >= maxAttempts) {
+                console.error(`❌ Timeout: éléments non trouvés après ${attempts} tentatives`);
+                clearInterval(checkElements);
+                reject(new Error('Elements not found'));
+            }
+        }, 100); // Vérifie toutes les 100ms
+    });
 }
 
 /**
