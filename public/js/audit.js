@@ -142,7 +142,7 @@ function renderPerformanceChart(data) {
     // Calcul de la valeur maximale pour l'échelle
     const maxProfit = Math.max(...data.map(d => parseFloat(d.profit_virtuel_genere) || 0), 1);
 
-    let html = `<div style="display: flex; align-items: flex-end; gap: 15px; height: 280px; width:100%; padding: 10px 0;">`;
+    let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; padding: 10px 0;">`;
 
     data.forEach(store => {
         const profit = parseFloat(store.profit_virtuel_genere) || 0;
