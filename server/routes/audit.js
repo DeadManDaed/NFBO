@@ -4,17 +4,17 @@ const router = express.Router();
 const pool = require('../db');
 
 // Middleware de vérification de rôle
-const requireAuditRole = (req, res, next) => {
+/*const requireAuditRole = (req, res, next) => {
     const userRole = req.headers['x-user-role'] || req.query.role;
     console.log('🔍 Role reçu dans audit API:', userRole); // AJOUTE CECI
     if (userRole !== 'superadmin' && userRole !== 'admin' && userRole !== 'auditeur') {
         return res.status(403).json({ error: 'Accès refusé : Droits insuffisants' });
     }
     next();
-};
+};*/
 
 // ✅ GET : Performance par magasin
-router.get('/performance-by-store', requireAuditRole, async (req, res) => {
+router.get('/performance-by-store', /*requireAuditRole,*/ async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM vue_performance_magasins');
         res.json(result.rows);
@@ -25,7 +25,7 @@ router.get('/performance-by-store', requireAuditRole, async (req, res) => {
 });
 
 // ✅ GET : Logs d'audit récents
-router.get('/recent-logs', requireAuditRole, async (req, res) => {
+router.get('/recent-logs', /*requireAuditRole,*/ async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
@@ -49,7 +49,7 @@ router.get('/recent-logs', requireAuditRole, async (req, res) => {
 });
 
 // ✅ GET : Statistiques globales
-router.get('/global-stats', requireAuditRole, async (req, res) => {
+router.get('/global-stats', /*requireAuditRole,*/ async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
