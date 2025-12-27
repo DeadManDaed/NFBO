@@ -25,21 +25,22 @@ router.get('/performance-by-store', /*requireAuditRole,*/ async (req, res) => {
 });
 
 // ✅ GET : Logs d'audit récents
-router.get('/recent-logs', /*requireAuditRole,*/ async (req, res) => {
+router.get('/recent-logs', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT 
                 a.id,
-                a.date,
+                a.date_reception AS date,
                 a.utilisateur,
-                a.action,
-                'Système' AS type,
-                0 AS montant,
-                '' AS magasin
-            FROM audit a
-            WHERE a.date >= CURRENT_DATE - INTERVAL '7 days'
-            ORDER BY a.date DESC
-            LIMIT 50
+                CONCAT('Admission #', a.id) AS action,
+                'Admission' AS type,
+                COALESCE(a.benefice_estime, 0) AS montant,
+                m.nom AS magasin
+            FROM admissions a
+            LEFT JOIN magasins m ON a.magasin_id = m.id
+            WHERE a.date_reception >= CURRENT_DATE - INTERVAL '7 days'
+            ORDER BY a.date_reception DESC
+            LIMIT 20
         `);
         res.json(result.rows);
     } catch (err) {
@@ -47,7 +48,6 @@ router.get('/recent-logs', /*requireAuditRole,*/ async (req, res) => {
         res.status(500).json({ error: 'Erreur serveur', details: err.message });
     }
 });
-
 // ✅ GET : Statistiques globales
 router.get('/global-stats', /*requireAuditRole,*/ async (req, res) => {
     try {
