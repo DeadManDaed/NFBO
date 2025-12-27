@@ -50,6 +50,10 @@ document.getElementById('loginForm').onsubmit = async (e) => {
 
                 if (res.ok) {
                     sessionStorage.setItem('user', JSON.stringify(data.user));
+localStorage.setItem('username', data.user.username);
+    localStorage.setItem('role', data.user.role);
+    localStorage.setItem('nom', data.user.nom || '');
+    localStorage.setItem('prenom', data.user.prenom || '');
                     window.location.href = 'dashboard.html';
                 } else {
                     alertBox.innerText = data.message || "Erreur d'authentification";
