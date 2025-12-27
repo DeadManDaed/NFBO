@@ -42,7 +42,9 @@ async function initModuleAudit() {
  */
 async function refreshAuditData() {
     const currentUser = getCurrentUser();
-     console.log('👤 User actuel:', currentUser); // AJOUTE
+     console.log('👤 User actuel:', currentUser); // AJOUTE   
+    // ✅ ATTENDRE que le DOM soit prêt
+    await new Promise(resolve => setTimeout(resolve, 100));
     try {
         // Chargement parallèle des données
         const [perfRes, logsRes] = await Promise.all([
@@ -64,7 +66,7 @@ async function refreshAuditData() {
         if (perfRes.status === 403 || logsRes.status === 403) {
             throw new Error("Accès non autorisé à la source de données.");
         }
-
+   
         performanceData = await perfRes.json();
         const logsData = await logsRes.json();
 
