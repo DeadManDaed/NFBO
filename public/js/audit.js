@@ -27,11 +27,11 @@ function getCurrentUser() {
 async function initModuleAudit() {
     const currentUser = getCurrentUser();
     
-    // ✅ ATTENDRE que le DOM soit prêt (augmente le délai)
+    // On attend un court instant que le HTML soit injecté
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    // ✅ Charger les stats APRÈS le DOM
-    await loadGlobalStats();
+    // On lance tout en parallèle pour gagner du temps
+    // Note: on ne charge plus loadGlobalStats() ici car refreshAuditData s'en chargera via le calcul local
     await refreshAuditData();
     
     if (currentUser.role === 'auditeur' || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
@@ -44,42 +44,36 @@ async function initModuleAudit() {
  */
 async function refreshAuditData() {
     const currentUser = getCurrentUser();
-     console.log('👤 User actuel:', currentUser); // AJOUTE   
-    // ✅ ATTENDRE que le DOM soit prêt
-    await new Promise(resolve => setTimeout(resolve, 100));
+    
     try {
-        // Chargement parallèle des données
         const [perfRes, logsRes] = await Promise.all([
             fetch('/api/audit/performance-by-store', {
-                headers: { 'x-user-role': currentUser.role }                
-        
+                headers: { 'x-user-role': currentUser.role }
             }),
-           /* console.log('📊 Perf status:', perfRes.status); // AJOUTE
-        console.log('📋 Logs status:', logsRes.status); // AJOUTE
-        
-        performanceData = await perfRes.json();
-        console.log('📊 Performance data:', performanceData); // AJOUTE*/
             fetch('/api/audit/recent-logs', {
                 headers: { 'x-user-role': currentUser.role }
             })
         ]);
 
-        // Vérification des permissions
         if (perfRes.status === 403 || logsRes.status === 403) {
-            throw new Error("Accès non autorisé à la source de données.");
+            throw new Error("Accès non autorisé.");
         }
    
         performanceData = await perfRes.json();
         const logsData = await logsRes.json();
 
-        // Rendu des composants
+        // 1. On affiche les graphiques
         renderPerformanceChart(performanceData);
+        
+        // 2. On affiche les logs
         renderAuditLogs(logsData);
+        
+        // 3. FORCE DE FRAPPE : On met à jour les Stats Globales directement depuis les données reçues
+        // Cela résout définitivement le problème des "0"
+        updateGlobalStatsFromData(performanceData);
 
     } catch (err) {
         console.error('❌ Erreur audit:', err);
-        logDeploymentError('Audit-Performance-Render', err);
-        
         document.getElementById('performance-chart-container').innerHTML = 
             `<p style="color:red; padding:20px;">⚠️ ${err.message}</p>`;
     }
@@ -88,7 +82,7 @@ async function refreshAuditData() {
 /**
  * Charge les statistiques globales dans les cartes
  */
-async function loadGlobalStats() {
+/*async function loadGlobalStats() {
     const currentUser = getCurrentUser();
     
     // ✅ ATTENDRE que les éléments existent dans le DOM
@@ -118,10 +112,36 @@ async function loadGlobalStats() {
     } catch (err) {
         console.error('❌ Erreur stats globales:', err);
     }
-}
+}*/
+/**
+ * Calcule et affiche les totaux directement depuis les données magasins
+ * Plus fiable qu'un appel API séparé
+ */
+function updateGlobalStatsFromData(data) {
+    if (!data) return;
 
+    // Calcul des sommes
+    const totalProfit = data.reduce((sum, store) => sum + (parseFloat(store.profit_virtuel_genere) || 0), 0);
+    const totalQty = data.reduce((sum, store) => sum + (parseFloat(store.quantite_totale) || 0), 0);
+    const totalAlerts = data.reduce((sum, store) => sum + (parseInt(store.alertes_qualite) || 0), 0);
+
+    // Mise à jour du DOM sécurisée
+    const profitEl = document.getElementById('audit-total-profit');
+    const qtyEl = document.getElementById('audit-total-qty');
+    const alertsEl = document.getElementById('audit-alerts');
+
+    if (profitEl) profitEl.textContent = Math.round(totalProfit).toLocaleString('fr-FR');
+    if (qtyEl) qtyEl.textContent = Math.round(totalQty).toLocaleString('fr-FR');
+    if (alertsEl) alertsEl.textContent = totalAlerts;
+    
+    // Changement de couleur si alerte
+    if (alertsEl && alertsEl.parentElement && totalAlerts > 0) {
+        alertsEl.parentElement.style.background = '#ffebee';
+        alertsEl.parentElement.style.borderLeft = '5px solid #d32f2f';
+    }
+}
 // ✅ Fonction helper pour attendre que les éléments existent
-function waitForElements(elementIds, maxAttempts = 50) {
+/*function waitForElements(elementIds, maxAttempts = 50) {
     return new Promise((resolve, reject) => {
         let attempts = 0;
         
@@ -141,7 +161,7 @@ function waitForElements(elementIds, maxAttempts = 50) {
             }
         }, 100); // Vérifie toutes les 100ms
     });
-}
+}*/
 
 /**
  * Génère le graphique de performance par magasin
