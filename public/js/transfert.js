@@ -11,7 +11,7 @@ function switchTab(tab) {
 
             if(tab === 'expedier') {
                 document.getElementById('form-expedition').style.display = 'block';
-               charlerLots(); document.getElementById('list-reception').style.display = 'none';
+               chargerLots(); document.getElementById('list-reception').style.display = 'none';
             } else {
                 document.getElementById('form-expedition').style.display = 'none';
                 document.getElementById('list-reception').style.display = 'block';
