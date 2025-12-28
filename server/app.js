@@ -23,11 +23,7 @@ const auditRoutes = require('./routes/audit');
 
 const app = express();
 
-// Juste après l'initialisation de 'app'
-app.use((req, res, next) => {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    next();
-});
+
 
 // 2. MIDDLEWARES DE CONFIGURATION
 app.use(bodyParser.json({ limit: '1mb' }));
