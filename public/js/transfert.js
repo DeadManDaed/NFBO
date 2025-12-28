@@ -85,3 +85,23 @@ function switchTab(tab) {
             `);
             win.print();
         }
+// 2. CHARGEMENT DES RÉFÉRENTIELS (CORRIGÉ)
+async function chargerLots() {
+    const select = document.getElementById('adm-lot-select');
+    try {
+        const res = await fetch('/api/lots');
+        const lots = await res.json();
+        select.innerHTML = '<option value="">-- Sélectionner un lot --</option>' +
+            lots.map(l => `<option value="${l.id}">${l.description || l.nom_produit} (${l.prix_ref} FCFA)</option>`).join('');
+    } catch (e) { select.innerHTML = '<option>Erreur chargement lots</option>'; }
+}
+
+async function chargerProducteurs() {
+    const select = document.getElementById('adm-producer-select');
+    try {
+        const res = await fetch('/api/producteurs');
+        const data = await res.json();
+        select.innerHTML = '<option value="">-- Sélectionner --</option>' +
+            data.map(p => `<option value="${p.id}">${p.nom_producteur || p.nom}</option>`).join('');
+    } catch (e) { console.error(e); }
+}
