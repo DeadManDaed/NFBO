@@ -176,15 +176,24 @@ async function handleRetraitSubmit(e) {
   const lotOpt = document.getElementById('retraitLot')?.selectedOptions?.[0];
   const prix_ref = lotOpt ? parseFloat(lotOpt.getAttribute('data-prix') || 0) : 0;
 
-  const body = {
-    lot_id: lotId,
-    quantite,
-    unite,
-    type_retrait,
-    prix_ref,
-    utilisateur: (window.CURRENT_USER || localStorage.getItem('username') || 'unknown'),
-    magasin_id: (window.CURRENT_MAGASIN_ID || null)
-  };
+// Récupérer le magasin_id depuis le select retraitMagasin
+const magasinId = parseInt(get('retraitMagasin')) || null;
+
+const body = {
+  lot_id: lotId,
+  quantite,
+  unite,
+  type_retrait,
+  prix_ref,
+  utilisateur: (window.CURRENT_USER || localStorage.getItem('username') || 'unknown'),
+  magasin_id: magasinId  // ← Maintenant on utilise la valeur du select
+};
+
+// Validation : vérifier que magasin_id existe
+if (!magasinId) {
+  alert('Veuillez sélectionner un magasin source');
+  return;
+}
 
   if (type_retrait === 'producteur') body.destination_producteur_id = parseInt(get('destProducteur')) || null;
   if (type_retrait === 'magasin') body.destination_magasin_id = parseInt(get('destMagasinRetrait') || get('destMagasin')) || null;
