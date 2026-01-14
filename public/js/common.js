@@ -209,62 +209,42 @@ function loadRoleContent(role) {
   }
 
   // Submit pour transfert (enregistre un retrait de type magasin vers magasin)
-  // Remplacer uniquement la fonction handleRetraitSubmit par ce code (dans public/js/common.js)
-async function handleRetraitSubmit(e) {
-  e.preventDefault();
-  const get = id => document.getElementById(id) && document.getElementById(id).value;
-  const lotId = parseInt(get('retraitLot'));
-  const quantite = parseFloat(get('retraitQuantity') || get('retraitQty') || get('retraitQty') || 0);
-  const unite = get('retraitUnite') || '';
-  const type_retrait = get('typeRetrait') || 'client';
-  const lotOpt = document.getElementById('retraitLot')?.selectedOptions?.[0];
-  const prix_ref = lotOpt ? parseFloat(lotOpt.getAttribute('data-prix') || 0) : 0;
+  async function handleTransferSubmit(e) {
+    e.preventDefault();
+    const get = id => document.getElementById(id) && document.getElementById(id).value;
+    const lotId = parseInt(get('transferLot') || get('trans-lot') || 0);
+    const quantite = parseFloat(get('transferQuantity') || 0);
+    const destMagasinId = parseInt(get('destMagasin') || get('trans-dest') || 0);
+    const lotOpt = document.getElementById('transferLot')?.selectedOptions?.[0] || document.getElementById('trans-lot')?.selectedOptions?.[0];
+    const prix_ref = lotOpt ? parseFloat(lotOpt.getAttribute('data-prix') || 0) : 0;
 
-  const body = {
-    lot_id: lotId,
-    quantite,
-    unite,
-    type_retrait,
-    prix_ref,
-    utilisateur: (window.CURRENT_USER || localStorage.getItem('username') || 'unknown'),
-    magasin_id: (window.CURRENT_MAGASIN_ID || null)
-  };
+    const body = {
+      lot_id: lotId,
+      quantite,
+      type_retrait: 'magasin',
+      destination_magasin_id: destMagasinId,
+      prix_ref,
+      utilisateur: (window.CURRENT_USER || 'unknown'),
+      magasin_id: (window.CURRENT_MAGASIN_ID || null)
+    };
 
-  if (type_retrait === 'producteur') body.destination_producteur_id = parseInt(get('destProducteur')) || null;
-  if (type_retrait === 'magasin') body.destination_magasin_id = parseInt(get('destMagasinRetrait') || get('destMagasin')) || null;
-  if (type_retrait === 'destruction') body.motif = get('motif') || null;
-
-  console.log('Envoi /api/retraits body =', body);
-
-  try {
-    const response = await fetch('/api/retraits', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-
-    if (!response.ok) {
-      // essaie parser JSON d'erreur si possible
-      let errText = await response.text().catch(()=>null);
-      let errObj;
-      try { errObj = errText ? JSON.parse(errText) : null; } catch(e) { errObj = null; }
-      console.error('Erreur submit retrait (HTTP ' + response.status + '):', errObj || errText);
-      // message utilisateur
-      const userMsg = (errObj && (errObj.error || errObj.message)) || errText || `Erreur HTTP ${response.status}`;
-      alert('Erreur lors de l\'enregistrement du retrait : ' + userMsg);
-      return;
+    try {
+      await fetchJson(`${API_BASE}/retraits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      alert('Transfert enregistré ✔️');
+      const form = document.getElementById('transferForm') || document.getElementById('transfertForm');
+      if (form) { form.reset(); form.style.display = 'none'; }
+      if (typeof loadLotsInto === 'function') loadLotsInto('transferLot');
+      if (typeof loadRetraits === 'function') loadRetraits().catch(()=>{});
+      if (typeof loadTransfers === 'function') loadTransfers().catch(()=>{});
+    } catch (err) {
+      console.error('Erreur submit transfert', err);
+      alert('Erreur lors de l\'enregistrement du transfert');
     }
-
-    const result = await response.json();
-    alert('Retrait enregistré ✔️');
-    e.target.reset();
-    if (typeof loadLotsInto === 'function') loadLotsInto('retraitLot');
-    if (typeof loadRetraits === 'function') loadRetraits().catch(()=>{});
-  } catch (err) {
-    console.error('Erreur submit retrait (fetch failed):', err);
-    alert('Erreur réseau lors de l\'enregistrement du retrait : ' + (err.message || err));
   }
-}
 
   // --- AUTO INIT: ids trouvés dans ton repo (silencieux si n'existent pas) ---
   document.addEventListener('DOMContentLoaded', async () => {
@@ -320,4 +300,3 @@ async function handleRetraitSubmit(e) {
     handleRetraitSubmit,
     handleTransferSubmit
   });
-})();
