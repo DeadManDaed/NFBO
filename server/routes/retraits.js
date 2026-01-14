@@ -1,41 +1,40 @@
 /**
  * server/routes/retraits.js
+ * POST /api/retraits  - crée un retrait / transfert / destruction / retour producteur
  *
- * Routes CRUD pour les retraits (sorties de stock, transferts, retours producteur, destructions).
- * - Valide les champs essentiels
- * - Remplit prix_ref depuis la table lots si absent
- * - Vérifie le stock disponible pour le magasin source (si applicable)
- * - Utilise une transaction pour l'insert afin d'éviter incohérences
- * - Ne contient PAS de top-level await (compatible CommonJS require)
+ * - Validation serveur
+ * - Fallback prix_ref depuis lots si absent
+ * - Vérification du stock en transaction (SELECT ... FOR UPDATE)
+ * - Insert dans une transaction puis COMMIT
+ * - Capture d'erreurs déclenchées par triggers (ex: update_stock_on_retrait)
  */
 
 const express = require('express');
 const router = express.Router();
-const pool = require('../db'); // pool PG (Pool) — doit exporter un pool (pas un client connecté par TLA)
+const pool = require('../db');
 
-/**
- * Helper : calcule le stock disponible pour un lot dans un magasin
- * (somme admissions - somme retraits)
- */
-async function getStockForLotInMagasin(lotId, magasinId) {
-  const admRes = await pool.query(
-    `SELECT COALESCE(SUM(quantite), 0) AS total_adm
-     FROM admissions
-     WHERE lot_id = $1 AND magasin_id = $2`,
+// Helper : calcule le stock pour un lot/magasin en utilisant le client transactionnel (verrou FOR UPDATE)
+async function getStockForLotInMagasinUsingClient(client, lotId, magasinId) {
+  // verrouille les admissions pour ce lot/magasin
+  const admRows = await client.query(
+    `SELECT quantite FROM admissions
+     WHERE lot_id = $1 AND magasin_id = $2
+     FOR UPDATE`,
     [lotId, magasinId]
   );
-  const retRes = await pool.query(
+  const totalAdm = admRows.rows.reduce((s, r) => s + parseFloat(r.quantite || 0), 0);
+
+  const retRes = await client.query(
     `SELECT COALESCE(SUM(quantite), 0) AS total_ret
      FROM retraits
      WHERE lot_id = $1 AND magasin_id = $2`,
     [lotId, magasinId]
   );
-  const totalAdm = parseFloat(admRes.rows[0].total_adm) || 0;
-  const totalRet = parseFloat(retRes.rows[0].total_ret) || 0;
+  const totalRet = parseFloat(retRes.rows[0].total_ret || 0);
   return totalAdm - totalRet;
 }
 
-/* GET : liste des retraits (derniers n) */
+/* GET : liste des retraits */
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
@@ -71,11 +70,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-/* POST : créer un retrait (sortie/transfert/destruction/retour producteur)
-   Attendu dans req.body (au minimum) :
-     - lot_id, quantite, unite, type_retrait, magasin_id
-   Le champ prix_ref est requis par la table : si absent, on tente de le prendre depuis lots.prix_ref.
-*/
+/* POST : créer un retrait */
 router.post('/', async (req, res) => {
   const {
     lot_id,
@@ -103,12 +98,11 @@ router.post('/', async (req, res) => {
     admission_id
   } = req.body;
 
-  // validations basiques côté serveur
+  // validations
   if (!lot_id || !magasin_id || !quantite || !unite || !type_retrait) {
     return res.status(400).json({ error: 'Champs obligatoires manquants (lot_id, magasin_id, quantite, unite, type_retrait)' });
   }
 
-  // validations conditionnelles
   if (type_retrait === 'producteur' && !destination_producteur_id) {
     return res.status(400).json({ error: 'destination_producteur_id requis pour type_retrait=producteur' });
   }
@@ -120,31 +114,28 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1) prix_ref fallback : si non fourni ou falsy, récupérer depuis lots
+    // prix_ref fallback
     let prixRefFinal = prix_ref;
     if (!prixRefFinal) {
       const lotRes = await client.query('SELECT prix_ref FROM lots WHERE id = $1', [lot_id]);
       if (lotRes.rows.length > 0) {
         prixRefFinal = lotRes.rows[0].prix_ref || 0;
       } else {
-        // lot inconnu
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Lot introuvable' });
       }
     }
 
-    // 2) Vérifier stock disponible si le type implique consommation (vente, magasin, producteur)
-    // On autorise les destructions même si stock insuffisant? Ici on bloque sauf si type == 'destruction' (configurable)
+    // Vérification de stock transactionnelle (évite races)
     const typesQuiConsomment = ['vente', 'producteur', 'magasin'];
     if (typesQuiConsomment.includes(type_retrait)) {
-      const available = await getStockForLotInMagasin(lot_id, magasin_id);
+      const available = await getStockForLotInMagasinUsingClient(client, lot_id, magasin_id);
       if (available < parseFloat(quantite)) {
         await client.query('ROLLBACK');
         return res.status(400).json({ error: 'Stock insuffisant', details: { available, requested: parseFloat(quantite) } });
       }
     }
 
-    // 3) Insert du retrait
     const insertQuery = `
       INSERT INTO retraits (
         lot_id, utilisateur, type_retrait, quantite, unite, prix_ref, valeur_totale,
@@ -186,14 +177,18 @@ router.post('/', async (req, res) => {
 
     const insertRes = await client.query(insertQuery, values);
 
-    // Commit : triggers PostgreSQL (update_stock_on_retrait, handle_magasin_transfer...) s'exécuteront après l'INSERT
     await client.query('COMMIT');
 
     res.status(201).json(insertRes.rows[0]);
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
     console.error('Erreur POST retraits', err);
-    // retourner le message d'erreur utile mais succinct
+
+    // Si trigger a levé une erreur (ex: P0001 / raise), renvoyer 400 avec message
+    if (err && (err.code === 'P0001' || /stock insuffisant/i.test(err.message || ''))) {
+      return res.status(400).json({ error: err.message || 'Stock insuffisant' });
+    }
+
     res.status(400).json({ error: 'Erreur lors de la création du retrait', details: err.message });
   } finally {
     client.release();
