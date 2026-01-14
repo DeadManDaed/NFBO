@@ -1,39 +1,48 @@
+// server/routes/stocks.js
+// Endpoint : GET /api/stocks/disponible/:magasinId
+// Retourne les lots disponibles dans le magasin (stock > 0), avec unité et stock_actuel.
+
 const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
 router.get('/disponible/:magasinId', async (req, res) => {
-    try {
-        const { magasinId } = req.params;
+  try {
+    const { magasinId } = req.params;
 
-        // La requête est enfermée entre des backticks (`) pour être une chaîne de caractères
-        const query = `
-            SELECT 
-                a.lot_id, 
-                l.description, 
-                MAX(a.unite) as unite,
-                SUM(a.quantite) - COALESCE((
-                    SELECT SUM(r.quantite) 
-                    FROM retraits r 
-                    WHERE r.lot_id = a.lot_id AND r.magasin_id = a.magasin_id
-                ), 0) as stock_actuel
-            FROM admissions a
-            JOIN lots l ON a.lot_id = l.id
-            WHERE a.magasin_id = $1
-            GROUP BY a.lot_id, l.description
-            HAVING (SUM(a.quantite) - COALESCE((
-                SELECT SUM(r.quantite) 
-                FROM retraits r 
-                WHERE r.lot_id = a.lot_id AND r.magasin_id = a.magasin_id
-            ), 0)) > 0;
-        `;
+    // Agréger admissions par lot pour ce magasin, agréger retraits par lot pour ce magasin,
+    // puis left join pour calculer stock = total_adm - total_ret
+    const query = `
+      WITH adm AS (
+        SELECT lot_id, magasin_id, SUM(quantite) AS total_adm, MAX(unite) AS unite
+        FROM admissions
+        WHERE magasin_id = $1
+        GROUP BY lot_id, magasin_id
+      ),
+      ret AS (
+        SELECT lot_id, magasin_id, SUM(quantite) AS total_ret
+        FROM retraits
+        WHERE magasin_id = $1
+        GROUP BY lot_id, magasin_id
+      )
+      SELECT
+        a.lot_id,
+        l.description,
+        COALESCE(a.unite, '') AS unite,
+        (COALESCE(a.total_adm,0) - COALESCE(r.total_ret,0))::numeric AS stock_actuel
+      FROM adm a
+      LEFT JOIN ret r ON r.lot_id = a.lot_id AND r.magasin_id = a.magasin_id
+      LEFT JOIN lots l ON l.id = a.lot_id
+      WHERE (COALESCE(a.total_adm,0) - COALESCE(r.total_ret,0)) > 0
+      ORDER BY l.description;
+    `;
 
-        const result = await pool.query(query, [magasinId]); 
-        res.json(result.rows);
-    } catch (err) {
-        console.error('Erreur SQL Stock:', err);
-        res.status(500).json({ error: "Erreur serveur lors de la récupération du stock" });
-    }
+    const result = await pool.query(query, [magasinId]);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erreur SQL Stock:', err);
+    res.status(500).json({ error: "Erreur serveur lors de la récupération du stock" });
+  }
 });
 
 module.exports = router;
