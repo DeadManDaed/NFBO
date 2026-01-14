@@ -314,3 +314,7 @@ async function handleRetraitSubmit(e) {
     handleRetraitSubmit,
     handleTransferSubmit
   });
+
+})(); // ← CETTE LIGNE MANQUAIT !!!
+
+console.log('✅ common.js chargé avec succès');
