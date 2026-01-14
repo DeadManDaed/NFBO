@@ -1,6 +1,6 @@
 // server/routes/stocks.js
 // Endpoint : GET /api/stocks/disponible/:magasinId
-// Retourne les lots disponibles dans le magasin (stock > 0), avec unité et stock_actuel.
+// Retourne les lots disponibles dans le magasin (stock > 0), avec unite, prix_ref et unites_admises.
 
 const express = require('express');
 const router = express.Router();
@@ -10,8 +10,6 @@ router.get('/disponible/:magasinId', async (req, res) => {
   try {
     const { magasinId } = req.params;
 
-    // Agréger admissions par lot pour ce magasin, agréger retraits par lot pour ce magasin,
-    // puis left join pour calculer stock = total_adm - total_ret
     const query = `
       WITH adm AS (
         SELECT lot_id, magasin_id, SUM(quantite) AS total_adm, MAX(unite) AS unite
@@ -29,6 +27,8 @@ router.get('/disponible/:magasinId', async (req, res) => {
         a.lot_id,
         l.description,
         COALESCE(a.unite, '') AS unite,
+        l.prix_ref,
+        l.unites_admises,
         (COALESCE(a.total_adm,0) - COALESCE(r.total_ret,0))::numeric AS stock_actuel
       FROM adm a
       LEFT JOIN ret r ON r.lot_id = a.lot_id AND r.magasin_id = a.magasin_id
