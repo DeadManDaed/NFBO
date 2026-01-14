@@ -211,6 +211,10 @@
         <div class="form-card">
             <label>Quantité à sortir</label>
             <input type="number" id="retraitQty" step="0.01" required style="width:100%; padding:10px; margin:10px 0;">
+            <!-- Place this directly after the quantity input inside the retrait form -->
+<div style="margin-top:8px; font-weight:600;">
+  Montant estimé : <span id="retraitMontantDisplay">—</span>
+</div>
             
             <label>Type de sortie</label>
             <select id="retraitType" required style="width:100%; padding:10px; margin:10px 0;">
