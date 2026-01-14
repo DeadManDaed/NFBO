@@ -125,7 +125,7 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Lot introuvable' });
       }
     }
-
+/*
     // Vérification de stock transactionnelle (évite races)
     const typesQuiConsomment = ['vente', 'producteur', 'magasin'];
     if (typesQuiConsomment.includes(type_retrait)) {
@@ -135,7 +135,7 @@ router.post('/', async (req, res) => {
         return res.status(400).json({ error: 'Stock insuffisant', details: { available, requested: parseFloat(quantite) } });
       }
     }
-
+*/
     const insertQuery = `
       INSERT INTO retraits (
         lot_id, utilisateur, type_retrait, quantite, unite, prix_ref, valeur_totale,
