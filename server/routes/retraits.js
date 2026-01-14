@@ -3,6 +3,18 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 
+// server/routes/retraits.js  (snippet)
+let prix_ref_final = prix_ref;
+if (!prix_ref_final || Number(prix_ref_final) === 0) {
+  try {
+    const lotRes = await pool.query('SELECT prix_ref FROM lots WHERE id=$1', [lot_id]);
+    if (lotRes.rows[0]) prix_ref_final = lotRes.rows[0].prix_ref;
+  } catch (err) {
+    console.warn('Impossible récupérer prix_ref lot', err);
+  }
+}
+// ensuite utiliser prix_ref_final dans l'INSERT (à la place de prix_ref)
+
 // ✅ GET : liste des retraits
 router.get('/', async (req, res) => {
   try {
@@ -69,7 +81,7 @@ router.post('/', async (req, res) => {
   try {
     const result = await pool.query(
       `INSERT INTO retraits (
-        lot_id, utilisateur, type_retrait, quantite, unite, prix_ref, valeur_totale,
+        lot_id, utilisateur, type_retrait, quantite, unite, prix_ref_final, valeur_totale,
         destination_producteur_id, montant_du, mode_paiement, points_utilises, statut_paiement,
         destination_client, destination_magasin_id, motif, magasin_id, coef_qualite, taux_tax,
         region_id, departement_id, arrondissement_id, localite
