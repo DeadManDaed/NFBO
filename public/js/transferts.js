@@ -150,32 +150,28 @@
   };
 
   // Charge les unités pour le lot sélectionné
-  async function loadUnitsForTransferLot() {
+async function loadUnitsForTransferLot() {
     const lotSel = document.getElementById('trans-lot');
     const unitSel = document.getElementById('trans-unite');
-    if (!lotSel || !unitSel) return;
+    const opt = lotSel.selectedOptions[0];
 
-    const opt = lotSel.selectedOptions && lotSel.selectedOptions[0];
-    let unites = [];
-
-    if (opt) {
-      const raw = opt.getAttribute('data-unites');
-      if (raw) {
-        try {
-          unites = JSON.parse(raw);
-        } catch (e) {
-          unites = String(raw).split(',').map(s => s.trim()).filter(Boolean);
-        }
-      }
+    if (!opt || !opt.dataset.unites) {
+        unitSel.innerHTML = '<option value="">-- --</option>';
+        return;
     }
 
-    if (!Array.isArray(unites) || unites.length === 0) {
-      unitSel.innerHTML = '<option value="">-- --</option>';
-      return;
+    try {
+        const unites = JSON.parse(opt.dataset.unites);
+        unitSel.innerHTML = unites.map(u => 
+            `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`
+        ).join('');
+    } catch (e) {
+        // Fallback si c'est une chaîne simple
+        const u = opt.dataset.unites;
+        unitSel.innerHTML = `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`;
     }
+}
 
-    unitSel.innerHTML = unites.map(u => `<option value=" ">-- --</option>`).join('');
-  }
 
   // Soumission du formulaire de transfert
   async function handleTransferSubmit(e) {
