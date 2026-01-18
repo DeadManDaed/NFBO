@@ -25,6 +25,28 @@ router.get('/magasin/:magasinId', async (req, res) => {
   }
 });
 
+router.get('/', async (req, res) => {
+  try {
+    const { magasin_id } = req.query;
+    
+    let query = 'SELECT * FROM employers';
+    let params = [];
+    
+    if (magasin_id) {
+      query += ' WHERE magasin_id = $1';
+      params.push(magasin_id);
+    }
+    
+    query += ' ORDER BY nom';
+    
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (err) {
+    console.error('Erreur GET employers:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
 // POST nouvel employé
 router.post('/', async (req, res) => {
   const { magasin_id, nom, role, contact, date_embauche } = req.body;
