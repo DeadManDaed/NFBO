@@ -249,11 +249,11 @@
         <button class="tab-btn" onclick="switchTab('receptionner')" style="padding:10px 20px; border:none; border-radius:6px; background:#eee; cursor:pointer;">RÉCEPTIONNER</button>
     </div>
 
-    <form id="form-expedition" class="tab-content">
+   <form id="form-expedition" class="tab-content">
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
         <div class="form-group">
             <label>Magasin d'Origine (Source) *</label>
-            <select id="trans-magasin-source" required onchange="loadLotsForTransfer()" style="width:100%; padding:10px;">
+            <select id="trans-magasin-source" required onchange="loadLotsForTransfer(); loadChauffeurs();" style="width:100%; padding:10px;">
                 <option value="">-- Sélectionner le magasin source --</option>
             </select>
         </div>
@@ -285,8 +285,10 @@
         </div>
         
         <div class="form-group">
-            <label>Transporteur / Chauffeur *</label>
-            <input type="text" id="trans-driver" placeholder="Nom et Matricule" required style="width:100%; padding:10px;">
+            <label>Chauffeur / Transporteur *</label>
+            <select id="trans-driver" required style="width:100%; padding:10px;">
+                <option value="">-- Choisir d'abord un magasin source --</option>
+            </select>
         </div>
     </div>
     
@@ -298,8 +300,7 @@
     <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px; padding:12px 30px; border:none; border-radius:6px; cursor:pointer;">
         LANCER L'EXPÉDITION
     </button>
-</form>
-    
+</form> 
     <div id="list-reception" class="tab-content" style="display:none;">
         <table style="width:100%; border-collapse: collapse; margin-top:10px; background:white;">
             <thead>
