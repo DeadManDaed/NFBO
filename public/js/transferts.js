@@ -22,18 +22,59 @@
 
   // Charge les chauffeurs du magasin source
   window.loadChauffeurs = async function (magasinId) {
-  // Si magasinId n'est pas fourni, on le récupère du select
   const magasinSourceId = magasinId || document.getElementById('trans-magasin-source')?.value;
   const chauffeurSelect = document.getElementById('trans-driver');
 
-    if (!chauffeurSelect) return;
+  console.log('🔧 loadChauffeurs appelé avec magasinId:', magasinSourceId);
 
-    chauffeurSelect.innerHTML = '<option value="">-- Chargement... --</option>';
+  if (!chauffeurSelect) {
+    console.error('❌ Select trans-driver introuvable');
+    return;
+  }
 
-    if (!magasinSourceId) {
-      chauffeurSelect.innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+  chauffeurSelect.innerHTML = '<option value="">-- Chargement... --</option>';
+
+  if (!magasinSourceId) {
+    console.log('⚠️ Pas de magasin source sélectionné');
+    chauffeurSelect.innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+    return;
+  }
+
+  try {
+    const url = `${API_BASE}/employers?magasin_id=${encodeURIComponent(magasinSourceId)}`;
+    console.log('🌐 Fetching:', url);
+    
+    const employers = await fetchJson(url);
+    console.log('📦 Employers reçus:', employers);
+    
+    // Filtrer uniquement les chauffeurs actifs
+    const chauffeurs = employers.filter(e => {
+      console.log(`  - ${e.nom}: role=${e.role}, statut=${e.statut}`);
+      return e.role === 'chauffeur' && (!e.statut || e.statut === 'actif');
+    });
+
+    console.log('🚗 Chauffeurs filtrés:', chauffeurs.length, 'trouvé(s)');
+
+    if (chauffeurs.length === 0) {
+      chauffeurSelect.innerHTML = '<option value="">-- Aucun chauffeur disponible --</option>';
       return;
     }
+
+    chauffeurSelect.innerHTML = '<option value="">-- Sélectionner un chauffeur --</option>' +
+      chauffeurs.map(c => {
+        const nom = escapeHtml(c.nom || `Employé ${c.id}`);
+        const matricule = c.matricule ? ` (${escapeHtml(c.matricule)})` : '';
+        const contact = c.contact ? ` - ${escapeHtml(c.contact)}` : '';
+        return `<option value="${c.id}">${nom}${matricule}${contact}</option>`;
+      }).join('');
+    
+    console.log('✅ Select chauffeur peuplé avec', chauffeurs.length, 'chauffeur(s)');
+
+  } catch (err) {
+    console.error('❌ Erreur loadChauffeurs:', err);
+    chauffeurSelect.innerHTML = '<option value="">Erreur chargement chauffeurs</option>';
+  }
+};
 
     try {
       const employers = await fetchJson(`${API_BASE}/employers?magasin_id=${encodeURIComponent(magasinSourceId)}`);
