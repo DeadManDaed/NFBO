@@ -174,7 +174,7 @@
       return;
     }
 
-    unitSel.innerHTML = unites.map(u => `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`).join('');
+    unitSel.innerHTML = unites.map(u => `<option value=" ">-- --</option>`).join('');
   }
 
   // Soumission du formulaire de transfert
