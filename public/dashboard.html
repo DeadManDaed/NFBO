@@ -250,34 +250,55 @@
     </div>
 
     <form id="form-expedition" class="tab-content">
-        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-            <div class="form-group">
-                <label>Produit à transférer (Stock Local) *</label>
-                <select id="trans-lot" required style="width:100%; padding:10px;">
-                    <option value="">-- Sélectionner un lot --</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Magasin Destinataire *</label>
-                <select id="trans-dest" required style="width:100%; padding:10px;">
-                    <option value="">-- Sélectionner un magasin --</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Quantité à envoyer *</label>
-                <input type="number" id="trans-qty" required style="width:100%; padding:10px;">
-            </div>
-            <div class="form-group">
-                <label>Transporteur / Chauffeur *</label>
-                <input type="text" id="trans-driver" placeholder="Nom et Matricule" required style="width:100%; padding:10px;">
-            </div>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+        <div class="form-group">
+            <label>Magasin d'Origine (Source) *</label>
+            <select id="trans-magasin-source" required onchange="loadLotsForTransfer()" style="width:100%; padding:10px;">
+                <option value="">-- Sélectionner le magasin source --</option>
+            </select>
         </div>
-        <div style="margin-top:20px;">
-            <label>Note d'accompagnement (Optionnel)</label>
-            <textarea id="trans-note" style="width:100%; height:60px; padding:10px;"></textarea>
+        
+        <div class="form-group">
+            <label>Produit à transférer (Stock Local) *</label>
+            <select id="trans-lot" required style="width:100%; padding:10px;">
+                <option value="">-- Choisir d'abord un magasin source --</option>
+            </select>
         </div>
-        <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px; padding:12px 30px; border:none; border-radius:6px; cursor:pointer;">LANCER L'EXPÉDITION</button>
-    </form>
+        
+        <div class="form-group">
+            <label>Unité *</label>
+            <select id="trans-unite" required style="width:100%; padding:10px;">
+                <option value="">-- Choisir d'abord un lot --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Magasin Destinataire *</label>
+            <select id="trans-dest" required style="width:100%; padding:10px;">
+                <option value="">-- Sélectionner un magasin --</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label>Quantité à envoyer *</label>
+            <input type="number" id="trans-qty" step="0.01" required style="width:100%; padding:10px;">
+        </div>
+        
+        <div class="form-group">
+            <label>Transporteur / Chauffeur *</label>
+            <input type="text" id="trans-driver" placeholder="Nom et Matricule" required style="width:100%; padding:10px;">
+        </div>
+    </div>
+    
+    <div style="margin-top:20px;">
+        <label>Note d'accompagnement (Optionnel)</label>
+        <textarea id="trans-note" style="width:100%; height:60px; padding:10px;"></textarea>
+    </div>
+    
+    <button type="submit" class="btn" style="background:#546e7a; color:white; margin-top:20px; padding:12px 30px; border:none; border-radius:6px; cursor:pointer;">
+        LANCER L'EXPÉDITION
+    </button>
+</form>
     
     <div id="list-reception" class="tab-content" style="display:none;">
         <table style="width:100%; border-collapse: collapse; margin-top:10px; background:white;">
