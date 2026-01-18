@@ -113,7 +113,7 @@
     if (!lotSelect) return;
 
     lotSelect.innerHTML = '<option value="">-- Chargement... --</option>';
-    if (uniteSelect) uniteSelect.innerHTML = '<option value="">-- --</option>';
+    if (uniteSelect) uniteSelect.innerHTML = '<option value="">'&lotSelect&'</option>';
 
     if (!magasinSourceId) {
       lotSelect.innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
