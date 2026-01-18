@@ -21,9 +21,10 @@
   }
 
   // Charge les chauffeurs du magasin source
-  window.loadChauffeurs = async function () {
-    const magasinSourceId = document.getElementById('trans-magasin-source')?.value;
-    const chauffeurSelect = document.getElementById('trans-driver');
+  window.loadChauffeurs = async function (magasinId) {
+  // Si magasinId n'est pas fourni, on le récupère du select
+  const magasinSourceId = magasinId || document.getElementById('trans-magasin-source')?.value;
+  const chauffeurSelect = document.getElementById('trans-driver');
 
     if (!chauffeurSelect) return;
 
@@ -234,6 +235,16 @@
     if (lotSel) {
       lotSel.addEventListener('change', loadUnitsForTransferLot);
     }
+// Bind changement de magasin source -> charger lots ET chauffeurs
+  const magasinSourceSel = document.getElementById('trans-magasin-source');
+  if (magasinSourceSel) {
+    magasinSourceSel.addEventListener('change', (e) => {
+      const magasinId = e.target.value;
+      console.log('🚛 Magasin source changé:', magasinId); // Debug
+      loadLotsForTransfer();
+      loadChauffeurs(magasinId);
+    });
+}
 
     // Bind formulaire
     const form = document.getElementById('form-expedition');
