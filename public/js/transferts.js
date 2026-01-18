@@ -264,25 +264,36 @@
   }
 
   // Init au chargement
+// À mettre dans public/js/transfert.js, remplaçant la partie DOMContentLoaded
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Initialisation module transfert');
-
-  // 1. Charger les magasins DIRECTEMENT
-  try {
-    const magasins = await fetchJson(`${API_BASE}/magasins`);
-    console.log('📦 Magasins chargés:', magasins);
-    
-    // Peupler trans-magasin-source
+    const user = getCurrentUser(); // Récupéré via common.js
     const sourceSelect = document.getElementById('trans-magasin-source');
-    if (sourceSelect) {
-      sourceSelect.innerHTML = '<option value="">-- Sélectionner le magasin source --</option>' +
-        magasins.map(m => {
-          const nom = escapeHtml(m.nom || `Magasin ${m.id}`);
-          const code = m.code ? ` (${escapeHtml(m.code)})` : '';
-          return `<option value="${m.id}">${nom}${code}</option>`;
-        }).join('');
-      console.log('✅ Select magasin source peuplé');
+    
+    // 1. Charger tous les magasins pour les selects
+    try {
+        const magasins = await fetchJson(`${API_BASE}/magasins`);
+        const optionsHtml = magasins.map(m => `<option value="${m.id}">${escapeHtml(m.nom)}</option>`).join('');
+        
+        if (sourceSelect) sourceSelect.innerHTML = '<option value="">-- Source --</option>' + optionsHtml;
+        const destSelect = document.getElementById('trans-dest');
+        if (destSelect) destSelect.innerHTML = '<option value="">-- Destination --</option>' + optionsHtml;
+
+        // 2. LOGIQUE DE VERROUILLAGE
+        if (user.role !== 'superadmin' && user.magasin_id) {
+            // L'utilisateur est lié à un magasin (Admin local / Stock)
+            sourceSelect.value = user.magasin_id;
+            sourceSelect.disabled = true; // Empêche le changement
+            sourceSelect.style.background = "#f0f0f0"; // Aspect visuel verrouillé
+            
+            // On force le chargement des lots pour son magasin immédiatement
+            loadLotsForTransfer();
+            loadChauffeurs(user.magasin_id);
+        }
+    } catch (err) {
+        console.error('Erreur initialisation transfert:', err);
     }
+});
+
 
     // Peupler trans-dest
     const destSelect = document.getElementById('trans-dest');
