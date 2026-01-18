@@ -20,70 +20,42 @@
       .replace(/"/g, '&quot;');
   }
 
-  // Charge les chauffeurs du magasin source
+  // ============================================
+  // FONCTION : Charge les chauffeurs du magasin
+  // ============================================
   window.loadChauffeurs = async function (magasinId) {
-  const magasinSourceId = magasinId || document.getElementById('trans-magasin-source')?.value;
-  const chauffeurSelect = document.getElementById('trans-driver');
+    const magasinSourceId = magasinId || document.getElementById('trans-magasin-source')?.value;
+    const chauffeurSelect = document.getElementById('trans-driver');
 
-  console.log('🔧 loadChauffeurs appelé avec magasinId:', magasinSourceId);
+    console.log('🔧 loadChauffeurs appelé avec magasinId:', magasinSourceId);
 
-  if (!chauffeurSelect) {
-    console.error('❌ Select trans-driver introuvable');
-    return;
-  }
-
-  chauffeurSelect.innerHTML = '<option value="">-- Chargement... --</option>';
-
-  if (!magasinSourceId) {
-    console.log('⚠️ Pas de magasin source sélectionné');
-    chauffeurSelect.innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
-    return;
-  }
-
-  try {
-    const url = `${API_BASE}/employers?magasin_id=${encodeURIComponent(magasinSourceId)}`;
-    console.log('🌐 Fetching:', url);
-    
-    const employers = await fetchJson(url);
-    console.log('📦 Employers reçus:', employers);
-    
-    // Filtrer uniquement les chauffeurs actifs
-    const chauffeurs = employers.filter(e => {
-      console.log(`  - ${e.nom}: role=${e.role}, statut=${e.statut}`);
-      return e.role === 'chauffeur' && (!e.statut || e.statut === 'actif');
-    });
-
-    console.log('🚗 Chauffeurs filtrés:', chauffeurs.length, 'trouvé(s)');
-
-    if (chauffeurs.length === 0) {
-      chauffeurSelect.innerHTML = '<option value="">-- Aucun chauffeur disponible --</option>';
+    if (!chauffeurSelect) {
+      console.error('❌ Select trans-driver introuvable');
       return;
     }
 
-    chauffeurSelect.innerHTML = '<option value="">-- Sélectionner un chauffeur --</option>' +
-      chauffeurs.map(c => {
-        const nom = escapeHtml(c.nom || `Employé ${c.id}`);
-        const matricule = c.matricule ? ` (${escapeHtml(c.matricule)})` : '';
-        const contact = c.contact ? ` - ${escapeHtml(c.contact)}` : '';
-        return `<option value="${c.id}">${nom}${matricule}${contact}</option>`;
-      }).join('');
-    
-    console.log('✅ Select chauffeur peuplé avec', chauffeurs.length, 'chauffeur(s)');
+    chauffeurSelect.innerHTML = '<option value="">-- Chargement... --</option>';
 
-  } catch (err) {
-    console.error('❌ Erreur loadChauffeurs:', err);
-    chauffeurSelect.innerHTML = '<option value="">Erreur chargement chauffeurs</option>';
-  }
-};
+    if (!magasinSourceId) {
+      console.log('⚠️ Pas de magasin source sélectionné');
+      chauffeurSelect.innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+      return;
+    }
 
     try {
-      const employers = await fetchJson(`${API_BASE}/employers?magasin_id=${encodeURIComponent(magasinSourceId)}`);
-      
+      const url = `${API_BASE}/employers?magasin_id=${encodeURIComponent(magasinSourceId)}`;
+      console.log('🌐 Fetching:', url);
+
+      const employers = await fetchJson(url);
+      console.log('📦 Employers reçus:', employers);
+
       // Filtrer uniquement les chauffeurs actifs
-      const chauffeurs = employers.filter(e => 
-        e.role === 'chauffeur' && 
-        (!e.statut || e.statut === 'actif')
-      );
+      const chauffeurs = employers.filter(e => {
+        console.log(`  - ${e.nom}: role=${e.role}, statut=${e.statut}`);
+        return e.role === 'chauffeur' && (!e.statut || e.statut === 'actif');
+      });
+
+      console.log('🚗 Chauffeurs filtrés:', chauffeurs.length, 'trouvé(s)');
 
       if (chauffeurs.length === 0) {
         chauffeurSelect.innerHTML = '<option value="">-- Aucun chauffeur disponible --</option>';
@@ -98,13 +70,17 @@
           return `<option value="${c.id}">${nom}${matricule}${contact}</option>`;
         }).join('');
 
+      console.log('✅ Select chauffeur peuplé avec', chauffeurs.length, 'chauffeur(s)');
+
     } catch (err) {
-      console.error('loadChauffeurs error', err);
+      console.error('❌ Erreur loadChauffeurs:', err);
       chauffeurSelect.innerHTML = '<option value="">Erreur chargement chauffeurs</option>';
     }
   };
 
-  // Charge les lots disponibles pour le magasin source sélectionné
+  // ============================================
+  // FONCTION : Charge les lots du magasin source
+  // ============================================
   window.loadLotsForTransfer = async function () {
     const magasinSourceId = document.getElementById('trans-magasin-source')?.value;
     const lotSelect = document.getElementById('trans-lot');
@@ -113,7 +89,7 @@
     if (!lotSelect) return;
 
     lotSelect.innerHTML = '<option value="">-- Chargement... --</option>';
-    if (uniteSelect) uniteSelect.innerHTML = '<option value="">'&lotSelect&'</option>';
+    if (uniteSelect) uniteSelect.innerHTML = '<option value="">-- --</option>';
 
     if (!magasinSourceId) {
       lotSelect.innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
@@ -137,7 +113,7 @@
           const description = escapeHtml(s.description || `Lot ${lid}`);
           const stock = Number(s.stock_actuel != null ? s.stock_actuel : (s.stock || 0));
           const uniteLabel = s.unite || (unites[0] || '');
-          
+
           return `<option value="${lid}" data-unites='${dataUnites}' data-prix='${escapeHtml(prix)}' data-stock='${stock}'>
             ${description} — ${stock} ${escapeHtml(uniteLabel)}
           </option>`;
@@ -149,36 +125,42 @@
     }
   };
 
-  // Charge les unités pour le lot sélectionné
-async function loadUnitsForTransferLot() {
+  // ============================================
+  // FONCTION : Charge les unités du lot sélectionné
+  // ============================================
+  async function loadUnitsForTransferLot() {
     const lotSel = document.getElementById('trans-lot');
     const unitSel = document.getElementById('trans-unite');
+    
+    if (!lotSel || !unitSel) return;
+    
     const opt = lotSel.selectedOptions[0];
 
     if (!opt || !opt.dataset.unites) {
-        unitSel.innerHTML = '<option value="">-- --</option>';
-        return;
+      unitSel.innerHTML = '<option value="">-- --</option>';
+      return;
     }
 
     try {
-        const unites = JSON.parse(opt.dataset.unites);
-        unitSel.innerHTML = unites.map(u => 
-            `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`
-        ).join('');
+      const unites = JSON.parse(opt.dataset.unites);
+      unitSel.innerHTML = unites.map(u => 
+        `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`
+      ).join('');
     } catch (e) {
-        // Fallback si c'est une chaîne simple
-        const u = opt.dataset.unites;
-        unitSel.innerHTML = `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`;
+      // Fallback si c'est une chaîne simple
+      const u = opt.dataset.unites;
+      unitSel.innerHTML = `<option value="${escapeHtml(u)}">${escapeHtml(u)}</option>`;
     }
-}
+  }
 
-
-  // Soumission du formulaire de transfert
+  // ============================================
+  // FONCTION : Soumission du formulaire
+  // ============================================
   async function handleTransferSubmit(e) {
     e.preventDefault();
 
     const get = id => document.getElementById(id) && document.getElementById(id).value;
-    
+
     const magasinSourceId = parseInt(get('trans-magasin-source')) || null;
     const lotId = parseInt(get('trans-lot')) || null;
     const quantite = parseFloat(get('trans-qty')) || 0;
@@ -212,7 +194,7 @@ async function loadUnitsForTransferLot() {
     // Récupérer prix_ref et info chauffeur
     const lotOpt = document.getElementById('trans-lot')?.selectedOptions?.[0];
     const prix_ref = lotOpt ? parseFloat(lotOpt.getAttribute('data-prix') || 0) : 0;
-    
+
     const chauffeurOpt = document.getElementById('trans-driver')?.selectedOptions?.[0];
     const chauffeurNom = chauffeurOpt ? chauffeurOpt.textContent : chauffeurId;
 
@@ -252,18 +234,19 @@ async function loadUnitsForTransferLot() {
       document.getElementById('trans-lot').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
       document.getElementById('trans-unite').innerHTML = '<option value="">-- --</option>';
       document.getElementById('trans-driver').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
-      
+
     } catch (err) {
       console.error('Erreur submit transfert:', err);
       alert('Erreur réseau lors du transfert : ' + (err.message || err));
     }
   }
 
-  // Init au chargement
-// Remplace tout le bloc d'initialisation par celui-ci
-document.addEventListener('DOMContentLoaded', async () => {
+  // ============================================
+  // INITIALISATION AU CHARGEMENT
+  // ============================================
+  document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Initialisation sécurisée du module transfert');
-    
+
     // 1. Récupérer l'utilisateur (via la fonction de common.js)
     const user = requireLogin(); 
     if (!user) return;
@@ -272,118 +255,81 @@ document.addEventListener('DOMContentLoaded', async () => {
     const destSelect = document.getElementById('trans-dest');
 
     try {
-        // 2. Charger TOUS les magasins depuis l'API
-        const magasins = await fetchJson(`${API_BASE}/magasins`);
-        
-        const optionsHtml = magasins.map(m => {
-            const nom = escapeHtml(m.nom || `Magasin ${m.id}`);
-            const code = m.code ? ` (${escapeHtml(m.code)})` : '';
-            return `<option value="${m.id}">${nom}${code}</option>`;
-        }).join('');
+      // 2. Charger TOUS les magasins depuis l'API
+      const magasins = await fetchJson(`${API_BASE}/magasins`);
+      console.log('📦 Magasins chargés:', magasins);
 
-        if (sourceSelect) sourceSelect.innerHTML = '<option value="">-- Sélectionner Source --</option>' + optionsHtml;
-        if (destSelect) destSelect.innerHTML = '<option value="">-- Sélectionner Destination --</option>' + optionsHtml;
+      const optionsHtml = magasins.map(m => {
+        const nom = escapeHtml(m.nom || `Magasin ${m.id}`);
+        const code = m.code ? ` (${escapeHtml(m.code)})` : '';
+        return `<option value="${m.id}">${nom}${code}</option>`;
+      }).join('');
 
-        // 3. LOGIQUE DE VERROUILLAGE (Admin Local vs SuperAdmin)
-        // On vérifie si l'utilisateur a un magasin_id affecté (cas de l'admin local)
-        if (user.role !== 'superadmin' && user.magasin_id) {
-            console.log(`🔒 Verrouillage sur le magasin ID: ${user.magasin_id}`);
-            
-            sourceSelect.value = user.magasin_id;
-            sourceSelect.disabled = true; // Empêche de changer
-            sourceSelect.style.background = "#eeeeee"; // Grisé visuel
-            
-            // On lance immédiatement le chargement du stock et des chauffeurs pour CE magasin
-            loadLotsForTransfer();
-            loadChauffeurs(user.magasin_id);
-        }
+      if (sourceSelect) {
+        sourceSelect.innerHTML = '<option value="">-- Sélectionner Source --</option>' + optionsHtml;
+        console.log('✅ Select magasin source peuplé');
+      }
+      
+      if (destSelect) {
+        destSelect.innerHTML = '<option value="">-- Sélectionner Destination --</option>' + optionsHtml;
+        console.log('✅ Select magasin dest peuplé');
+      }
+
+      // 3. LOGIQUE DE VERROUILLAGE (Admin Local vs SuperAdmin)
+      if (user.role !== 'superadmin' && user.magasin_id) {
+        console.log(`🔒 Verrouillage sur le magasin ID: ${user.magasin_id}`);
+
+        sourceSelect.value = user.magasin_id;
+        sourceSelect.disabled = true;
+        sourceSelect.style.background = "#eeeeee";
+
+        // Charger immédiatement le stock et les chauffeurs pour ce magasin
+        loadLotsForTransfer();
+        loadChauffeurs(user.magasin_id);
+      }
 
     } catch (err) {
-        console.error('❌ Erreur lors de l\'init des magasins:', err);
+      console.error('❌ Erreur lors de l\'init des magasins:', err);
     }
 
     // 4. Listeners pour les changements manuels (utile pour le SuperAdmin)
     if (sourceSelect) {
-        sourceSelect.addEventListener('change', (e) => {
-            const id = e.target.value;
-            if (id) {
-                loadLotsForTransfer();
-                loadChauffeurs(id);
-            }
-        });
+      sourceSelect.addEventListener('change', (e) => {
+        const id = e.target.value;
+        console.log('🚛 Magasin source changé:', id);
+        if (id) {
+          loadLotsForTransfer();
+          loadChauffeurs(id);
+        } else {
+          document.getElementById('trans-lot').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+          document.getElementById('trans-unite').innerHTML = '<option value="">-- --</option>';
+          document.getElementById('trans-driver').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+        }
+      });
+      console.log('✅ Event listener magasin source attaché');
     }
 
-    // 5. Liaison du formulaire
-    const form = document.getElementById('form-expedition');
-    if (form && !form.__transfer_attached) {
-        form.addEventListener('submit', handleTransferSubmit);
-        form.__transfer_attached = true;
+    // 5. Bind changement de lot -> mise à jour unités
+    const lotSel = document.getElementById('trans-lot');
+    if (lotSel) {
+      lotSel.addEventListener('change', loadUnitsForTransferLot);
+      console.log('✅ Event listener lot attaché');
     }
-});
 
-
-
-    // Peupler trans-dest
-   /* const destSelect = document.getElementById('trans-dest');
-    if (destSelect) {
-      destSelect.innerHTML = '<option value="">-- Sélectionner un magasin --</option>' +
-        magasins.map(m => {
-          const nom = escapeHtml(m.nom || `Magasin ${m.id}`);
-          const code = m.code ? ` (${escapeHtml(m.code)})` : '';
-          return `<option value="${m.id}">${nom}${code}</option>`;
-        }).join('');
-      console.log('✅ Select magasin dest peuplé');
-    }
-  } catch (err) {
-    console.error('❌ Erreur chargement magasins:', err);
-  }*/
-
-  // 2. Bind changement de magasin source -> charger lots ET chauffeurs
-  const magasinSourceSel = document.getElementById('trans-magasin-source');
-  if (magasinSourceSel) {
-    magasinSourceSel.addEventListener('change', (e) => {
-      const magasinId = e.target.value;
-      console.log('🚛 Magasin source changé:', magasinId);
-      if (magasinId) {
-        loadLotsForTransfer();
-        loadChauffeurs(magasinId);
-      } else {
-        // Reset si déselection
-        document.getElementById('trans-lot').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
-        document.getElementById('trans-unite').innerHTML = '<option value="">-- --</option>';
-        document.getElementById('trans-driver').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
-      }
-    });
-    console.log('✅ Event listener magasin source attaché');
-  }
-
-  // 3. Bind changement de lot -> mise à jour unités
-  const lotSel = document.getElementById('trans-lot');
-  if (lotSel) {
-    lotSel.addEventListener('change', loadUnitsForTransferLot);
-    console.log('✅ Event listener lot attaché');
-  }
-
-  // 4. Bind formulaire
-  const form = document.getElementById('form-expedition');
-  if (form && !form.__transfer_attached) {
-    form.addEventListener('submit', handleTransferSubmit);
-    form.__transfer_attached = true;
-    console.log('✅ Event listener formulaire attaché');
-  }
-
-  console.log('✅ Module transfert initialisé');
-});
-
-    // Bind formulaire
+    // 6. Liaison du formulaire
     const form = document.getElementById('form-expedition');
     if (form && !form.__transfer_attached) {
       form.addEventListener('submit', handleTransferSubmit);
       form.__transfer_attached = true;
+      console.log('✅ Event listener formulaire attaché');
     }
+
+    console.log('✅ Module transfert initialisé');
   });
 
-  // Export
+  // ============================================
+  // EXPORT
+  // ============================================
   window.NFBO = window.NFBO || {};
   Object.assign(window.NFBO, {
     loadLotsForTransfer,
@@ -393,4 +339,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 })();
 
-console.log('✅ transfert.js chargé avec succès !');
+console.log('✅ transfert.js chargé avec succès');
