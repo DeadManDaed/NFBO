@@ -231,10 +231,10 @@
     }
 
     // Bind changement de lot -> mise à jour unités
-    const lotSel = document.getElementById('trans-lot');
+   /* const lotSel = document.getElementById('trans-lot');
     if (lotSel) {
       lotSel.addEventListener('change', loadUnitsForTransferLot);
-    }
+    }*/
 // Bind changement de magasin source -> charger lots ET chauffeurs
   const magasinSourceSel = document.getElementById('trans-magasin-source');
   if (magasinSourceSel) {
