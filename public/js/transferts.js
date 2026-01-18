@@ -260,39 +260,71 @@ async function loadUnitsForTransferLot() {
   }
 
   // Init au chargement
-// À mettre dans public/js/transfert.js, remplaçant la partie DOMContentLoaded
+// Remplace tout le bloc d'initialisation par celui-ci
 document.addEventListener('DOMContentLoaded', async () => {
-    const user = getCurrentUser(); // Récupéré via common.js
-    const sourceSelect = document.getElementById('trans-magasin-source');
+    console.log('🚀 Initialisation sécurisée du module transfert');
     
-    // 1. Charger tous les magasins pour les selects
-    try {
-        const magasins = await fetchJson(`${API_BASE}/magasins`);
-        const optionsHtml = magasins.map(m => `<option value="${m.id}">${escapeHtml(m.nom)}</option>`).join('');
-        
-        if (sourceSelect) sourceSelect.innerHTML = '<option value="">-- Source --</option>' + optionsHtml;
-        const destSelect = document.getElementById('trans-dest');
-        if (destSelect) destSelect.innerHTML = '<option value="">-- Destination --</option>' + optionsHtml;
+    // 1. Récupérer l'utilisateur (via la fonction de common.js)
+    const user = requireLogin(); 
+    if (!user) return;
 
-        // 2. LOGIQUE DE VERROUILLAGE
+    const sourceSelect = document.getElementById('trans-magasin-source');
+    const destSelect = document.getElementById('trans-dest');
+
+    try {
+        // 2. Charger TOUS les magasins depuis l'API
+        const magasins = await fetchJson(`${API_BASE}/magasins`);
+        
+        const optionsHtml = magasins.map(m => {
+            const nom = escapeHtml(m.nom || `Magasin ${m.id}`);
+            const code = m.code ? ` (${escapeHtml(m.code)})` : '';
+            return `<option value="${m.id}">${nom}${code}</option>`;
+        }).join('');
+
+        if (sourceSelect) sourceSelect.innerHTML = '<option value="">-- Sélectionner Source --</option>' + optionsHtml;
+        if (destSelect) destSelect.innerHTML = '<option value="">-- Sélectionner Destination --</option>' + optionsHtml;
+
+        // 3. LOGIQUE DE VERROUILLAGE (Admin Local vs SuperAdmin)
+        // On vérifie si l'utilisateur a un magasin_id affecté (cas de l'admin local)
         if (user.role !== 'superadmin' && user.magasin_id) {
-            // L'utilisateur est lié à un magasin (Admin local / Stock)
-            sourceSelect.value = user.magasin_id;
-            sourceSelect.disabled = true; // Empêche le changement
-            sourceSelect.style.background = "#f0f0f0"; // Aspect visuel verrouillé
+            console.log(`🔒 Verrouillage sur le magasin ID: ${user.magasin_id}`);
             
-            // On force le chargement des lots pour son magasin immédiatement
+            sourceSelect.value = user.magasin_id;
+            sourceSelect.disabled = true; // Empêche de changer
+            sourceSelect.style.background = "#eeeeee"; // Grisé visuel
+            
+            // On lance immédiatement le chargement du stock et des chauffeurs pour CE magasin
             loadLotsForTransfer();
             loadChauffeurs(user.magasin_id);
         }
+
     } catch (err) {
-        console.error('Erreur initialisation transfert:', err);
+        console.error('❌ Erreur lors de l\'init des magasins:', err);
+    }
+
+    // 4. Listeners pour les changements manuels (utile pour le SuperAdmin)
+    if (sourceSelect) {
+        sourceSelect.addEventListener('change', (e) => {
+            const id = e.target.value;
+            if (id) {
+                loadLotsForTransfer();
+                loadChauffeurs(id);
+            }
+        });
+    }
+
+    // 5. Liaison du formulaire
+    const form = document.getElementById('form-expedition');
+    if (form && !form.__transfer_attached) {
+        form.addEventListener('submit', handleTransferSubmit);
+        form.__transfer_attached = true;
     }
 });
 
 
+
     // Peupler trans-dest
-    const destSelect = document.getElementById('trans-dest');
+   /* const destSelect = document.getElementById('trans-dest');
     if (destSelect) {
       destSelect.innerHTML = '<option value="">-- Sélectionner un magasin --</option>' +
         magasins.map(m => {
@@ -304,7 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   } catch (err) {
     console.error('❌ Erreur chargement magasins:', err);
-  }
+  }*/
 
   // 2. Bind changement de magasin source -> charger lots ET chauffeurs
   const magasinSourceSel = document.getElementById('trans-magasin-source');
