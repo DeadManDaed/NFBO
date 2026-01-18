@@ -264,4 +264,4 @@
 
 })();
 
-console.log('✅ transfert.js chargé avec
+console.log('✅ transfert.js chargé avec succès !');
