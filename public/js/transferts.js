@@ -223,28 +223,77 @@
   }
 
   // Init au chargement
-  document.addEventListener('DOMContentLoaded', () => {
-    // Charger les magasins
-    if (window.NFBO && window.NFBO.loadMagasinsInto) {
-      window.NFBO.loadMagasinsInto('trans-magasin-source');
-      window.NFBO.loadMagasinsInto('trans-dest');
+document.addEventListener('DOMContentLoaded', async () => {
+  console.log('🚀 Initialisation module transfert');
+
+  // 1. Charger les magasins DIRECTEMENT
+  try {
+    const magasins = await fetchJson(`${API_BASE}/magasins`);
+    console.log('📦 Magasins chargés:', magasins);
+    
+    // Peupler trans-magasin-source
+    const sourceSelect = document.getElementById('trans-magasin-source');
+    if (sourceSelect) {
+      sourceSelect.innerHTML = '<option value="">-- Sélectionner le magasin source --</option>' +
+        magasins.map(m => {
+          const nom = escapeHtml(m.nom || `Magasin ${m.id}`);
+          const code = m.code ? ` (${escapeHtml(m.code)})` : '';
+          return `<option value="${m.id}">${nom}${code}</option>`;
+        }).join('');
+      console.log('✅ Select magasin source peuplé');
     }
 
-    // Bind changement de lot -> mise à jour unités
-   /* const lotSel = document.getElementById('trans-lot');
-    if (lotSel) {
-      lotSel.addEventListener('change', loadUnitsForTransferLot);
-    }*/
-// Bind changement de magasin source -> charger lots ET chauffeurs
+    // Peupler trans-dest
+    const destSelect = document.getElementById('trans-dest');
+    if (destSelect) {
+      destSelect.innerHTML = '<option value="">-- Sélectionner un magasin --</option>' +
+        magasins.map(m => {
+          const nom = escapeHtml(m.nom || `Magasin ${m.id}`);
+          const code = m.code ? ` (${escapeHtml(m.code)})` : '';
+          return `<option value="${m.id}">${nom}${code}</option>`;
+        }).join('');
+      console.log('✅ Select magasin dest peuplé');
+    }
+  } catch (err) {
+    console.error('❌ Erreur chargement magasins:', err);
+  }
+
+  // 2. Bind changement de magasin source -> charger lots ET chauffeurs
   const magasinSourceSel = document.getElementById('trans-magasin-source');
   if (magasinSourceSel) {
     magasinSourceSel.addEventListener('change', (e) => {
       const magasinId = e.target.value;
-      console.log('🚛 Magasin source changé:', magasinId); // Debug
-      loadLotsForTransfer();
-      loadChauffeurs(magasinId);
+      console.log('🚛 Magasin source changé:', magasinId);
+      if (magasinId) {
+        loadLotsForTransfer();
+        loadChauffeurs(magasinId);
+      } else {
+        // Reset si déselection
+        document.getElementById('trans-lot').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+        document.getElementById('trans-unite').innerHTML = '<option value="">-- --</option>';
+        document.getElementById('trans-driver').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+      }
     });
-}
+    console.log('✅ Event listener magasin source attaché');
+  }
+
+  // 3. Bind changement de lot -> mise à jour unités
+  const lotSel = document.getElementById('trans-lot');
+  if (lotSel) {
+    lotSel.addEventListener('change', loadUnitsForTransferLot);
+    console.log('✅ Event listener lot attaché');
+  }
+
+  // 4. Bind formulaire
+  const form = document.getElementById('form-expedition');
+  if (form && !form.__transfer_attached) {
+    form.addEventListener('submit', handleTransferSubmit);
+    form.__transfer_attached = true;
+    console.log('✅ Event listener formulaire attaché');
+  }
+
+  console.log('✅ Module transfert initialisé');
+});
 
     // Bind formulaire
     const form = document.getElementById('form-expedition');
