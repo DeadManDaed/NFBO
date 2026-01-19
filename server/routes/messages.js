@@ -45,7 +45,7 @@ router.get('/destinataires', async (req, res) => {
             );
             
             producteursResult = await db.query(
-                "SELECT id, nom FROM producteurs WHERE magasin_id = $1", 
+                "SELECT id, nom_producteur FROM producteurs WHERE magasin_id = $1", 
                 [magasin_id]
             );
         }
