@@ -30,7 +30,7 @@ router.get('/destinataires', async (req, res) => {
 
         if (role === 'superadmin') {
             employesResult = await db.query(
-                "SELECT id, nom, role FROM employes WHERE statut = 'actif'"
+                "SELECT id, nom, role FROM employers WHERE statut = 'actif'"
             );
             producteursResult = await db.query(
                 "SELECT id, nom FROM producteurs"
@@ -38,7 +38,7 @@ router.get('/destinataires', async (req, res) => {
         } else {
             // Utilisation des $1, $2 pour PostgreSQL
             employesResult = await db.query(
-                `SELECT id, nom, role FROM employes 
+                `SELECT id, nom, role FROM employers 
                  WHERE (magasin_id = $1 OR role IN ('superadmin', 'auditeur')) 
                  AND statut = 'actif'`,
                 [magasin_id]
