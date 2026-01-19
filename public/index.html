@@ -64,21 +64,20 @@ localStorage.setItem('username', data.user.username);
                 alertBox.style.display = 'block';
             }
             };
-/*
-// MODE DEBUG : Forcer un utilisateur de test
-sessionStorage.setItem('user', JSON.stringify({
-    id: 1,
-    username: 'admin_test',
-    role: 'admin',
-    prenom: 'John',
-    nom: 'Doe',
-    email: 'john@example.com'
-//
 
-const user = JSON.parse(sessionStorage.getItem('user'));
-console.log('🔵 User forcé pour debug:', user);
-        };
-        */
+
+if (res.ok) {
+    sessionStorage.setItem('user', JSON.stringify(data.user));
+    // --- AJOUTE CETTE LIGNE ---
+    localStorage.setItem('userId', data.user.id); 
+    // --------------------------
+    localStorage.setItem('username', data.user.username);
+    localStorage.setItem('role', data.user.role);
+    localStorage.setItem('nom', data.user.nom || '');
+    localStorage.setItem('prenom', data.user.prenom || '');
+    window.location.href = 'dashboard.html';
+}
+
     </script>
 </body>
 </html>
