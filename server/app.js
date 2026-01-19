@@ -17,6 +17,7 @@ const admissionsRouter = require('./routes/admissions');
 const retraitsRouter = require('./routes/retraits');
 const employersRouter = require('./routes/employers');
 const magasinsRoutes = require('./routes/magasins');
+const messageRoutes = require('./routes/messages');
 const transfertsRoutes = require('./transferts/pending-audit');
 const stocksRoutes = require('./routes/stocks');
 const auditRoutes = require('./routes/audit');
@@ -57,6 +58,11 @@ app.use('/api/geo', geoRoutes);
 app.use('/api/transferts', transfertsRoutes);
 app.use('/api/stocks', stocksRoutes);
 app.use('/api/audit', auditRoutes);
+app.use('/api/messages', messageRoutes);
+app.use('/api/destinataires', (req, res, next) => {
+    req.url = '/destinataires'; // Redirige vers la route interne du router
+    messageRoutes(req, res, next);
+});
 // 5. ROUTES DE MAINTENANCE ET TEST
 app.get('/health', (req, res) => {
     res.json({ 
