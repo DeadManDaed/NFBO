@@ -33,7 +33,7 @@ router.get('/destinataires', async (req, res) => {
                 "SELECT id, nom, role FROM employers WHERE statut = 'actif'"
             );
             producteursResult = await db.query(
-                "SELECT id, nom FROM producteurs"
+                "SELECT id, nom_producteur FROM producteurs"
             );
         } else {
             // Utilisation des $1, $2 pour PostgreSQL
