@@ -78,15 +78,15 @@ async function loadDestinataires(selectedId) {
     try {
         // On passe le rôle et le magasin au serveur pour filtrer la liste
         const res = await fetch(`/api/destinataires?role=${user.role}&magasin_id=${user.magasin_id || ''}`);
-        const groups = await res.json(); // Le serveur devrait renvoyer { employes: [], producteurs: [] }
+        const groups = await res.json(); // Le serveur devrait renvoyer { employers: [], producteurs: [] }
 
         sel.innerHTML = '<option value="">-- Choisir le destinataire --</option>';
 
         // Groupe Employés
-        if (groups.employes && groups.employes.length > 0) {
+        if (groups.employers && groups.employers.length > 0) {
             const optGroup = document.createElement('optgroup');
             optGroup.label = "Équipe Interne";
-            groups.employes.forEach(u => {
+            groups.employers.forEach(u => {
                 const opt = new Option(`${u.nom} (${u.role})`, u.id);
                 if(u.id == selectedId) opt.selected = true;
                 optGroup.appendChild(opt);
