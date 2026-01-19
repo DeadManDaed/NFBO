@@ -73,46 +73,43 @@ function showNewMessageForm(destId = '', objet = '') {
 // Remplace loadDestinataires dans public/js/messages.js
 async function loadDestinataires(selectedId) {
     const sel = document.getElementById('msg-destinataire');
-    const user = getCurrentUser(); // On récupère l'utilisateur connecté
+    const user = getCurrentUser(); 
 
     try {
-        // On passe le rôle et le magasin au serveur pour filtrer la liste
         const res = await fetch(`/api/destinataires?role=${user.role}&magasin_id=${user.magasin_id || ''}`);
-        const groups = await res.json(); // Le serveur devrait renvoyer { employers: [], producteurs: [] }
+        const groups = await res.json(); 
 
         sel.innerHTML = '<option value="">-- Choisir le destinataire --</option>';
 
         // Groupe Employés
-        if (groups.employers && groups.employers.length > 0) {
-            const optGroup = document.createElement('optgroup');
-            optGroup.label = "Équipe Interne";
+        if (groups.employers?.length > 0) {
+            const g = document.createElement('optgroup');
+            g.label = "Personnel";
             groups.employers.forEach(u => {
                 const opt = new Option(`${u.nom} (${u.role})`, u.id);
                 if(u.id == selectedId) opt.selected = true;
-                optGroup.appendChild(opt);
+                g.appendChild(opt);
             });
-            sel.add(optGroup);
+            sel.add(g);
         }
 
-        // Groupe Producteurs (si autorisé)
-        if (groups.producteurs && groups.producteurs.length > 0) {
-            const optGroup = document.createElement('optgroup');
-            optGroup.label = "Producteurs";
+        // Groupe Producteurs (Utilise le champ nom_producteur aliasé en nom)
+        if (groups.producteurs?.length > 0) {
+            const g = document.createElement('optgroup');
+            g.label = "Producteurs";
             groups.producteurs.forEach(p => {
-                const opt = new Option(p.nom, p.id);
+                const opt = new Option(p.nom, p.id); // 'nom' est l'alias de 'nom_producteur'
                 if(p.id == selectedId) opt.selected = true;
-                optGroup.appendChild(opt);
+                g.appendChild(opt);
             });
-            sel.add(optGroup);
+            sel.add(g);
         }
-    } catch (err) { 
-        console.error("Erreur chargement destinataires", err); 
-    }
+    } catch (err) { console.error("Erreur destinataires", err); }
 }
-
 
 async function sendMessage(e) {
     e.preventDefault();
+    const user = getCurrentUser();
     const data = {
         destinataire_id: document.getElementById('msg-destinataire').value,
         objet: document.getElementById('msg-objet').value,
@@ -122,7 +119,10 @@ async function sendMessage(e) {
     try {
         const res = await fetch('/api/messages', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {
+                'Content-Type': 'application/json',
+                'x-user-id': user.id // On passe l'ID de l'envoyeur
+            },
             body: JSON.stringify(data)
         });
         if(res.ok) {
