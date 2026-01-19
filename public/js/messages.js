@@ -70,18 +70,46 @@ function showNewMessageForm(destId = '', objet = '') {
     document.getElementById('sendMessageForm').onsubmit = sendMessage;
 }
 
+// Remplace loadDestinataires dans public/js/messages.js
 async function loadDestinataires(selectedId) {
     const sel = document.getElementById('msg-destinataire');
+    const user = getCurrentUser(); // On récupère l'utilisateur connecté
+
     try {
-        const res = await fetch('/api/destinataires');
-        const users = await res.json();
-        users.forEach(u => {
-            const opt = new Option(u.nom, u.id);
-            if(u.id == selectedId) opt.selected = true;
-            sel.add(opt);
-        });
-    } catch (err) { console.error("Erreur chargement destinataires"); }
+        // On passe le rôle et le magasin au serveur pour filtrer la liste
+        const res = await fetch(`/api/destinataires?role=${user.role}&magasin_id=${user.magasin_id || ''}`);
+        const groups = await res.json(); // Le serveur devrait renvoyer { employes: [], producteurs: [] }
+
+        sel.innerHTML = '<option value="">-- Choisir le destinataire --</option>';
+
+        // Groupe Employés
+        if (groups.employes && groups.employes.length > 0) {
+            const optGroup = document.createElement('optgroup');
+            optGroup.label = "Équipe Interne";
+            groups.employes.forEach(u => {
+                const opt = new Option(`${u.nom} (${u.role})`, u.id);
+                if(u.id == selectedId) opt.selected = true;
+                optGroup.appendChild(opt);
+            });
+            sel.add(optGroup);
+        }
+
+        // Groupe Producteurs (si autorisé)
+        if (groups.producteurs && groups.producteurs.length > 0) {
+            const optGroup = document.createElement('optgroup');
+            optGroup.label = "Producteurs";
+            groups.producteurs.forEach(p => {
+                const opt = new Option(p.nom, p.id);
+                if(p.id == selectedId) opt.selected = true;
+                optGroup.appendChild(opt);
+            });
+            sel.add(optGroup);
+        }
+    } catch (err) { 
+        console.error("Erreur chargement destinataires", err); 
+    }
 }
+
 
 async function sendMessage(e) {
     e.preventDefault();
