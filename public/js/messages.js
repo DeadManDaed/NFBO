@@ -1,4 +1,4 @@
-// --- LOGIQUE DE MESSAGERIE (API-based) ---
+// --- public/js/messages.js : LOGIQUE DE MESSAGERIE (API-based) ---
 
 // 1. Charger la boîte de réception
 async function loadInbox() {
