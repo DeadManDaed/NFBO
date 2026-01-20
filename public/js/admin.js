@@ -268,7 +268,21 @@ function chargerCriteresParCategorie() {
             'Conditionnement conforme (hermétique)',
             'Étiquetage de danger (si applicable)',
             'Autorisation de transport'
-        ]
+        ],
+            'artisanat_utilitaire': [
+                'Solidité et assemblage (stabilité)',
+                'Finition des surfaces (ponçage, vernis)',
+                'Absence de fissures ou défauts majeurs',
+                'Conformité aux dimensions/usage',
+                'Esthétique globale et symétrie'
+            ],
+            'artisanat_art': [
+                'Qualité des matériaux de base',
+                'Finesse des détails et ornements',
+                'Authenticité du style/technique',
+                'Absence de fragilité excessive',
+                'Propreté et présentation finale'
+            ]
     };
     listeAuto.innerHTML = "";
     if (categoriesMapping[cat]) {
@@ -287,6 +301,7 @@ function chargerCriteresParCategorie() {
     } else {
         zoneAuto.style.display = 'none';
     }
+    window.COOP_CRITERIA = categoriesMapping;
 }
 
 // === FONCTION : AJOUTER UN CRITÈRE PERSONNALISÉ ===
