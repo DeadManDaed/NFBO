@@ -78,16 +78,22 @@ async function onAdmissionLotChange() {
 }
 
 // 4. GÉNÉRATION DE LA GRILLE DE NOTATION (1-10)
-function genererGrilleEvaluation(criteresRaw) {
+function genererGrilleParCategorie(categorie) {
     const container = document.getElementById('zone-evaluation-qualite');
-    let criteres = typeof criteresRaw === 'string' ? JSON.parse(criteresRaw) : criteresRaw;
+    
+    // On pioche directement dans la source partagée
+    const criteres = window.COOP_CRITERIA ? window.COOP_CRITERIA[categorie] : null;
 
-    if (!criteres || criteres.length === 0) {
-        container.innerHTML = `<p style="color:orange; text-align:center;">Aucun critère qualité défini pour ce lot.</p>`;
+    if (!criteres) {
+        container.innerHTML = `<p style="color:red; text-align:center; padding:10px;">
+            ⚠️ Aucun protocole d'examen trouvé pour la catégorie : "${categorie}"
+        </p>`;
         return;
     }
 
-    let html = `<div style="display:grid; gap:10px;">`;
+    // Génération HTML des curseurs (le reste du code ne change pas)
+    let html = `<div style="display:grid; gap:12px;">`;
+    // ... boucle criteres.forEach ...
     criteres.forEach((c, i) => {
         if (c.type === 'notes') return;
         html += `
