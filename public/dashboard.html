@@ -85,110 +85,98 @@
         <button class="btn-back" onclick="closeModule()">← Dashboard</button>
     </div>
 
-    <form id="admissionForm">
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:25px;">
+<form id="admissionForm">
+    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:25px;">
+        
+        <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <h4 style="margin-top:0; color:#555;">
+                <i class="fa-solid fa-id-card"></i> Source & Destination
+            </h4>
             
-            <!-- CARTE 1 : SOURCE & DESTINATION -->
-            <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                <h4 style="margin-top:0; color:#555;">
-                    <i class="fa-solid fa-id-card"></i> Source & Destination
-                </h4>
-                
-                <label>Produit (Lot défini par l'Admin) *</label>
-                <select id="adm-lot-select" required onchange="onAdmissionLotChange()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                    <option value="">-- Chargement des lots... --</option>
-                </select>
+            <label>Produit (Lot défini par l'Admin) *</label>
+            <select id="adm-lot-select" required onchange="onAdmissionLotChange()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                <option value="">-- Sélectionner un lot --</option>
+            </select>
 
-                <div id="lot-info-preview" style="display:none; background:#e3f2fd; padding:12px; border-radius:6px; margin:10px 0; font-size:13px; border-left:4px solid #1565c0;">
-                    <div><strong>Prix de référence :</strong> <span id="lot-prix-display">0</span> FCFA</div>
-                    <div><strong>Unités acceptées :</strong> <span id="lot-unites-display">-</span></div>
-                    <div><strong>Catégorie :</strong> <span id="lot-categorie-display">-</span></div>
-                </div>
-
-                <label>Producteur (Déposant) *</label>
-                <select id="adm-producer-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                    <option value="">-- Sélectionner un producteur --</option>
-                </select>
-
-                <label>Magasin de stockage *</label>
-                <select id="adm-magasin-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                    <option value="">-- Sélectionner un magasin --</option>
-                </select>
+            <div id="lot-info-preview" style="display:none; background:#e3f2fd; padding:12px; border-radius:6px; margin:10px 0; font-size:13px; border-left:4px solid #1565c0;">
+                <div><strong>Prix de référence :</strong> <span id="lot-prix-display">0</span> FCFA</div>
+                <div><strong>Unités acceptées :</strong> <span id="lot-unites-display">-</span></div>
+                <div><strong>Catégorie :</strong> <span id="lot-categorie-display">-</span></div>
             </div>
 
-            <!-- CARTE 2 : MESURES & AUDIT -->
-            <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                <h4 style="margin-top:0; color:#555;">
-                    <i class="fa-solid fa-weight-hanging"></i> Mesures & Audit
-                </h4>
-                
-                <div style="display:flex; gap:10px;">
-                    <div style="flex:2;">
-                        <label>Quantité Brute *</label>
-                        <input type="number" id="adm-qty" step="0.01" min="0" required oninput="calculateInternalFinance()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                    </div>
-                    <div style="flex:1;">
-                        <label>Unité *</label>
-                        <select id="adm-unit" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
-                            <option value="">-- Choisir d'abord un lot --</option>
-                        </select>
-                    </div>
+            <label>Producteur (Déposant) *</label>
+            <select id="adm-producer-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                <option value="">-- Sélectionner un producteur --</option>
+            </select>
+
+            <label>Magasin de stockage *</label>
+            <select id="adm-magasin-select" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                <option value="">-- Sélectionner un magasin --</option>
+            </select>
+        </div>
+
+        <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <h4 style="margin-top:0; color:#555;">
+                <i class="fa-solid fa-weight-hanging"></i> Mesures & Finance
+            </h4>
+            
+            <div style="display:flex; gap:10px;">
+                <div style="flex:2;">
+                    <label>Quantité Brute *</label>
+                    <input type="number" id="adm-qty" step="0.01" min="0" required oninput="calculateInternalFinance()" style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
                 </div>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
-                    <div class="form-group">
-                        <label>Date d'expiration (si applicable)</label>
-                        <input type="date" id="adm-expiry" onchange="calculateInternalFinance()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
-                    </div>
-                    <div class="form-group">
-                        <label>Mode de Paiement *</label>
-                        <select id="adm-payment-mode" required onchange="calculateInternalFinance()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
-                            <option value="solde">Crédit Compte (Frais 5%)</option>
-                            <option value="mobile_money">Mobile Money (Frais 7%)</option>
-                        </select>
-                    </div>
+                <div style="flex:1;">
+                    <label>Unité *</label>
+                    <select id="adm-unit" required style="width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:6px;">
+                        <option value="">-- Unité --</option>
+                    </select>
                 </div>
-                <label>Grade de Qualité (Coefficient d'Audit) *</label>
-            <div class="form-group" style="grid-column: span 2; background:#fff; border:1px solid #ddd; padding:15px; border-radius:8px; margin-top:15px;">
-    <div id="zone-evaluation-qualite">
-        <p style="color:#999; text-align:center;">Veuillez d'abord sélectionner un lot pour évaluer la qualité.</p>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+                <div class="form-group">
+                    <label>Expiration</label>
+                    <input type="date" id="adm-expiry" onchange="calculateInternalFinance()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div class="form-group">
+                    <label>Paiement *</label>
+                    <select id="adm-payment-mode" required onchange="calculateInternalFinance()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
+                        <option value="solde">Crédit Compte (5%)</option>
+                        <option value="mobile_money">Mobile Money (7%)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="finance-preview" style="background:#f1f8e9; padding:15px; border-radius:8px; border:1px solid #c5e1a5; margin-top:15px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="font-size:13px;">Dû au Producteur :</span>
+                    <strong id="val-due">0 FCFA</strong>
+                </div>
+                <div style="display:flex; justify-content:space-between; color:#2e7d32; margin-top:5px;">
+                    <span style="font-size:13px;">Profit Coopérative :</span>
+                    <strong id="val-profit">0 FCFA</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            <h4 style="margin-top:0; color:#555;">
+                <i class="fa-solid fa-clipboard-check"></i> Audit Qualité
+            </h4>
+            <div id="zone-evaluation-qualite" style="max-height: 400px; overflow-y: auto; padding-right: 5px;">
+                <p style="color:#999; text-align:center; padding:20px;">Sélectionnez un lot pour voir les critères d'audit.</p>
+            </div>
+            
+            <input type="hidden" id="adm-quality" value="1.0">
+        </div>
     </div>
-</div>
 
-<input type="hidden" id="adm-quality" value="1.0">
-
-
-                <div id="finance-preview" style="background:#f1f8e9; padding:15px; border-radius:8px; border:1px solid #c5e1a5; margin-top:10px;">
-                    <div style="font-size:12px; color:#558b2f; font-weight:bold; text-transform:uppercase;">
-                        Simulation Banque Interne
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:10px;">
-                        <span style="font-size:13px;">Dû au Producteur :</span>
-                        <strong id="val-due">0 FCFA</strong>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; color:#2e7d32;">
-                        <span style="font-size:13px;">Profit Virtuel (Surplus) :</span>
-                        <strong id="val-profit">0 FCFA</strong>
-                    </div>
-                </div>
-            </div>
-
-            <!-- CARTE 3 : CRITÈRES DE QUALITÉ (si disponibles) -->
-            <div id="criteres-qualite-card" class="form-card" style="background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05); display:none;">
-                <h4 style="margin-top:0; color:#555;">
-                    <i class="fa-solid fa-clipboard-check"></i> Critères de Qualité
-                </h4>
-                <div id="checklist-criteres" style="display:grid; gap:8px;">
-                    <!-- Les critères seront insérés ici -->
-                </div>
-            </div>
-        </div>
-
-        <div style="margin-top:30px; text-align:right;">
-            <button type="submit" class="btn" style="background:var(--primary); color:white; padding:15px 50px; font-weight:bold; border:none; border-radius:6px; cursor:pointer;">
-                <i class="fa-solid fa-check-circle"></i> VALIDER L'ADMISSION
-            </button>
-        </div>
-    </form>
+    <div style="margin-top:30px; text-align:right;">
+        <button type="submit" class="btn" style="background:var(--primary); color:white; padding:15px 50px; font-weight:bold; border:none; border-radius:6px; cursor:pointer;">
+            <i class="fa-solid fa-check-circle"></i> VALIDER L'ADMISSION
+        </button>
+    </div>
+</form>
 </div>    
     
     <div id="module-retrait" class="module"><div class="module-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
