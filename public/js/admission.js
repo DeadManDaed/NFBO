@@ -3,263 +3,205 @@
  * Emplacement : Remplace tout le contenu de ton fichier admission.js actuel.
  */
 
+/**
+ * admission.js - Système d'admission avec Audit Qualité par notation
+ */
+
 let activeLotData = null;
 
-// 1. INITIALISATION
+// 1. INITIALISATION DU MODULE
 function initModuleAdmission() {
-    activeLotData = null;
     chargerLots();
     chargerProducteurs();
     chargerMagasins();
-
-    // Reset forcé des affichages
-    document.getElementById('val-due').innerText = '0 FCFA';
-    document.getElementById('val-profit').innerText = '0 FCFA';
-
-    // Liaison manuelle des événements pour être sûr qu'ils s'activent
-    document.getElementById('adm-qty').oninput = calculateInternalFinance;
-    document.getElementById('adm-quality').onchange = calculateInternalFinance;
+    
+    const form = document.getElementById('admissionForm');
+    if (form) form.onsubmit = soumettreAdmission;
 }
 
-// 2. CHARGEMENT DES RÉFÉRENTIELS (CORRIGÉ)
+// 2. CHARGEMENT DES RÉFÉRENTIELS
 async function chargerLots() {
-    const select = document.getElementById('adm-lot-select');
+    const sel = document.getElementById('adm-lot-select');
     try {
         const res = await fetch('/api/lots');
-        const lots = await res.json();
-        select.innerHTML = '<option value="">-- Sélectionner un lot --</option>' +
-            lots.map(l => `<option value="${l.id}">${l.description || l.nom_produit} (${l.prix_ref} FCFA)</option>`).join('');
-    } catch (e) { select.innerHTML = '<option>Erreur chargement lots</option>'; }
+        const data = await res.json();
+        sel.innerHTML = '<option value="">-- Sélectionner un lot --</option>' +
+            data.map(l => `<option value="${l.id}">${l.description} (${l.prix_ref} FCFA)</option>`).join('');
+    } catch (e) { console.error("Erreur lots", e); }
 }
 
 async function chargerProducteurs() {
-    const select = document.getElementById('adm-producer-select');
+    const sel = document.getElementById('adm-producer-select');
     try {
         const res = await fetch('/api/producteurs');
         const data = await res.json();
-        select.innerHTML = '<option value="">-- Sélectionner --</option>' +
+        sel.innerHTML = '<option value="">-- Sélectionner --</option>' +
             data.map(p => `<option value="${p.id}">${p.nom_producteur || p.nom}</option>`).join('');
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Erreur producteurs", e); }
 }
 
 async function chargerMagasins() {
-    const select = document.getElementById('adm-magasin-select');
+    const sel = document.getElementById('adm-magasin-select');
     try {
         const res = await fetch('/api/magasins');
         const data = await res.json();
-        select.innerHTML = '<option value="">-- Sélectionner --</option>' +
+        sel.innerHTML = '<option value="">-- Sélectionner --</option>' +
             data.map(m => `<option value="${m.id}">${m.nom}</option>`).join('');
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Erreur magasins", e); }
 }
 
-// --- 1. MODIFICATION DE LA SÉLECTION DU LOT ---
+// 3. CHANGEMENT DE LOT : MISE À JOUR CRITÈRES & UNITÉS
 async function onAdmissionLotChange() {
     const lotId = document.getElementById('adm-lot-select').value;
-    const unitSelect = document.getElementById('adm-unit');
-    const zoneNotation = document.getElementById('zone-evaluation-qualite'); // Nouveau conteneur HTML à ajouter
-
     if (!lotId) return;
 
     try {
         const res = await fetch(`/api/lots/${lotId}`);
         activeLotData = await res.json();
 
-        // Affichage des infos de base
-        document.getElementById('lot-prix-display').innerText = activeLotData.prix_ref || 0;
-        document.getElementById('lot-categorie-display').innerText = activeLotData.categorie || '-';
+        // Affichage des infos lot
+        document.getElementById('lot-prix-display').innerText = activeLotData.prix_ref;
+        document.getElementById('lot-categorie-display').innerText = activeLotData.categorie;
         document.getElementById('lot-info-preview').style.display = 'block';
 
-        // Gestion des unités (identique à ton code actuel)
-        let unitesArray = Array.isArray(activeLotData.unites_admises) 
-            ? activeLotData.unites_admises 
-            : JSON.parse(activeLotData.unites_admises || "[]");
-        
-        unitSelect.innerHTML = unitesArray.map(u => `<option value="${u}">${u}</option>`).join('');
+        // Unités
+        const unitSelect = document.getElementById('adm-unit');
+        let unites = Array.isArray(activeLotData.unites_admises) ? activeLotData.unites_admises : JSON.parse(activeLotData.unites_admises || "[]");
+        unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
+        document.getElementById('lot-unites-display').innerText = unites.join(', ');
 
-        // --- NOUVEAUTÉ : GÉNÉRATION DES CRITÈRES DE NOTATION ---
+        // Génération de la grille de notation
         genererGrilleEvaluation(activeLotData.criteres_admission);
+        calculateInternalFinance();
 
-    } catch (err) {
-        console.error("Erreur lot change:", err);
-    }
+    } catch (err) { console.error("Erreur switch lot", err); }
 }
 
-// --- 2. GÉNÉRATION DYNAMIQUE DES CRITÈRES (Inspiré de admin.js) ---
+// 4. GÉNÉRATION DE LA GRILLE DE NOTATION (1-10)
 function genererGrilleEvaluation(criteresRaw) {
     const container = document.getElementById('zone-evaluation-qualite');
-    if (!container) return;
-
-    let criteres = [];
-    try {
-        criteres = typeof criteresRaw === 'string' ? JSON.parse(criteresRaw) : criteresRaw;
-    } catch (e) { criteres = []; }
+    let criteres = typeof criteresRaw === 'string' ? JSON.parse(criteresRaw) : criteresRaw;
 
     if (!criteres || criteres.length === 0) {
-        container.innerHTML = `<p style="color:orange; font-size:12px;">⚠️ Aucun critère qualité défini pour ce lot.</p>`;
+        container.innerHTML = `<p style="color:orange; text-align:center;">Aucun critère qualité défini pour ce lot.</p>`;
         return;
     }
 
-    let html = `<h4 style="margin-bottom:10px; border-bottom:1px solid #eee;">Évaluation Qualité (Note de 1 à 10)</h4>`;
-    
-    criteres.forEach((c, index) => {
-        if (c.type === 'notes') return; // On ignore les notes textuelles pour le calcul
-        
+    let html = `<div style="display:grid; gap:10px;">`;
+    criteres.forEach((c, i) => {
+        if (c.type === 'notes') return;
         html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:#f9f9f9; padding:8px; border-radius:4px;">
-                <label style="font-size:13px; flex:1;">${c.critere} ${c.obligatoire ? '<span style="color:red">*</span>' : ''}</label>
-                <input type="number" class="note-critere" data-index="${index}" 
-                       min="1" max="10" value="10" oninput="calculerGradeAutomatique()"
-                       style="width:50px; padding:5px; text-align:center; border:1px solid #ccc; border-radius:4px;">
+            <div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #eee;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                    <span style="font-size:12px; font-weight:600;">${c.critere}</span>
+                    <span id="note-val-${i}" style="font-weight:bold; color:var(--primary);">10</span>
+                </div>
+                <input type="range" class="note-slider" data-index="${i}" min="1" max="10" value="10" 
+                       style="width:100%; cursor:pointer;" 
+                       oninput="document.getElementById('note-val-${i}').innerText=this.value; calculerGradeAutomatique();">
             </div>
         `;
     });
-
-    // Zone d'affichage du résultat du calcul
+    
     html += `
-        <div id="resultat-grade-auto" style="margin-top:15px; padding:10px; background:var(--primary); color:white; border-radius:6px; text-align:center;">
-            Grade Calculé : <strong id="grade-label">A</strong> (Coef: <span id="grade-coef">1.0</span>)
+        <div id="grade-badge" style="margin-top:15px; padding:12px; background:#eee; border-radius:6px; text-align:center; font-weight:bold;">
+            GRADE CALCULÉ : <span id="lbl-grade">A</span> (Coef: <span id="lbl-coef">1.0</span>)
         </div>
-    `;
+    </div>`;
 
     container.innerHTML = html;
-    calculerGradeAutomatique(); // Premier calcul
+    calculerGradeAutomatique();
 }
 
-// --- 3. CALCUL AUTOMATIQUE DU GRADE ---
+// 5. CALCUL DU GRADE & COEF
 function calculerGradeAutomatique() {
-    const notes = Array.from(document.querySelectorAll('.note-critere')).map(input => parseFloat(input.value) || 0);
-    
-    if (notes.length === 0) return;
+    const sliders = document.querySelectorAll('.note-slider');
+    if (sliders.length === 0) return;
 
+    const notes = Array.from(sliders).map(s => parseFloat(s.value));
     const moyenne = notes.reduce((a, b) => a + b, 0) / notes.length;
-    let grade = "D";
-    let coef = 0.7;
 
-    // Hiérarchie selon tes critères (Moyenne sur 10)
+    let grade = "D", coef = 0.7;
     if (moyenne >= 9) { grade = "A"; coef = 1.0; }
     else if (moyenne >= 7.5) { grade = "B"; coef = 0.9; }
     else if (moyenne >= 6) { grade = "C"; coef = 0.8; }
-    else { grade = "D"; coef = 0.7; }
 
-    // Mise à jour visuelle
-    document.getElementById('grade-label').innerText = grade;
-    document.getElementById('grade-coef').innerText = coef;
-    
-    // Mise à jour de la valeur cachée ou du select existant pour calculateInternalFinance
-    const qualityInput = document.getElementById('adm-quality');
-    if (qualityInput) {
-        qualityInput.value = coef.toFixed(1);
-    }
+    document.getElementById('lbl-grade').innerText = grade;
+    document.getElementById('lbl-coef').innerText = coef.toFixed(1);
+    document.getElementById('adm-quality').value = coef;
 
-    calculateInternalFinance(); // Recalcul financier immédiat
+    // Feedback visuel sur le badge
+    const badge = document.getElementById('grade-badge');
+    badge.style.background = grade === "A" ? "#c8e6c9" : (grade === "B" ? "#fff9c4" : "#ffccbc");
+
+    calculateInternalFinance();
 }
 
-
+// 6. CALCULS FINANCIERS
 function calculateInternalFinance() {
     if (!activeLotData) return;
 
     const qty = parseFloat(document.getElementById('adm-qty').value) || 0;
-    const qualityCoef = parseFloat(document.getElementById('adm-quality').value) || 1;
     const prixRef = parseFloat(activeLotData.prix_ref) || 0;
+    const coefQualite = parseFloat(document.getElementById('adm-quality').value) || 1;
     const modePaiement = document.getElementById('adm-payment-mode').value;
     const expiryDate = document.getElementById('adm-expiry').value;
 
-    // 1. Base du montant brut selon qualité
-    const montantBrutQualite = qty * prixRef * qualityCoef;
+    const baseMontant = qty * prixRef * coefQualite;
+    
+    // Taxes : 5% base, +2% si Mobile Money
+    let taxeTaux = (modePaiement === 'mobile_money') ? 0.07 : 0.05;
 
-    // 2. Calcul de la Taxe Dynamique (Simulant le Trigger SQL)
-    let tauxTaxe = 0.05; // 5% de base
-
-    // Pénalité Mobile Money (+2%)
-    if (modePaiement === 'mobile_money') {
-        tauxTaxe += 0.02;
-    }
-
-    // Pénalité Fraîcheur (si < 30 jours avant expiration)
+    // Pénalité expiration (si < 30 jours)
     if (expiryDate) {
-        const today = new Date();
-        const exp = new Date(expiryDate);
-        const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
-
-        if (diffDays < 30) {
-            const joursManquants = 30 - Math.max(diffDays, 0);
-            tauxTaxe += (0.005 * joursManquants); // +0.5% par jour sous les 30j
+        const joursRestants = Math.ceil((new Date(expiryDate) - new Date()) / (1000*60*60*24));
+        if (joursRestants > 0 && joursRestants < 30) {
+            taxeTaux += (30 - joursRestants) * 0.005; 
         }
     }
 
-    const montantTaxe = montantBrutQualite * tauxTaxe;
-    const versementReel = montantBrutQualite - montantTaxe;
-    const profitVirtuel = montantTaxe; // Dans votre système, la taxe = le bénéfice espéré
+    const montantTaxe = baseMontant * taxeTaux;
+    const netProducteur = baseMontant - montantTaxe;
 
-    // Affichage
-    document.getElementById('val-due').innerText = Math.round(versementReel).toLocaleString('fr-FR') + ' FCFA';
-    document.getElementById('val-profit').innerText = Math.round(profitVirtuel).toLocaleString('fr-FR') + ' FCFA';
-
-    // On affiche le taux appliqué pour transparence
-    console.log(`Taux appliqué : ${(tauxTaxe * 100).toFixed(2)}%`);
-    console.log("Calcul effectué:", { qty, prixRef, versementReel });
+    document.getElementById('val-due').innerText = Math.round(netProducteur).toLocaleString() + ' FCFA';
+    document.getElementById('val-profit').innerText = Math.round(montantTaxe).toLocaleString() + ' FCFA';
 }
-/**
- * Gère l'envoi des données d'admission au serveur
- */
-// 1. Définition de la table de correspondance
-const MAP_GRADES = {
-    "1.0": { grade: "A", coef: 1.0 },
-    "0.9": { grade: "B", coef: 0.9 },
-    "0.8": { grade: "C", coef: 0.8 },
-    "0.7": { grade: "D", coef: 0.7 }
-};
 
-async function soumettreAdmission(event) {
-    event.preventDefault();
-
-    // 2. Récupération de la clé sélectionnée (le value de l'option)
-    const selectedKey = document.getElementById('adm-quality').value;
-    const infoQualite = MAP_GRADES[selectedKey] || { grade: "D", coef: 0.7 };
+// 7. SOUMISSION
+async function soumettreAdmission(e) {
+    e.preventDefault();
+    
+    // Récupération des notes pour archivage (optionnel)
+    const notesDetail = Array.from(document.querySelectorAll('.note-slider')).map(s => s.value).join('|');
 
     const payload = {
-        lot_id: parseInt(document.getElementById('adm-lot-select').value),
-        producteur_id: parseInt(document.getElementById('adm-producer-select').value),
-        magasin_id: parseInt(document.getElementById('adm-magasin-select').value),
-        quantite: parseFloat(document.getElementById('adm-qty').value),
+        lot_id: document.getElementById('adm-lot-select').value,
+        producteur_id: document.getElementById('adm-producer-select').value,
+        magasin_id: document.getElementById('adm-magasin-select').value,
+        quantite: document.getElementById('adm-qty').value,
         unite: document.getElementById('adm-unit').value,
-
-        // 3. Utilisation de la table de correspondance
-        coef_qualite: infoQualite.coef,     // Ira dans numeric(4,2)
-       // grade_qualite: infoQualite.grade,   // Ira dans varchar(1)
-
-        prix_ref: parseFloat(document.getElementById('lot-prix-display').innerText),
-        date_reception: new Date().toISOString().split('T')[0],
+        coef_qualite: document.getElementById('adm-quality').value,
+        grade_qualite: document.getElementById('lbl-grade').innerText,
+        prix_ref: document.getElementById('lot-prix-display').innerText,
         date_expiration: document.getElementById('adm-expiry').value || null,
         mode_paiement: document.getElementById('adm-payment-mode').value,
-        utilisateur: localStorage.getItem('username') || 'agent_system'
+        utilisateur: localStorage.getItem('username'),
+        notes_audit: notesDetail // On envoie les notes brutes pour historique
     };
 
-    console.log("📤 Envoi de l'admission :", payload);
-
     try {
-        const response = await fetch('/api/admissions', {
+        const res = await fetch('/api/admissions', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        if (response.ok) {
-            alert("✅ Admission réussie ! Le stock et le solde producteur ont été mis à jour.");
-            event.target.reset(); // Vide le formulaire
-            if(typeof refreshAdminTable === 'function') refreshAdminTable('admissions');
+        if (res.ok) {
+            alert("Admission validée !");
+            location.reload();
         } else {
-            const error = await response.json();
-            alert("❌ Erreur : " + error.details || error.error);
+            const err = await res.json();
+            alert("Erreur: " + err.error);
         }
-    } catch (err) {
-        console.error("Erreur réseau :", err);
-        alert("Impossible de contacter le serveur.");
-    }
-}
-
-// Liaison de l'événement au chargement du script
-const formAdmission = document.getElementById('admissionForm');
-if (formAdmission) {
-    formAdmission.onsubmit = soumettreAdmission;
+    } catch (err) { alert("Erreur connexion serveur"); }
 }
