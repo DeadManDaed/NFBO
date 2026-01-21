@@ -1,9 +1,6 @@
 /**
- * admission.js - Version Mobile-Proof (Ultra-robuste)
- * Emplacement : Remplace tout le contenu de ton fichier admission.js actuel.
-Système d'admission avec Audit Qualité par notation
+ * admission.js - Système d'admission avec Audit Qualité par notation
  */
-
 
 let activeLotData = null;
 
@@ -13,11 +10,54 @@ function initModuleAdmission() {
     chargerProducteurs();
     chargerMagasins();
     
+    const lotSelect = document.getElementById('adm-lot-select');
     const form = document.getElementById('admissionForm');
-    if (form) form.onsubmit = soumettreAdmission;
+
+    // ÉCOUTEUR D'ÉVÉNEMENT : Déclenche l'audit au changement de sélection
+    if (lotSelect) {
+        lotSelect.addEventListener('change', onAdmissionLotChange);
+    }
+
+    if (form) {
+        form.onsubmit = soumettreAdmission;
+    }
 }
 
-// 2. CHARGEMENT DES RÉFÉRENTIELS (API)
+// Mise à jour de la fonction pour utiliser l'événement
+async function onAdmissionLotChange() {
+    // On récupère la valeur actuelle du select
+    const lotId = document.getElementById('adm-lot-select').value;
+    
+    if (!lotId) {
+        document.getElementById('lot-info-preview').style.display = 'none';
+        document.getElementById('zone-evaluation-qualite').innerHTML = '';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/api/lots/${lotId}`);
+        activeLotData = await res.json();
+
+        // Affichage des infos (Prix, Catégorie, etc.)
+        document.getElementById('lot-prix-display').innerText = activeLotData.prix_ref;
+        document.getElementById('lot-categorie-display').innerText = activeLotData.categorie;
+        document.getElementById('lot-info-preview').style.display = 'block';
+
+        // Gestion des unités
+        const unitSelect = document.getElementById('adm-unit');
+        let unites = Array.isArray(activeLotData.unites_admises) ? activeLotData.unites_admises : JSON.parse(activeLotData.unites_admises || "[]");
+        unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
+
+        // GÉNÉRATION DE LA GRILLE basée sur la catégorie partagée
+        genererGrilleParCategorie(activeLotData.categorie);
+        calculateInternalFinance();
+
+    } catch (err) { 
+        console.error("Erreur lors du changement de lot:", err); 
+    }
+}
+
+//+++++ 2. CHARGEMENT DES RÉFÉRENTIELS
 async function chargerLots() {
     const sel = document.getElementById('adm-lot-select');
     try {
@@ -48,55 +88,23 @@ async function chargerMagasins() {
     } catch (e) { console.error("Erreur magasins", e); }
 }
 
-// 3. CHANGEMENT DE LOT : APPEL DES CRITÈRES PARTAGÉS
-async function onAdmissionLotChange() {
-    console.log("Données du lot sélectionné :", activeLotData);
-    const lotId = document.getElementById('adm-lot-select').value;
-    if (!lotId) return;
-
-    try {
-        const res = await fetch(`/api/lots/${lotId}`);
-        activeLotData = await res.json();
-
-        // Affichage des infos lot
-        document.getElementById('lot-prix-display').innerText = activeLotData.prix_ref;
-        document.getElementById('lot-categorie-display').innerText = activeLotData.categorie;
-        document.getElementById('lot-info-preview').style.display = 'block';
-
-        // Unités
-        const unitSelect = document.getElementById('adm-unit');
-        let unites = Array.isArray(activeLotData.unites_admises) ? activeLotData.unites_admises : JSON.parse(activeLotData.unites_admises || "[]");
-        unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
-        document.getElementById('lot-unites-display').innerText = unites.join(', ');
-
-        // APPEL DE LA GRILLE PAR CATÉGORIE (Correction ici)
-        genererGrilleParCategorie(activeLotData.categorie);
-        calculateInternalFinance();
-
-    } catch (err) { console.error("Erreur switch lot", err); }
-}
-
-// 4. GÉNÉRATION DE LA GRILLE DE NOTATION (Source: window.COOP_CRITERIA)
-function genererGrilleParCategorie(categorie) {
+// 4. GÉNÉRATION DE LA GRILLE DE NOTATION (1-10)
+function genererGrilleEvaluation(criteresRaw) {
     const container = document.getElementById('zone-evaluation-qualite');
-    
-    // Récupération depuis le pont créé dans admin.js
-    const criteres = window.COOP_CRITERIA ? window.COOP_CRITERIA[categorie] : null;
+    let criteres = typeof criteresRaw === 'string' ? JSON.parse(criteresRaw) : criteresRaw;
 
-    if (!criteres) {
-        container.innerHTML = `<p style="color:red; text-align:center; padding:10px;">
-            ⚠️ Aucun protocole d'examen trouvé pour la catégorie : "${categorie}"
-        </p>`;
+    if (!criteres || criteres.length === 0) {
+        container.innerHTML = `<p style="color:orange; text-align:center;">Aucun critère qualité défini pour ce lot.</p>`;
         return;
     }
 
-    let html = `<div style="display:grid; gap:12px;">`;
-    criteres.forEach((critereTexte, i) => {
-        // critereTexte est une simple chaîne de caractères venant de categoriesMapping
+    let html = `<div style="display:grid; gap:10px;">`;
+    criteres.forEach((c, i) => {
+        if (c.type === 'notes') return;
         html += `
             <div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #eee;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="font-size:12px; font-weight:600;">${critereTexte}</span>
+                    <span style="font-size:12px; font-weight:600;">${c.critere}</span>
                     <span id="note-val-${i}" style="font-weight:bold; color:var(--primary);">10</span>
                 </div>
                 <input type="range" class="note-slider" data-index="${i}" min="1" max="10" value="10" 
@@ -107,7 +115,7 @@ function genererGrilleParCategorie(categorie) {
     });
     
     html += `
-        <div id="grade-badge" style="margin-top:15px; padding:12px; background:#c8e6c9; border-radius:6px; text-align:center; font-weight:bold; border:1px solid #ddd;">
+        <div id="grade-badge" style="margin-top:15px; padding:12px; background:#eee; border-radius:6px; text-align:center; font-weight:bold;">
             GRADE CALCULÉ : <span id="lbl-grade">A</span> (Coef: <span id="lbl-coef">1.0</span>)
         </div>
     </div>`;
@@ -133,9 +141,9 @@ function calculerGradeAutomatique() {
     document.getElementById('lbl-coef').innerText = coef.toFixed(1);
     document.getElementById('adm-quality').value = coef;
 
+    // Feedback visuel sur le badge
     const badge = document.getElementById('grade-badge');
-    const colors = { "A": "#c8e6c9", "B": "#fff9c4", "C": "#ffe0b2", "D": "#ffcdd2" };
-    badge.style.background = colors[grade];
+    badge.style.background = grade === "A" ? "#c8e6c9" : (grade === "B" ? "#fff9c4" : "#ffccbc");
 
     calculateInternalFinance();
 }
@@ -151,8 +159,11 @@ function calculateInternalFinance() {
     const expiryDate = document.getElementById('adm-expiry').value;
 
     const baseMontant = qty * prixRef * coefQualite;
+    
+    // Taxes : 5% base, +2% si Mobile Money
     let taxeTaux = (modePaiement === 'mobile_money') ? 0.07 : 0.05;
 
+    // Pénalité expiration (si < 30 jours)
     if (expiryDate) {
         const joursRestants = Math.ceil((new Date(expiryDate) - new Date()) / (1000*60*60*24));
         if (joursRestants > 0 && joursRestants < 30) {
@@ -170,6 +181,8 @@ function calculateInternalFinance() {
 // 7. SOUMISSION
 async function soumettreAdmission(e) {
     e.preventDefault();
+    
+    // Récupération des notes pour archivage (optionnel)
     const notesDetail = Array.from(document.querySelectorAll('.note-slider')).map(s => s.value).join('|');
 
     const payload = {
@@ -184,7 +197,7 @@ async function soumettreAdmission(e) {
         date_expiration: document.getElementById('adm-expiry').value || null,
         mode_paiement: document.getElementById('adm-payment-mode').value,
         utilisateur: localStorage.getItem('username'),
-        notes_audit: notesDetail
+        notes_audit: notesDetail // On envoie les notes brutes pour historique
     };
 
     try {
@@ -195,11 +208,11 @@ async function soumettreAdmission(e) {
         });
 
         if (res.ok) {
-            alert("✅ Admission validée et stock mis à jour !");
+            alert("Admission validée !");
             location.reload();
         } else {
             const err = await res.json();
-            alert("❌ Erreur: " + err.error);
+            alert("Erreur: " + err.error);
         }
-    } catch (err) { alert("❌ Erreur connexion serveur"); }
+    } catch (err) { alert("Erreur connexion serveur"); }
 }
