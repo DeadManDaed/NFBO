@@ -108,7 +108,99 @@ function updateGlobalStatsFromData(data) {
 /**
  * Génère le graphique de performance par magasin
  */
+
 function renderPerformanceChart(data) {
+    const container = document.getElementById('performance-chart-container');
+    const currentUser = getCurrentUser();
+
+    // Vérification de sécurité
+    if (currentUser.role !== 'superadmin' && currentUser.role !== 'admin' && currentUser.role !== 'auditeur') {
+        container.innerHTML = `<p style="color:red; padding:20px;">⛔ Accès refusé : Droits insuffisants.</p>`;
+        return;
+    }
+
+    if (!data || data.length === 0) {
+        container.innerHTML = `
+            <div style="width:100%; text-align:center; padding:50px; color:#999;">
+                <i class="fa-solid fa-chart-simple" style="font-size:48px; margin-bottom:15px;"></i>
+                <p>Aucune donnée de performance disponible pour les 30 derniers jours.</p>
+            </div>`;
+        return;
+    }
+
+    // Calcul de la valeur maximale pour l'échelle (pour info, pas utilisé visuellement ici mais utile si on ajoutait une barre de progression)
+    const maxProfit = Math.max(...data.map(d => parseFloat(d.profit_virtuel_genere) || 0), 1);
+
+    let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px;">`;
+
+    data.forEach(store => {
+        const profit = parseFloat(store.profit_virtuel_genere) || 0;
+        const color = profit > 0 ? 'var(--primary, #1565c0)' : '#d32f2f';
+        const quantite = parseFloat(store.quantite_totale) || 0;
+        
+        // MODIFICATION : L'onclick est sur le conteneur principal (toute la carte est un bouton)
+        html += `
+        <div onclick="ouvrirDetailMagasin('${store.magasin_id}', '${store.nom_magasin}')"
+            style="
+            background: white; 
+            border: 2px solid ${color}20; 
+            border-radius: 12px; 
+            padding: 20px; 
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);"
+            onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.15)';"
+            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.08)';"
+            title="Cliquez pour voir le détail de ${store.nom_magasin}">
+            
+            <div style="
+                font-size: 13px; 
+                font-weight: 600; 
+                margin-bottom: 12px; 
+                color: #333;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;">
+                ${store.nom_magasin}
+            </div>
+            
+            <div style="
+                font-size: 22px; 
+                font-weight: bold; 
+                color: ${color}; 
+                margin-bottom: 8px;">
+                ${Math.round(profit).toLocaleString('fr-FR')}
+            </div>
+            
+            <div style="font-size: 10px; color: #999; margin-bottom: 10px;">
+                FCFA
+            </div>
+            
+            <div style="
+                font-size: 11px; 
+                color: #666; 
+                padding: 6px 12px; 
+                background: ${color}10; 
+                border-radius: 20px;
+                display: inline-block;
+                margin-bottom: 10px;">
+                📦 ${store.nombre_admissions} admission${store.nombre_admissions > 1 ? 's' : ''}
+            </div>
+
+            <div style="font-size:10px; color:#1565c0; margin-top:5px; text-decoration:underline;">
+                Voir détail & analyse <i class="fa-solid fa-arrow-right"></i>
+            </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+}
+
+
+
+/* function renderPerformanceChart(data) {
     const container = document.getElementById('performance-chart-container');
     const currentUser = getCurrentUser();
 
@@ -203,7 +295,7 @@ html += `</div>`;
     });
     html += `</div>`;
     container.innerHTML = html;
-}
+} */
 
 /**
  * Affiche les logs d'audit récents
