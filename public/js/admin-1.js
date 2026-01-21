@@ -804,7 +804,21 @@ async function chargerGeographie(type, parentId, targetSelectId) {
         console.error(`❌ Erreur chargement ${type}:`, err);
     }
 }
+// Alertes conditionnelles
+async function verifierSanteMonMagasin() {
+    const stocks = await fetch('/api/mon-magasin/stock').then(r => r.json());
+    
+    // Utilisation du code partagé
+    if (window.StockIntelligence) {
+        const rapport = window.StockIntelligence.analyserInventaire(stocks);
+        const alertes = window.StockIntelligence.genererAlertesGlobales(rapport);
 
+        if (alertes.length > 0) {
+            // Afficher une bulle de notification rouge
+            afficherNotificationUrgente(alertes.join('<br>'));
+        }
+    }
+}
 async function deleteItem(section, id) {
     if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ?")) return;
     const apiMap = { 'utilisateurs': 'users', 'employes': 'employers', 'magasins': 'magasins', 'lots': 'lots' };
