@@ -614,14 +614,9 @@ function showFormLots(wrapper) {
 
         await submitForm('/api/lots', payload);
     };
-} // <--- C'est CETTE ACCOLADE qui manquait !
+} 
 
-// === FONCTION : CHARGEMENT DES CRITÈRES PAR CATÉGORIE ===
-function chargerCriteresParCategorie() {
-    const cat = document.getElementById('lot-categorie').value;
-    const zoneAuto = document.getElementById('zone-criteres-auto');
-    const listeAuto = document.getElementById('liste-criteres-auto');
-    
+// DÉCLARATION GLOBALE (En dehors de toute fonction)
 const categoriesMapping = {
     // ... catégories existantes (frais, secs, etc.) ...
     
@@ -719,6 +714,13 @@ const categoriesMapping = {
         ]
     };
 window.COOP_CRITERIA = categoriesMapping;
+// === FONCTION : CHARGEMENT DES CRITÈRES PAR CATÉGORIE ===
+function chargerCriteresParCategorie() {
+    const cat = document.getElementById('lot-categorie').value;
+    const zoneAuto = document.getElementById('zone-criteres-auto');
+    const listeAuto = document.getElementById('liste-criteres-auto');
+    
+
     listeAuto.innerHTML = "";
     if (categoriesMapping[cat]) {
         zoneAuto.style.display = 'block';
