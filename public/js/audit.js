@@ -78,41 +78,6 @@ async function refreshAuditData() {
             `<p style="color:red; padding:20px;">⚠️ ${err.message}</p>`;
     }
 }
-
-/**
- * Charge les statistiques globales dans les cartes
- */
-/*async function loadGlobalStats() {
-    const currentUser = getCurrentUser();
-    
-    // ✅ ATTENDRE que les éléments existent dans le DOM
-    await waitForElements(['audit-total-profit', 'audit-total-qty', 'audit-alerts']);
-    
-    try {
-        const res = await fetch('/api/audit/global-stats', {
-            headers: { 'x-user-role': currentUser.role }
-        });
-        
-        if (!res.ok) throw new Error('Erreur chargement stats');
-        
-        const stats = await res.json();
-        
-        console.log('📊 Stats reçues:', stats);
-        
-        // Maintenant on est sûr que les éléments existent
-        document.getElementById('audit-total-profit').textContent = 
-            Math.round(parseFloat(stats.profit_total || 0)).toLocaleString('fr-FR');
-        document.getElementById('audit-total-qty').textContent = 
-            Math.round(parseFloat(stats.quantite_totale || 0)).toLocaleString('fr-FR');
-        document.getElementById('audit-alerts').textContent = 
-            stats.alertes_qualite || 0;
-        
-        console.log('✅ Stats affichées');
-        
-    } catch (err) {
-        console.error('❌ Erreur stats globales:', err);
-    }
-}*/
 /**
  * Calcule et affiche les totaux directement depuis les données magasins
  * Plus fiable qu'un appel API séparé
@@ -140,29 +105,6 @@ function updateGlobalStatsFromData(data) {
         alertsEl.parentElement.style.borderLeft = '5px solid #d32f2f';
     }
 }
-// ✅ Fonction helper pour attendre que les éléments existent
-/*function waitForElements(elementIds, maxAttempts = 50) {
-    return new Promise((resolve, reject) => {
-        let attempts = 0;
-        
-        const checkElements = setInterval(() => {
-            attempts++;
-            
-            const allExist = elementIds.every(id => document.getElementById(id) !== null);
-            
-            if (allExist) {
-                console.log(`✅ Tous les éléments trouvés après ${attempts} tentatives`);
-                clearInterval(checkElements);
-                resolve();
-            } else if (attempts >= maxAttempts) {
-                console.error(`❌ Timeout: éléments non trouvés après ${attempts} tentatives`);
-                clearInterval(checkElements);
-                reject(new Error('Elements not found'));
-            }
-        }, 100); // Vérifie toutes les 100ms
-    });
-}*/
-
 /**
  * Génère le graphique de performance par magasin
  */
@@ -372,12 +314,7 @@ async function checkPendingValidations() {
         console.error('❌ Erreur pending validations:', err);
     }
 }
-
-/**
- * Exporte le rapport d'audit en PDF/Impression
- */
-/**
- * Exporte le rapport d'audit en PDF/Impression
+ /* Exporte le rapport d'audit en PDF/Impression
  * Transforme les données visuelles (cartes) en tableau structuré
  */
 function exportAuditPDF() {
