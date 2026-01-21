@@ -507,17 +507,33 @@ function showFormLots(wrapper) {
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:20px;">
                 <div class="form-group">
                     <label style="font-weight:bold; display:block; margin-bottom:5px;">Catégorie *</label>
-                    <select id="lot-categorie" required onchange="chargerCriteresParCategorie()" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:6px;">
-                        <option value="">-- Sélectionner --</option>
-                        <option value="frais">Produits Frais (Vivres frais)</option>
-                        <option value="secs">Céréales, Grains et Légumineuses</option>
-                        <option value="huiles_liquides">Huiles et Produits Liquides</option>
-                        <option value="produits_foret">Produits de la Forêt (NTFP)</option>
-                        <option value="manufactures_alim">Manufacturés Alimentaires</option>
-                        <option value="manufactures_non_alim">Manufacturés Non Alimentaires</option>
-                        <option value="sensibles">Produits de Haute Valeur / Sensibles</option>
+                    <select id="lot-categorie" required style="width:100%; padding:12px; border-radius:6px; border:1px solid #ddd;">
+                        <option value="">-- Sélectionner une catégorie --</option>
+                        
+                        <optgroup label="Agriculture & Nature">
+                            <option value="frais">Produits Frais (Vivres frais)</option>
+                            <option value="secs">Céréales, Grains et Légumineuses</option>
+                            <option value="huiles_liquides">Huiles et Produits Liquides</option>
+                            <option value="produits_foret">Produits de la Forêt (PFNL / NTFP)</option>
+                        </optgroup>
+                    
+                        <optgroup label="Artisanat & Objets">
+                            <option value="artisanat_utilitaire">Artisanat Utilitaire (Meubles, Poterie, Paniers)</option>
+                            <option value="artisanat_art">Artisanat d'Art & Décoration</option>
+                            <option value="ustensiles_traditionnels">Ustensiles & Outils de fabrication (Forge, Bois)</option>
+                        </optgroup>
+                    
+                        <optgroup label="Transformés & Manufacturés">
+                            <option value="cosmetiques_locaux">Savonnerie & Cosmétiques (Beurre de Karité/Moringa)</option>
+                            <option value="manufactures_alim">Manufacturés Alimentaires (Conserves, Farines)</option>
+                            <option value="manufactures_non_alim">Manufacturés Non Alimentaires</option>
+                        </optgroup>
+                    
+                        <optgroup label="Gestion Spécifique">
+                            <option value="sensibles">Produits de Haute Valeur / Sensibles</option>
+                        </optgroup>
                     </select>
-                </div>
+                                    </div>
 
                 <div class="form-group">
                     <label style="font-weight:bold; display:block; margin-bottom:5px;">Description du produit *</label>
@@ -607,6 +623,47 @@ function chargerCriteresParCategorie() {
     const listeAuto = document.getElementById('liste-criteres-auto');
     
     const categoriesMapping = {
+        // À ajouter/compléter dans admin.js
+const categoriesMapping = {
+    // ... catégories existantes (frais, secs, etc.) ...
+    
+    'produits_foret': [
+        'Identification correcte de l\'espèce',
+        'Séchage ou état de conservation',
+        'Absence de moisissures/parasites',
+        'Pureté (absence d\'écorces étrangères)',
+        'Conditionnement (sacs propres)'
+    ],
+    'ustensiles_traditionnels': [
+        'Qualité de la forge ou de la taille',
+        'Solidité des manches et fixations',
+        'Sécurité d\'utilisation (pas de bords tranchants imprévus)',
+        'Absence de corrosion (pour le métal)',
+        'Ergonomie et poids'
+    ],
+    'cosmetiques_locaux': [
+        'Texture et homogénéité',
+        'Odeur caractéristique (absence de rancissement)',
+        'Étanchéité du contenant',
+        'Date de fabrication/péremption visible',
+        'Clarté des instructions d\'usage'
+    ],
+    // Rappel des catégories artisanat demandées précédemment
+    'artisanat_utilitaire': [
+        'Solidité et assemblage (stabilité)',
+        'Finition des surfaces (ponçage, vernis)',
+        'Absence de fissures ou défauts majeurs',
+        'Conformité aux dimensions/usage',
+        'Esthétique globale et symétrie'
+    ],
+    'artisanat_art': [
+        'Qualité des matériaux de base',
+        'Finesse des détails et ornements',
+        'Authenticité du style/technique',
+        'Absence de fragilité excessive',
+        'Propreté et présentation finale'
+    ]
+};
         'frais': [
             'Aspect visuel (couleur, fermeté)',
             'Absence de moisissure ou pourriture',
@@ -662,21 +719,9 @@ function chargerCriteresParCategorie() {
             'Conditionnement conforme (hermétique)',
             'Étiquetage de danger (si applicable)',
             'Autorisation de transport'
-        ],
-            'artisanat_utilitaire': [
-                'Solidité et assemblage (stabilité)',
-                'Finition des surfaces (ponçage, vernis)',
-                'Absence de fissures ou défauts majeurs',
-                'Conformité aux dimensions/usage',
-                'Esthétique globale et symétrie'
-            ],
-            'artisanat_art': [
-                'Qualité des matériaux de base',
-                'Finesse des détails et ornements',
-                'Authenticité du style/technique',
-                'Absence de fragilité excessive',
-                'Propreté et présentation finale'
-            ]
+        ]
+    
+window.COOP_CRITERIA = categoriesMapping;
     };
 
     listeAuto.innerHTML = "";
@@ -695,7 +740,6 @@ function chargerCriteresParCategorie() {
     } else {
         zoneAuto.style.display = 'none';
     }
-    window.COOP_CRITERIA = categoriesMapping;
 }
 
 function ajouterCriterePersonnalise() {
