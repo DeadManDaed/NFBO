@@ -622,8 +622,6 @@ function chargerCriteresParCategorie() {
     const zoneAuto = document.getElementById('zone-criteres-auto');
     const listeAuto = document.getElementById('liste-criteres-auto');
     
-    const categoriesMapping = {
-        // À ajouter/compléter dans admin.js
 const categoriesMapping = {
     // ... catégories existantes (frais, secs, etc.) ...
     
@@ -662,8 +660,7 @@ const categoriesMapping = {
         'Authenticité du style/technique',
         'Absence de fragilité excessive',
         'Propreté et présentation finale'
-    ]
-};
+    ],
         'frais': [
             'Aspect visuel (couleur, fermeté)',
             'Absence de moisissure ou pourriture',
