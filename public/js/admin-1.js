@@ -717,10 +717,8 @@ const categoriesMapping = {
             'Étiquetage de danger (si applicable)',
             'Autorisation de transport'
         ]
-    
-window.COOP_CRITERIA = categoriesMapping;
     };
-
+window.COOP_CRITERIA = categoriesMapping;
     listeAuto.innerHTML = "";
     if (categoriesMapping[cat]) {
         zoneAuto.style.display = 'block';
