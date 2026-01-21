@@ -188,7 +188,7 @@ function renderPerformanceChart(data) {
     // Calcul de la valeur maximale pour l'échelle
     const maxProfit = Math.max(...data.map(d => parseFloat(d.profit_virtuel_genere) || 0), 1);
 
-    let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 15px; padding: 10px 0;">`;
+    let html = `<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 15px;">`;
 
     data.forEach(store => {
     const profit = parseFloat(store.profit_virtuel_genere) || 0;
@@ -249,6 +249,17 @@ function renderPerformanceChart(data) {
 });
 
 html += `</div>`;
+    // AJOUT : onclick="ouvrirDetailMagasin(...)"
+        html += `
+            <div onclick="ouvrirDetailMagasin('${store.magasin_id}', '${store.nom_magasin}')"
+                style="cursor: pointer; /* ... tes styles existants ... */">
+                
+                <div style="font-size:10px; color:#1565c0; margin-top:8px; text-decoration:underline;">
+                    Voir détail & analyse <i class="fa-solid fa-arrow-right"></i>
+                </div>
+            </div>`;
+    });
+    html += `</div>`;
     container.innerHTML = html;
 }
 
@@ -594,7 +605,206 @@ async function rejectTransfer(transferId) {
         alert('Erreur réseau');
     }
 }
+// === NOUVELLES FONCTIONS D'ANALYSE DÉTAILLÉE ===
 
+/**
+ * Ouvre la modale et charge les 3 vues
+ */
+async function ouvrirDetailMagasin(magasinId, nomMagasin) {
+    // 1. Création/Affichage de la modale (Code HTML injecté dynamiquement pour éviter de polluer le dashboard.html)
+    let modal = document.getElementById('modal-detail-store');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', getModalHTML());
+        modal = document.getElementById('modal-detail-store');
+    }
+    
+    document.getElementById('modal-store-title').innerText = `Audit Détaillé : ${nomMagasin}`;
+    document.getElementById('modal-detail-store').style.display = 'flex';
+    
+    // Reset du contenu
+    document.getElementById('store-tab-content').innerHTML = '<div style="padding:20px; text-align:center;"><i class="fa-solid fa-spinner fa-spin"></i> Analyse en cours...</div>';
+
+    try {
+        // 2. Récupération des données complètes (Simulation API - à adapter avec tes vraies routes)
+        // On demande les produits ET les logs du magasin
+        const [stockRes, logsRes] = await Promise.all([
+            fetch(`/api/magasins/${magasinId}/stock`), // Ta route existante de stock
+            fetch(`/api/audit/logs?store_id=${magasinId}&days=30`) // Une route filtrée par magasin
+        ]);
+
+        const stocks = await stockRes.json();
+        const logs = await logsRes.json();
+
+        // 3. Utilisation du MOTEUR INTELLIGENT (b.3)
+        // Si stock-intelligence.js est chargé, on l'utilise, sinon fallback simple
+        let analyse = { stars:[], peremption:[], rupture:[], dormants:[] };
+        if (window.StockIntelligence) {
+            analyse = window.StockIntelligence.analyserInventaire(stocks, logs);
+        }
+
+        // 4. Stockage temporaire pour navigation entre onglets
+        window.currentStoreData = { stocks, logs, analyse };
+
+        // 5. Affichage par défaut (Onglet 1: Transactions)
+        switchTab('transactions');
+
+    } catch (e) {
+        console.error("Erreur chargement détail", e);
+        document.getElementById('store-tab-content').innerHTML = '<p style="color:red">Impossible de charger les détails du magasin.</p>';
+    }
+}
+
+function switchTab(tabName) {
+    const content = document.getElementById('store-tab-content');
+    const data = window.currentStoreData;
+    
+    // Gestion active des boutons
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`btn-${tabName}`).classList.add('active');
+
+    if (tabName === 'transactions') {
+        // VUE 1 : LISTE DÉTAILLÉE
+        content.innerHTML = renderTransactionsTable(data.logs);
+    } 
+    else if (tabName === 'trends') {
+        // VUE 2 : GRAPHIQUE TENDANCES (Produit par Produit)
+        content.innerHTML = renderTrendsChart(data.logs);
+    } 
+    else if (tabName === 'health') {
+        // VUE 3 : STOCK INTELLIGENT (Surbrillance)
+        content.innerHTML = renderHealthDashboard(data.analyse);
+    }
+}
+
+// --- RENDU DES VUES ---
+
+function renderTransactionsTable(logs) {
+    if(!logs.length) return '<p>Aucune transaction sur la période.</p>';
+    return `
+        <div style="overflow-y:auto; max-height:400px;">
+            <table style="width:100%; border-collapse:collapse; font-size:12px;">
+                <thead style="background:#f5f5f5; position:sticky; top:0;">
+                    <tr><th>Date</th><th>Action</th><th>Produit</th><th style="text-align:right">Qté</th><th style="text-align:right">Impact</th></tr>
+                </thead>
+                <tbody>
+                    ${logs.map(l => `
+                    <tr style="border-bottom:1px solid #eee;">
+                        <td style="padding:8px;">${new Date(l.date).toLocaleDateString()}</td>
+                        <td>${l.action}</td>
+                        <td>${l.produit}</td>
+                        <td style="text-align:right; font-weight:bold;">${l.quantite}</td>
+                        <td style="text-align:right; color:${l.montant > 0 ? 'green' : 'red'}">${Math.round(l.montant)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+        </div>`;
+}
+
+function renderHealthDashboard(analyse) {
+    // C'est ici que la magie de (b.1, b.2, b.3) s'affiche
+    return `
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+            
+            <div class="health-card" style="border-left:4px solid gold;">
+                <h4>🌟 Produits Stars (Top Rotation)</h4>
+                ${analyse.stars.length ? 
+                    `<ul>${analyse.stars.map(p => `<li><strong>${p.nom}</strong></li>`).join('')}</ul>` : 
+                    '<p style="color:#999; font-style:italic">Aucun produit ne se démarque.</p>'}
+            </div>
+
+            <div class="health-card" style="border-left:4px solid #d32f2f; background:#ffebee;">
+                <h4 style="color:#d32f2f">⚠️ Attention : Péremption</h4>
+                ${analyse.peremption.length ? 
+                    `<ul>${analyse.peremption.map(p => `<li>${p.nom} (${p.status})</li>`).join('')}</ul>` : 
+                    '<p style="color:green">Aucun produit proche de la date limite.</p>'}
+            </div>
+
+            <div class="health-card" style="border-left:4px solid orange;">
+                <h4>📉 Risque Rupture</h4>
+                ${analyse.rupture.length ? 
+                    `<ul>${analyse.rupture.map(p => `<li>${p.nom}: Reste ${p.stock_actuel}</li>`).join('')}</ul>` : 
+                    '<p style="color:green">Stocks confortables.</p>'}
+            </div>
+
+            <div class="health-card" style="border-left:4px solid #90a4ae;">
+                <h4>💤 Stocks Dormants (+60j)</h4>
+                <p style="font-size:11px; color:#666; margin-bottom:5px;">Produits en stock mais sans vente récente.</p>
+                ${analyse.dormants.length ? 
+                    `<ul>${analyse.dormants.map(p => `<li>${p.nom} (Valeur: ${p.value} FCFA)</li>`).join('')}</ul>` : 
+                    '<p>Tout le stock est actif.</p>'}
+            </div>
+        </div>
+    `;
+}
+
+function renderTrendsChart(logs) {
+    // Simplification visuelle : Barres HTML simples pour éviter Chart.js si pas chargé
+    // On agrège par produit : Net (Entrées - Sorties)
+    const trends = {};
+    logs.forEach(l => {
+        if(!trends[l.produit]) trends[l.produit] = 0;
+        trends[l.produit] += (l.action === 'vente' || l.action === 'sortie') ? -parseFloat(l.quantite) : parseFloat(l.quantite);
+    });
+
+    return `
+        <div style="padding:10px;">
+            <h4>Balance des Mouvements (30j)</h4>
+            ${Object.keys(trends).map(prod => {
+                const val = trends[prod];
+                const width = Math.min(Math.abs(val) * 2, 100); // Echelle arbitraire pour demo
+                const color = val >= 0 ? '#4caf50' : '#f44336';
+                return `
+                    <div style="margin-bottom:8px; display:flex; align-items:center;">
+                        <span style="width:120px; font-size:12px; text-align:right; padding-right:10px;">${prod}</span>
+                        <div style="flex:1; background:#eee; height:10px; border-radius:5px; position:relative;">
+                            <div style="
+                                width:${width}px; 
+                                background:${color}; 
+                                height:100%; 
+                                border-radius:5px;
+                                position:absolute;
+                                left:${val >= 0 ? '0' : 'auto'};
+                                right:${val < 0 ? '0' : 'auto'};
+                            "></div>
+                        </div>
+                        <span style="width:40px; font-size:11px; padding-left:10px;">${val > 0 ? '+' : ''}${val}</span>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// Helper HTML pour la modale
+function getModalHTML() {
+    return `
+    <div id="modal-detail-store" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; justify-content:center; align-items:center;">
+        <div style="background:white; width:90%; max-width:800px; height:80%; border-radius:12px; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+            
+            <div style="padding:15px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; background:#1565c0; color:white;">
+                <h3 id="modal-store-title" style="margin:0;">Détail Magasin</h3>
+                <button onclick="document.getElementById('modal-detail-store').style.display='none'" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="display:flex; border-bottom:1px solid #ddd;">
+                <button id="btn-transactions" class="tab-btn active" onclick="switchTab('transactions')" style="flex:1; padding:15px; background:none; border:none; cursor:pointer; font-weight:bold;">📄 Transactions</button>
+                <button id="btn-trends" class="tab-btn" onclick="switchTab('trends')" style="flex:1; padding:15px; background:none; border:none; cursor:pointer; font-weight:bold;">📊 Tendances</button>
+                <button id="btn-health" class="tab-btn" onclick="switchTab('health')" style="flex:1; padding:15px; background:none; border:none; cursor:pointer; font-weight:bold;">❤️ Santé Stock</button>
+            </div>
+
+            <div id="store-tab-content" style="flex:1; overflow-y:auto; padding:20px;">
+                </div>
+            
+            <style>
+                .tab-btn.active { border-bottom: 3px solid #1565c0; color: #1565c0; background: #f5fafd !important; }
+                .tab-btn:hover { background: #f0f0f0; }
+                .health-card { padding: 15px; background: #fafafa; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+                .health-card h4 { margin-top: 0; margin-bottom: 10px; font-size: 14px; }
+                .health-card ul { padding-left: 20px; margin: 0; font-size: 13px; }
+            </style>
+        </div>
+    </div>`;
+}
 // Fonction helper pour logger les erreurs de déploiement
 function logDeploymentError(context, error) {
     console.error(`[DEPLOYMENT ERROR - ${context}]:`, error);
