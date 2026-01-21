@@ -607,13 +607,76 @@ function chargerCriteresParCategorie() {
     const listeAuto = document.getElementById('liste-criteres-auto');
     
     const categoriesMapping = {
-        'frais': ['Vivacité/Fraîcheur visuelle', 'Absence de pourriture', 'Absence insectes/parasites', 'Calibrage homogène', 'Date récolte < 48h'],
-        'secs': ['Humidité < 12% (Test manuel)', 'Absence de charançons', 'Grains entiers/non brisés', 'Odeur saine (pas de moisi)', 'Absence de cailloux'],
-        'huiles_liquides': ['Scellé de sécurité intact', 'Limpidité (pas de dépôt)', 'Absence de fuite', 'DLC visible', 'Couleur naturelle'],
-        'produits_foret': ['Séchage optimal (Djansang/Poivre)', 'Arôme puissant', 'Tri effectué', 'Absence moisissure blanche'],
-        'manufactures_alim': ['Emballage intact/non gonflé', 'Date péremption valide', 'Étiquetage conforme (ANOR)', 'Numéro de lot présent'],
-        'manufactures_non_alim': ['Emballage scellé', 'Absence de chocs', 'Notice présente', 'Conformité standards'],
-        'sensibles': ['⚠️ Certificat vétérinaire requis', 'Chaîne du froid intacte', 'Traçabilité origine', 'Emballage hermétique']
+        'frais': [
+            'Aspect visuel (couleur, fermeté)',
+            'Absence de moisissure ou pourriture',
+            'Absence d\'insectes ou parasites',
+            'Odeur normale (pas de fermentation)',
+            'Température de conservation respectée',
+            'Date de récolte < 48h',
+            'Conditionnement propre et intact'
+        ],
+        'court': [
+            'Fraîcheur apparente',
+            'Absence de flétrissement',
+            'Feuillage vert et turgescent',
+            'Racines ou tiges non endommagées',
+            'Absence de terre excessive',
+            'Calibrage homogène',
+            'Emballage aéré et propre'
+        ],
+        'secs': [
+            'Taux d\'humidité conforme (< 14%)',
+            'Absence de moisissure',
+            'Grains entiers et sains',
+            'Absence d\'insectes (charançons, etc.)',
+            'Couleur uniforme et typique',
+            'Absence d\'odeur de fermentation',
+            'Absence de corps étrangers',
+            'Conditionnement étanche et sec'
+        ],
+        'manufactures_alim': [
+            'Date de péremption valide',
+            'Emballage intact (non percé, non gonflé)',
+            'Étiquetage conforme et lisible',
+            'Absence de rouille (conserves)',
+            'Température de stockage respectée',
+            'Numéro de lot visible',
+            'Certification sanitaire valide'
+        ],
+        'manufactures_non_alim': [
+            'Emballage intact et scellé',
+            'Étiquetage présent et lisible',
+            'Date de fabrication visible',
+            'Absence de dommages physiques',
+            'Conformité aux normes',
+            'Certificat de qualité (si applicable)',
+            'Stockage approprié (T°, humidité)'
+        ],
+        'sensibles': [
+            '⚠️ Contrôle sanitaire obligatoire',
+            'Certificat vétérinaire ou phytosanitaire',
+            'Traçabilité complète (origine, lot)',
+            'Chaîne du froid respectée',
+            'Analyses de laboratoire récentes',
+            'Conditionnement conforme (hermétique)',
+            'Étiquetage de danger (si applicable)',
+            'Autorisation de transport'
+        ],
+            'artisanat_utilitaire': [
+                'Solidité et assemblage (stabilité)',
+                'Finition des surfaces (ponçage, vernis)',
+                'Absence de fissures ou défauts majeurs',
+                'Conformité aux dimensions/usage',
+                'Esthétique globale et symétrie'
+            ],
+            'artisanat_art': [
+                'Qualité des matériaux de base',
+                'Finesse des détails et ornements',
+                'Authenticité du style/technique',
+                'Absence de fragilité excessive',
+                'Propreté et présentation finale'
+            ]
     };
 
     listeAuto.innerHTML = "";
@@ -632,6 +695,7 @@ function chargerCriteresParCategorie() {
     } else {
         zoneAuto.style.display = 'none';
     }
+    window.COOP_CRITERIA = categoriesMapping;
 }
 
 function ajouterCriterePersonnalise() {
