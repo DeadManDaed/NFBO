@@ -50,6 +50,7 @@ async function chargerMagasins() {
 
 // 3. CHANGEMENT DE LOT : APPEL DES CRITÈRES PARTAGÉS
 async function onAdmissionLotChange() {
+    console.log("Données du lot sélectionné :", activeLotData);
     const lotId = document.getElementById('adm-lot-select').value;
     if (!lotId) return;
 
