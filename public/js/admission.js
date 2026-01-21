@@ -1,11 +1,9 @@
 /**
  * admission.js - Version Mobile-Proof (Ultra-robuste)
  * Emplacement : Remplace tout le contenu de ton fichier admission.js actuel.
+Système d'admission avec Audit Qualité par notation
  */
 
-/**
- * admission.js - Système d'admission avec Audit Qualité par notation
- */
 
 let activeLotData = null;
 
@@ -19,7 +17,7 @@ function initModuleAdmission() {
     if (form) form.onsubmit = soumettreAdmission;
 }
 
-// 2. CHARGEMENT DES RÉFÉRENTIELS
+// 2. CHARGEMENT DES RÉFÉRENTIELS (API)
 async function chargerLots() {
     const sel = document.getElementById('adm-lot-select');
     try {
@@ -50,7 +48,7 @@ async function chargerMagasins() {
     } catch (e) { console.error("Erreur magasins", e); }
 }
 
-// 3. CHANGEMENT DE LOT : MISE À JOUR CRITÈRES & UNITÉS
+// 3. CHANGEMENT DE LOT : APPEL DES CRITÈRES PARTAGÉS
 async function onAdmissionLotChange() {
     const lotId = document.getElementById('adm-lot-select').value;
     if (!lotId) return;
@@ -70,18 +68,18 @@ async function onAdmissionLotChange() {
         unitSelect.innerHTML = unites.map(u => `<option value="${u}">${u}</option>`).join('');
         document.getElementById('lot-unites-display').innerText = unites.join(', ');
 
-        // Génération de la grille de notation
-        genererGrilleEvaluation(activeLotData.criteres_admission);
+        // APPEL DE LA GRILLE PAR CATÉGORIE (Correction ici)
+        genererGrilleParCategorie(activeLotData.categorie);
         calculateInternalFinance();
 
     } catch (err) { console.error("Erreur switch lot", err); }
 }
 
-// 4. GÉNÉRATION DE LA GRILLE DE NOTATION (1-10)
+// 4. GÉNÉRATION DE LA GRILLE DE NOTATION (Source: window.COOP_CRITERIA)
 function genererGrilleParCategorie(categorie) {
     const container = document.getElementById('zone-evaluation-qualite');
     
-    // On pioche directement dans la source partagée
+    // Récupération depuis le pont créé dans admin.js
     const criteres = window.COOP_CRITERIA ? window.COOP_CRITERIA[categorie] : null;
 
     if (!criteres) {
@@ -91,15 +89,13 @@ function genererGrilleParCategorie(categorie) {
         return;
     }
 
-    // Génération HTML des curseurs (le reste du code ne change pas)
     let html = `<div style="display:grid; gap:12px;">`;
-    // ... boucle criteres.forEach ...
-    criteres.forEach((c, i) => {
-        if (c.type === 'notes') return;
+    criteres.forEach((critereTexte, i) => {
+        // critereTexte est une simple chaîne de caractères venant de categoriesMapping
         html += `
             <div style="background:#f8f9fa; padding:10px; border-radius:6px; border:1px solid #eee;">
                 <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                    <span style="font-size:12px; font-weight:600;">${c.critere}</span>
+                    <span style="font-size:12px; font-weight:600;">${critereTexte}</span>
                     <span id="note-val-${i}" style="font-weight:bold; color:var(--primary);">10</span>
                 </div>
                 <input type="range" class="note-slider" data-index="${i}" min="1" max="10" value="10" 
@@ -110,7 +106,7 @@ function genererGrilleParCategorie(categorie) {
     });
     
     html += `
-        <div id="grade-badge" style="margin-top:15px; padding:12px; background:#eee; border-radius:6px; text-align:center; font-weight:bold;">
+        <div id="grade-badge" style="margin-top:15px; padding:12px; background:#c8e6c9; border-radius:6px; text-align:center; font-weight:bold; border:1px solid #ddd;">
             GRADE CALCULÉ : <span id="lbl-grade">A</span> (Coef: <span id="lbl-coef">1.0</span>)
         </div>
     </div>`;
@@ -136,9 +132,9 @@ function calculerGradeAutomatique() {
     document.getElementById('lbl-coef').innerText = coef.toFixed(1);
     document.getElementById('adm-quality').value = coef;
 
-    // Feedback visuel sur le badge
     const badge = document.getElementById('grade-badge');
-    badge.style.background = grade === "A" ? "#c8e6c9" : (grade === "B" ? "#fff9c4" : "#ffccbc");
+    const colors = { "A": "#c8e6c9", "B": "#fff9c4", "C": "#ffe0b2", "D": "#ffcdd2" };
+    badge.style.background = colors[grade];
 
     calculateInternalFinance();
 }
@@ -154,11 +150,8 @@ function calculateInternalFinance() {
     const expiryDate = document.getElementById('adm-expiry').value;
 
     const baseMontant = qty * prixRef * coefQualite;
-    
-    // Taxes : 5% base, +2% si Mobile Money
     let taxeTaux = (modePaiement === 'mobile_money') ? 0.07 : 0.05;
 
-    // Pénalité expiration (si < 30 jours)
     if (expiryDate) {
         const joursRestants = Math.ceil((new Date(expiryDate) - new Date()) / (1000*60*60*24));
         if (joursRestants > 0 && joursRestants < 30) {
@@ -176,8 +169,6 @@ function calculateInternalFinance() {
 // 7. SOUMISSION
 async function soumettreAdmission(e) {
     e.preventDefault();
-    
-    // Récupération des notes pour archivage (optionnel)
     const notesDetail = Array.from(document.querySelectorAll('.note-slider')).map(s => s.value).join('|');
 
     const payload = {
@@ -192,7 +183,7 @@ async function soumettreAdmission(e) {
         date_expiration: document.getElementById('adm-expiry').value || null,
         mode_paiement: document.getElementById('adm-payment-mode').value,
         utilisateur: localStorage.getItem('username'),
-        notes_audit: notesDetail // On envoie les notes brutes pour historique
+        notes_audit: notesDetail
     };
 
     try {
@@ -203,11 +194,11 @@ async function soumettreAdmission(e) {
         });
 
         if (res.ok) {
-            alert("Admission validée !");
+            alert("✅ Admission validée et stock mis à jour !");
             location.reload();
         } else {
             const err = await res.json();
-            alert("Erreur: " + err.error);
+            alert("❌ Erreur: " + err.error);
         }
-    } catch (err) { alert("Erreur connexion serveur"); }
+    } catch (err) { alert("❌ Erreur connexion serveur"); }
 }
