@@ -6,7 +6,7 @@
 const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
-
+const pool = require('./db');
 // 1. IMPORT DES ROUTEURS
 const authRouter = require('./routes/auth');
 const lotsRouter = require('./routes/lots');
