@@ -243,10 +243,11 @@ async function ouvrirDetailMagasin(magasinId, nomMagasin) {
     }
 }
 
-// --- FONCTION DE RENDU DES TRANSACTIONS CORRIGÉE ---
-function renderTransactionsTable(logs) {
-    if (!logs || logs.length === 0) return '<p style="text-align:center; padding:20px;">Aucune transaction détaillée trouvée.</p>';
-    
+// --- FONCTION DE RENDU DES TRANSACTIONS CORRIGÉE function renderTransactionsTable(logs) {
+    if (!logs || logs.length === 0) {
+        return '<p style="text-align:center; padding:20px;">Aucune transaction détaillée trouvée.</p>';
+    }
+
     return `
     <table style="width:100%; border-collapse:collapse; font-size:12px;">
         <thead>
@@ -259,18 +260,19 @@ function renderTransactionsTable(logs) {
         </thead>
         <tbody>
             ${logs.map(l => {
-                // Gestion des noms de propriétés flexibles (mapping)
                 const date = l.date || l.date_creation || l.created_at;
                 const action = l.action || `Admission #${l.id}`;
-                const produit = l.produit || l.nom_produit || l.description || 'Non spécifié';
-                const qte = l.quantite || l.quantite_totale || l.quantite_brute || 0;
-                
+                const produit = l.description || l.produit || 'Non spécifié';
+                const qte = l.quantite || l.quantite_totale || l.quantite_brute || null;
+
                 return `
                 <tr style="border-bottom:1px solid #eee;">
                     <td style="padding:10px;">${date ? new Date(date).toLocaleDateString('fr-FR') : '--'}</td>
                     <td style="padding:10px; font-weight:500;">${action}</td>
                     <td style="padding:10px;">${produit}</td>
-                    <td style="padding:10px; text-align:right; font-weight:bold;">${Math.round(qte).toLocaleString('fr-FR')}</td>
+                    <td style="padding:10px; text-align:right; font-weight:bold;">
+                        ${qte !== null ? Math.round(qte).toLocaleString('fr-FR') : '--'}
+                    </td>
                 </tr>`;
             }).join('')}
         </tbody>
