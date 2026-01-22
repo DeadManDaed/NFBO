@@ -192,6 +192,16 @@ async function ouvrirDetailMagasin(magasinId, nomMagasin) {
     if (!document.getElementById('modal-detail-store')) {
         document.body.insertAdjacentHTML('beforeend', getModalHTML());
     }
+// Support tactile : s'assurer que touch déclenche le même comportement que click
+['btn-health','btn-transactions'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('touchstart', (ev) => {
+        ev.preventDefault(); // évite double déclenchement click+touch
+        const tab = id === 'btn-health' ? 'health' : 'transactions';
+        switchTab(tab);
+    }, { passive: false });
+});
     
     const modal = document.getElementById('modal-detail-store');
     document.getElementById('modal-store-title').innerText = `Analyse : ${nomMagasin}`;
@@ -211,11 +221,15 @@ async function ouvrirDetailMagasin(magasinId, nomMagasin) {
 
         // Sécurité supplémentaire : si l'API renvoie tous les logs, on filtre ici
         if (Array.isArray(logs)) {
-            logs = logs.filter(l => 
-                String(l.magasin_id) === String(magasinId) || 
-                l.nom_magasin === nomMagasin
-            );
-        }
+    // Filtrage tolérant : accepte plusieurs noms de champs possibles
+    logs = logs.filter(l => {
+        const idCandidates = [l.magasin_id, l.magasinId, l.magasin, l.store_id, l.storeId, l.magasin_id_str];
+        const nameCandidates = [l.nom_magasin, l.magasin_nom, l.store_name, l.nom];
+        const matchesId = idCandidates.some(v => v !== undefined && String(v) === String(magasinId));
+        const matchesName = nameCandidates.some(v => v !== undefined && String(v) === String(nomMagasin));
+        return matchesId || matchesName;
+    });
+}
 
         activeStoreData = { stocks, logs, analyse: {} };
 
@@ -303,16 +317,22 @@ function getModalHTML() {
 // --- Gestion des onglets de la modale détail magasin ---
 function switchTab(tab) {
     const content = document.getElementById('store-tab-content');
-    if (!content || !activeStoreData) return;
+    if (!content) return;
 
-    // Réinitialiser le style des boutons
+    // Si activeStoreData absent, afficher message diagnostic
+    if (typeof activeStoreData === 'undefined' || activeStoreData === null) {
+        content.innerHTML = `<p style="text-align:center; padding:20px; color:orange;">Données non chargées. Réessayez.</p>`;
+        return;
+    }
+
+    // Reset styles
     document.querySelectorAll('#modal-detail-store .tab-btn').forEach(btn => {
         btn.style.background = '';
         btn.style.color = '';
         btn.style.fontWeight = 'normal';
     });
 
-    // Activer le bouton sélectionné
+    // Activer le bouton
     const activeBtn = document.getElementById(`btn-${tab}`);
     if (activeBtn) {
         activeBtn.style.background = '#1565c0';
@@ -320,11 +340,18 @@ function switchTab(tab) {
         activeBtn.style.fontWeight = 'bold';
     }
 
-    // Afficher le contenu correspondant
+    // Afficher contenu
     if (tab === 'transactions') {
-        content.innerHTML = renderTransactionsTable(activeStoreData.logs);
+        // Diagnostic rapide : afficher nombre de logs trouvés
+        const count = Array.isArray(activeStoreData.logs) ? activeStoreData.logs.length : 0;
+        if (count === 0) {
+            content.innerHTML = `<p style="text-align:center; padding:20px; color:#999;">Aucune transaction détaillée trouvée (logs: 0). Vérifie le mapping des champs côté API.</p>`;
+        } else {
+            content.innerHTML = renderTransactionsTable(activeStoreData.logs);
+        }
     } else if (tab === 'health') {
-        content.innerHTML = renderHealthDashboard(activeStoreData.analyse);
+        const analyse = activeStoreData.analyse || { rupture: [], peremption: [], stars: [] };
+        content.innerHTML = renderHealthDashboard(analyse);
     } else {
         content.innerHTML = `<p style="text-align:center; padding:20px;">Onglet inconnu.</p>`;
     }
