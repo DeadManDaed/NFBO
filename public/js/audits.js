@@ -153,9 +153,9 @@ async function ouvrirDetailMagasin(magasinId, nomMagasin) {
 
     try {
         const [stockRes, logsRes] = await Promise.all([
-            fetch(`/api/magasins/${magasinId}/stock`),
-            fetch(`/api/audit/recent-logs?magasin_id=${magasinId}`)
-        ]);
+    fetch(`/api/stocks/disponible/${magasinId}`),   // ✅ nouvelle route cohérente avec backend
+    fetch(`/api/audit/recent-logs?magasin_id=${magasinId}`)
+]);
 
         const stocks = await stockRes.json();
         let logs = await logsRes.json();
