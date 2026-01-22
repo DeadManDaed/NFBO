@@ -1,11 +1,16 @@
-/**
+<!DOCTYPE html>
+
+<html>
+<head>
+  <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
+  <title>Hello, World!</title>
+</head>
+<script>/**
  * audit.js - Module d'Audit & Performance NBFO
  * Version unifiée : Performance, Logs et Drill-down (Détail Magasin)
  */
 
 let performanceData = [];
-let activeStoreData = null; // Stockage temporaire pour le détail magasin
-
 // --- 1. UTILITAIRES ---
 function getCurrentUser() {
     if (typeof window.user !== 'undefined' && window.user) return window.user;
@@ -19,13 +24,18 @@ function getCurrentUser() {
 // --- 2. INITIALISATION ---
 async function initModuleAudit() {
     const currentUser = getCurrentUser();
+
+    // Délai de sécurité pour le DOM
     await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Chargement des données
     await refreshAuditData();
+
+    // Vérification des validations en attente (Auditeurs seulement)
     if (['auditeur', 'admin', 'superadmin'].includes(currentUser.role)) {
         await checkPendingValidations();
     }
 }
-
 // --- 3. CHARGEMENT DES DONNÉES ---
 async function refreshAuditData() {
     const currentUser = getCurrentUser();
@@ -42,6 +52,7 @@ async function refreshAuditData() {
         performanceData = await perfRes.json();
         const logsData = await logsRes.json();
 
+        // Affichage
         renderPerformanceChart(performanceData);
         renderAuditLogs(logsData);
         updateGlobalStatsFromData(performanceData);
@@ -66,8 +77,6 @@ function updateGlobalStatsFromData(data) {
     setVal('audit-total-qty', Math.round(totalQty).toLocaleString('fr-FR'));
     setVal('audit-alerts', totalAlerts);
 }
-
-// --- 4. RENDU DES PERFORMANCES ---
 function renderPerformanceChart(data) {
     const container = document.getElementById('performance-chart-container');
     const currentUser = getCurrentUser();
@@ -88,15 +97,17 @@ function renderPerformanceChart(data) {
         const profit = parseFloat(store.profit_virtuel_genere) || 0;
         const color = profit >= 0 ? '#1565c0' : '#d32f2f';
 
+        // ⚠️ IMPORTANT : Appeler la NOUVELLE fonction de store-detail.js
         html += `
         <div onclick="ouvrirDetailMagasin('${store.magasin_id}', '${store.nom_magasin.replace(/'/g, "\\'")}')"
-            style="background: white; border: 2px solid ${color}20; border-radius: 12px; padding: 20px; 
+            style="
+            background: white; border: 2px solid ${color}20; border-radius: 12px; padding: 20px; 
             text-align: center; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"
             onmouseover="this.style.transform='translateY(-3px)'; this.style.boxShadow='0 5px 15px rgba(0,0,0,0.1)';"
             onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 5px rgba(0,0,0,0.05)';"
             title="Cliquez pour analyser ${store.nom_magasin}">
             
-            <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #333;">
+            <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #333; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 ${store.nom_magasin}
             </div>
             
@@ -107,13 +118,16 @@ function renderPerformanceChart(data) {
             <div style="font-size: 11px; color: #666; background: ${color}10; padding: 4px 10px; border-radius: 15px; display: inline-block;">
                 📦 ${store.nombre_admissions} op.
             </div>
+
+            <div style="font-size:10px; color:#1565c0; margin-top:10px; text-decoration:underline;">
+                Analyser <i class="fa-solid fa-magnifying-glass"></i>
+            </div>
         </div>`;
     });
 
     html += `</div>`;
     container.innerHTML = html;
 }
-
 // --- 5. LOGS D'AUDIT ---
 function renderAuditLogs(logs) {
     const list = document.getElementById('audit-log-list');
@@ -127,7 +141,7 @@ function renderAuditLogs(logs) {
         return `
         <div style="padding:10px 0; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <strong style="font-size:12px;">${log.action} <span style="font-weight:normal; color:#666;">- ${log.description || '?'}</span></strong>
+                <strong style="font-size:12px; display:block;">${log.action} <span style="font-weight:normal; color:#666;">- ${log.produit || '?'}</span></strong>
                 <span style="font-size:10px; color:#999;">${new Date(log.date).toLocaleString()} • ${log.utilisateur}</span>
             </div>
             <div style="font-weight:bold; font-size:12px; color:${isPositive ? 'green' : '#d32f2f'};">
@@ -137,210 +151,41 @@ function renderAuditLogs(logs) {
     }).join('');
 }
 
-// --- 6. VALIDATIONS ---
-async function checkPendingValidations() { /* ... inchangé ... */ }
-
-// --- 7. DÉTAIL MAGASIN & MODALE ---
-async function ouvrirDetailMagasin(magasinId, nomMagasin) {
-    if (!document.getElementById('modal-detail-store')) {
-        document.body.insertAdjacentHTML('beforeend', getModalHTML());
-    }
-
-    const modal = document.getElementById('modal-detail-store');
-    document.getElementById('modal-store-title').innerText = `Analyse : ${nomMagasin}`;
-    modal.style.display = 'flex';
-    document.getElementById('store-tab-content').innerHTML = '<div style="text-align:center; padding:40px;"><i class="fa-solid fa-spinner fa-spin"></i> Chargement des données...</div>';
-
+// --- 6. VALIDATIONS (AUDITEUR) ---
+async function checkPendingValidations() {
     try {
-        const [stockRes, logsRes] = await Promise.all([
-    fetch(`/api/stocks/disponible/${magasinId}`),   // ✅ nouvelle route cohérente avec backend
-    fetch(`/api/audit/recent-logs?magasin_id=${magasinId}`)
-]);
+        const res = await fetch('/api/transferts/pending-audit');
+        if(!res.ok) return;
+        const pending = await res.json();
 
-        const stocks = await stockRes.json();
-        let logs = await logsRes.json();
+        const container = document.getElementById('audit-validation-queue');
+        const notif = document.getElementById('notif'); // Assure-toi d'avoir cet ID dans ton HTML
 
-        if (Array.isArray(logs)) {
-            logs = logs.filter(l => String(l.magasin) === String(nomMagasin));
-        }
-
-        activeStoreData = { stocks, logs, analyse: {} };
-
-        if (typeof window.StockIntelligence !== 'undefined') {
-            activeStoreData.analyse = window.StockIntelligence.analyserInventaire(stocks, logs);
-        }
-
-        switchTab('transactions');
-
-    } catch (e) {
-        console.error("Erreur drill-down:", e);
-        document.getElementById('store-tab-content').innerHTML =
-            `<p style="color:red; text-align:center;">Erreur: ${e.message}</p>`;
-    }
-}
-
-// --- FONCTION DE RENDU DES TRANSACTIONS CORRIGÉE ---
-function renderTransactionsTable(logs) {
-    if (!logs || logs.length === 0) {
-        return '<p style="text-align:center; padding:20px;">Aucune transaction détaillée trouvée.</p>';
-    }
-
-    return `
-    <table style="width:100%; border-collapse:collapse; font-size:12px;">
-        <thead>
-            <tr style="background:#f8f9fa; text-align:left; border-bottom:2px solid #dee2e6;">
-                <th style="padding:10px;">Date</th>
-                <th style="padding:10px;">Action</th>
-                <th style="padding:10px;">Produit</th>
-                <th style="padding:10px; text-align:right;">Qté</th>
-            </tr>
-        </thead>
-        <tbody>
-            ${logs.map(l => {
-                const date = l.date || l.date_creation || l.created_at;
-                const action = l.action || `Admission #${l.id}`;
-                const produit = l.description || l.produit || 'Non spécifié';
-                const qte = l.quantite || l.quantite_totale || l.quantite_brute || null;
-
-                return `
-                <tr style="border-bottom:1px solid #eee;">
-                    <td style="padding:10px;">${date ? new Date(date).toLocaleDateString('fr-FR') : '--'}</td>
-                    <td style="padding:10px; font-weight:500;">${action}</td>
-                    <td style="padding:10px;">${produit}</td>
-                    <td style="padding:10px; text-align:right; font-weight:bold;">
-                        ${qte !== null ? Math.round(qte).toLocaleString('fr-FR') : '--'}
-                    </td>
-                </tr>`;
-            }).join('')}
-        </tbody>
-    </table>`;
-}
-
-// --- DASHBOARD SANTÉ STOCK ---
-function renderHealthDashboard(analyse) {
-    if (!analyse || (!analyse.stars.length && !analyse.rupture.length && !analyse.peremption.length)) {
-        return '<p style="text-align:center; padding:20px; color:green;">✅ Rien à signaler. Stock sain.</p>';
-    }
-    return `
-    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-        <div style="background:#fff3e0; padding:10px; border-radius:4px;">
-            <strong style="color:#e65100">📉 Ruptures (${analyse.rupture.length})</strong>
-            <ul style="margin:5px 0 0 15px; font-size:11px;">
-                ${analyse.rupture.map(p => `<li>${p.nom} (Reste: ${p.stock_actuel})</li>`).join('')}
-            </ul>
-        </div>
-        <div style="background:#ffebee; padding:10px; border-radius:4px;">
-            <strong style="color:#c62828">⚠️ Péremption (${analyse.peremption.length})</strong>
-            <ul style="margin:5px 0 0 15px; font-size:11px;">
-                ${analyse.peremption.map(p => `<li>${p.nom} (${p.status})</li>`).join('')}
-            </ul>
-        </div>
-    </div>`;
-}
-
-// --- MODALE AVEC TROIS ONGLETS ---
-function getModalHTML() {
-    return `
-    <div id="modal-detail-store" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center;">
-        <div style="background:white; width:90%; max-width:600px; height:80%; border-radius:8px; display:flex; flex-direction:column; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
-            <div style="padding:15px; background:#1565c0; color:white; display:flex; justify-content:space-between;">
-                <h3 id="modal-store-title" style="margin:0; font-size:16px;">Détail</h3>
-                <button onclick="document.getElementById('modal-detail-store').style.display='none'" style="background:none; border:none; color:white; font-size:20px; cursor:pointer;">&times;</button>
-            </div>
-            <div style="display:flex; border-bottom:1px solid #ddd;">
-                <button id="btn-health" class="tab-btn" onclick="switchTab('health')" style="flex:1; padding:10px; border:none; cursor:pointer;">Santé Stock</button>
-                <button id="btn-transactions" class="tab-btn" onclick="switchTab('transactions')" style="flex:1; padding:10px; border:none; cursor:pointer;">Transactions</button>
-                <button id="btn-charts" class="tab-btn" onclick="switchTab('charts')" style="flex:1; padding:10px; border:none; cursor:pointer;">Graphiques</button>
-            </div>
-            <div id="store-tab-content" style="flex:1; overflow-y:auto; padding:15px;"></div>
-        </div>
-    </div>`;
-}
-
-// --- GESTION DES ONGLETS ---
-function switchTab(tab) {
-    const content = document.getElementById('store-tab-content');
-    if (!content) return;
-
-    document.querySelectorAll('#modal-detail-store .tab-btn').forEach(btn => {
-        btn.style.background = '';
-        btn.style.color = '';
-        btn.style.fontWeight = 'normal';
-    });
-
-    const activeBtn = document.getElementById(`btn-${tab}`);
-    if (activeBtn) {
-        activeBtn.style.background = '#1565c0';
-        activeBtn.style.color = 'white';
-        activeBtn.style.fontWeight = 'bold';
-    }
-
-    if (tab === 'transactions') {
-        const logs = activeStoreData.logs || [];
-        content.innerHTML = renderTransactionsTable(logs);
-    } else if (tab === 'health') {
-        const analyse = activeStoreData.analyse || { rupture: [], peremption: [], stars: [] };
-        content.innerHTML = renderHealthDashboard(analyse);
-    } else if (tab === 'charts') {
-        content.innerHTML = renderChartsUI();
-    } else {
-        content.innerHTML = `<p style="text-align:center; padding:20px;">Onglet inconnu.</p>`;
-    }
-}
-
-// --- INTERFACE GRAPHIQUES ---
-function renderChartsUI() {
-    return `
-    <div style="padding:10px;">
-        <label for="chart-type">Choisir un graphique :</label>
-        <select id="chart-type" onchange="renderSelectedChart()" style="margin-left:10px; padding:5px;">
-            <option value="ranking">Classement magasins (profit)</option>
-            <option value="flux">Admissions vs Retraits</option>
-            <option value="historique">Historique financier</option>
-        </select>
-        
-        <button onclick="printChart()" style="margin-left:15px; background:#4caf50; color:white; border:none; padding:5px 10px; cursor:pointer;">Imprimer</button>
-        
-        <div style="margin-top:20px;">
-            <canvas id="chart-canvas" style="width:100%; height:400px;"></canvas>
-        </div>
-    </div>`;
-}
-
-// --- GRAPHIQUES AVEC CHART.JS ---
-function renderSelectedChart() {
-    const type = document.getElementById('chart-type').value;
-    const ctx = document.getElementById('chart-canvas').getContext('2d');
-
-    if (window.currentChart) {
-        window.currentChart.destroy();
-    }
-
-    if (type === 'ranking') {
-        const data = performanceData.map(p => ({ magasin: p.nom_magasin, profit: p.profit_virtuel_genere }));
-        window.currentChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: data.map(d => d.magasin),
-                datasets: [{
-                    label: 'Profit virtuel (FCFA)',
-                    data: data.map(d => d.profit),
-                    backgroundColor: '#1565c0'
-                }]
+        if (pending.length > 0 && container) {
+            container.innerHTML = pending.map(t => `
+                <div style="background:#fff3e0; border-left:4px solid orange; padding:10px; margin-bottom:10px; font-size:12px;">
+                    <strong>Transfert #${t.id}</strong>: ${t.produit} (${t.quantite})<br>
+                    De: ${t.magasinDepart} ➔ Vers: ${t.magasinDest}<br>
+                    <div style="margin-top:5px; display:flex; gap:10px;">
+                        <button onclick="approveTransfer('${t.id}')" style="background:#4caf50; color:white; border:none; padding:4px 8px; cursor:pointer;">Autoriser</button>
+                        <button onclick="rejectTransfer('${t.id}')" style="background:#f44336; color:white; border:none; padding:4px 8px; cursor:pointer;">Refuser</button>
+                    </div>
+                </div>
+            `).join('');
+            if(notif) {
+                notif.style.display = 'inline-block';
+                notif.innerText = pending.length;
             }
-        });
-    } else if (type === 'flux') {
-        const admissions = performanceData.map(p => p.nombre_admissions);
-        const retraits = activeStoreData.logs ? activeStoreData.logs.length : 0;
-        window.currentChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: ['Admissions', 'Retraits'],
-                datasets: [{
-                    label: 'Flux',
-                    data: [admissions.reduce((a,b)=>a+b,0), retraits],
-                    backgroundColor: ['#4caf50','#d32f2f']
-                }]
-            }
-        });
-    }
+        } else if (container) {
+            container.innerHTML = '';
+            if(notif) notif.style.display = 'none';
+        }
+    } catch (e) { console.error("Erreur validations", e); }
+}
+
+async function approveTransfer(id) { /* ... logique API existante ... */ }
+async function rejectTransfer(id) { /* ... logique API existante ... */ }
+    
+</script>
+</body>
+</html>
