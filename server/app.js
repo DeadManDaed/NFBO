@@ -76,6 +76,124 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
 
+
+// ============================================
+// ENDPOINTS POUR LE DRILL-DOWN MAGASIN
+// ============================================
+
+// GET /api/magasins/:id/admissions
+app.get('/api/magasins/:id/admissions', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query(`
+            SELECT 
+                a.id,
+                a.date_creation as date_operation,
+                a.quantite_brute as quantite,
+                l.description as produit,
+                u.username as operateur
+            FROM admissions a
+            LEFT JOIN lots l ON a.lot_id = l.id
+            LEFT JOIN users u ON a.user_id = u.id
+            WHERE a.magasin_id = $1
+            ORDER BY a.date_creation DESC
+            LIMIT 100
+        `, [id]);
+        
+        res.json(result.rows);
+    } catch (err) {
+        console.error('❌ Erreur /api/magasins/:id/admissions:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/magasins/:id/retraits
+app.get('/api/magasins/:id/retraits', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query(`
+            SELECT 
+                r.id,
+                r.date_operation,
+                r.quantite,
+                l.description as produit,
+                u.username as operateur
+            FROM retraits r
+            LEFT JOIN lots l ON r.lot_id = l.id
+            LEFT JOIN users u ON r.user_id = u.id
+            WHERE r.magasin_id = $1
+            ORDER BY r.date_operation DESC
+            LIMIT 100
+        `, [id]);
+        
+        res.json(result.rows);
+    } catch (err) {
+        console.error('❌ Erreur /api/magasins/:id/retraits:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/magasins/:id/transferts
+app.get('/api/magasins/:id/transferts', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query(`
+            SELECT 
+                t.id,
+                t.date_creation as date_operation,
+                t.quantite,
+                l.description as produit,
+                u.username as operateur,
+                CASE 
+                    WHEN t.magasin_depart = $1 THEN 'Envoyé vers ' || m2.nom
+                    ELSE 'Reçu de ' || m1.nom
+                END as details
+            FROM transferts t
+            LEFT JOIN lots l ON t.lot_id = l.id
+            LEFT JOIN users u ON t.user_id = u.id
+            LEFT JOIN magasins m1 ON t.magasin_depart = m1.id
+            LEFT JOIN magasins m2 ON t.magasin_destination = m2.id
+            WHERE t.magasin_depart = $1 OR t.magasin_destination = $1
+            ORDER BY t.date_creation DESC
+            LIMIT 100
+        `, [id]);
+        
+        res.json(result.rows);
+    } catch (err) {
+        console.error('❌ Erreur /api/magasins/:id/transferts:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /api/magasins/:id/stocks
+app.get('/api/magasins/:id/stocks', async (req, res) => {
+    const { id } = req.params;
+    
+    try {
+        const result = await pool.query(`
+            SELECT 
+                s.id,
+                l.description as nom,
+                s.stock_actuel,
+                l.prix_ref,
+                l.categorie,
+                s.date_expiration,
+                s.seuil_alerte
+            FROM stocks s
+            LEFT JOIN lots l ON s.lot_id = l.id
+            WHERE s.magasin_id = $1
+            ORDER BY s.stock_actuel DESC
+        `, [id]);
+        
+        res.json(result.rows);
+    } catch (err) {
+        console.error('❌ Erreur /api/magasins/:id/stocks:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
 // 6. GESTION DES ERREURS
 
 app.use((req, res) => {
