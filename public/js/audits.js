@@ -31,6 +31,35 @@ async function initModuleAudit() {
         await checkPendingValidations();
     }
 }
+// --- Gestion des onglets de la modale détail magasin ---
+function switchTab(tab) {
+    const content = document.getElementById('store-tab-content');
+    if (!content || !activeStoreData) return;
+
+    // Réinitialiser le style des boutons
+    document.querySelectorAll('#modal-detail-store .tab-btn').forEach(btn => {
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.fontWeight = 'normal';
+    });
+
+    // Activer le bouton sélectionné
+    const activeBtn = document.getElementById(`btn-${tab}`);
+    if (activeBtn) {
+        activeBtn.style.background = '#1565c0';
+        activeBtn.style.color = 'white';
+        activeBtn.style.fontWeight = 'bold';
+    }
+
+    // Afficher le contenu correspondant
+    if (tab === 'transactions') {
+        content.innerHTML = renderTransactionsTable(activeStoreData.logs);
+    } else if (tab === 'health') {
+        content.innerHTML = renderHealthDashboard(activeStoreData.analyse);
+    } else {
+        content.innerHTML = `<p style="text-align:center; padding:20px;">Onglet inconnu.</p>`;
+    }
+}
 
 // --- 3. CHARGEMENT DES DONNÉES ---
 async function refreshAuditData() {
