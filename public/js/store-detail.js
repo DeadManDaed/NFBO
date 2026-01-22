@@ -516,8 +516,10 @@ function renderStocks() {
                     <thead>
                         <tr style="background:#f5f5f5; border-bottom:2px solid #e0e0e0;">
                             <th style="padding:12px; text-align:left; font-size:12px; font-weight:600;">Produit</th>
+                            <th style="padding:12px; text-align:center; font-size:12px; font-weight:600;">Catégorie</th>
                             <th style="padding:12px; text-align:right; font-size:12px; font-weight:600;">Stock Actuel</th>
-                            <th style="padding:12px; text-align:right; font-size:12px; font-weight:600;">Prix Unitaire</th>
+                            <th style="padding:12px; text-align:center; font-size:12px; font-weight:600;">Unité</th>
+                            <th style="padding:12px; text-align:right; font-size:12px; font-weight:600;">Prix/Unité</th>
                             <th style="padding:12px; text-align:right; font-size:12px; font-weight:600;">Valeur</th>
                             <th style="padding:12px; text-align:center; font-size:12px; font-weight:600;">État</th>
                         </tr>
@@ -527,7 +529,17 @@ function renderStocks() {
                             const stock = parseFloat(s.stock_actuel);
                             const prix = parseFloat(s.prix_ref || 0);
                             const valeur = stock * prix;
-                            const seuil = parseFloat(s.seuil_alerte || 10);
+                            
+                            // Seuils dynamiques par catégorie
+                            const seuils = {
+                                'frais': 20,
+                                'court': 15,
+                                'secs': 50,
+                                'manufactures_alim': 30,
+                                'manufactures_non_alim': 25,
+                                'sensibles': 10
+                            };
+                            const seuil = seuils[s.categorie] || 10;
                             
                             let etat = { label: 'Normal', color: '#4caf50', icon: '✓' };
                             if (stock <= 0) {
@@ -539,7 +551,11 @@ function renderStocks() {
                             return `
                                 <tr style="border-bottom:1px solid #f0f0f0;">
                                     <td style="padding:12px; font-weight:500;">${s.nom || s.description || 'Produit'}</td>
+                                    <td style="padding:12px; text-align:center;">
+                                        <span style="font-size:11px; padding:3px 8px; background:#f5f5f5; border-radius:4px;">${s.categorie || '-'}</span>
+                                    </td>
                                     <td style="padding:12px; text-align:right; font-weight:bold; font-size:15px;">${stock.toLocaleString('fr-FR')}</td>
+                                    <td style="padding:12px; text-align:center; font-size:12px; color:#666;">${s.unite || '-'}</td>
                                     <td style="padding:12px; text-align:right;">${prix.toLocaleString('fr-FR')} FCFA</td>
                                     <td style="padding:12px; text-align:right; font-weight:bold; color:#1565c0;">${Math.round(valeur).toLocaleString('fr-FR')} FCFA</td>
                                     <td style="padding:12px; text-align:center;">
@@ -553,10 +569,16 @@ function renderStocks() {
                     </tbody>
                 </table>
             </div>
+            
+            ${stocks.some(s => s.derniere_reception) ? `
+                <div style="margin-top:15px; padding:12px; background:#fff3e0; border-radius:6px; font-size:12px; color:#e65100;">
+                    <i class="fa-solid fa-info-circle"></i> 
+                    <strong>Dernière réception :</strong> Les dates affichées correspondent à la dernière admission enregistrée pour chaque produit.
+                </div>
+            ` : ''}
         </div>
     `;
 }
-
 // ========================================
 // 8. TEMPLATE HTML DE LA MODALE
 // ========================================
