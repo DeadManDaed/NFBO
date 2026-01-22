@@ -20,64 +20,112 @@
          * @param {Array} mouvements - Historique des mouvements (pour calculer la rotation)
          */
         analyserInventaire: function(produits, mouvements = []) {
-            const rapport = {
-                stars: [],          // (a) Produits Stars
-                peremption: [],     // (b.1) Péremption proche
-                rupture: [],        // (b.2) Stock faible
-                dormants: [],       // (b.3) Stocks qui dorment (cash immobilisé)
-                score_sante: 100    // Note sur 100
-            };
+    const rapport = {
+        stars: [],
+        peremption: [],
+        rupture: [],
+        dormants: [],
+        score_sante: 100
+    };
 
-            const now = new Date();
+    const now = new Date();
 
-            produits.forEach(p => {
-                const stock = parseFloat(p.stock_actuel) || 0;
+    produits.forEach(p => {
+        const stock = parseFloat(p.stock_actuel) || 0;
+        
+        // 1. Analyse Péremption (si la colonne existe)
+        if (p.date_expiration) {
+            const dateExp = new Date(p.date_expiration);
+            const diffJours = (dateExp - now) / (1000 * 60 * 60 * 24);
+
+            if (diffJours < 0) {
+                rapport.peremption.push({ 
+                    ...p, 
+                    status: 'PÉRIMÉ', 
+                    urgence: 'CRITIQUE',
+                    nom: p.nom || p.description 
+                });
+                rapport.score_sante -= 10;
+            } else if (diffJours <= this.config.jours_avant_peremption) {
+                rapport.peremption.push({ 
+                    ...p, 
+                    status: `J-${Math.ceil(diffJours)}`, 
+                    urgence: 'HAUTE',
+                    nom: p.nom || p.description 
+                });
+                rapport.score_sante -= 5;
+            }
+        }
+
+        // 2. Analyse Rupture (seuil dynamique basé sur la catégorie)
+        const seuils = {
+            'frais': 20,           // Produits frais : seuil plus élevé
+            'court': 15,
+            'secs': 50,            // Produits secs : seuil plus élevé
+            'manufactures_alim': 30,
+            'manufactures_non_alim': 25,
+            'sensibles': 10
+        };
+        
+        const seuil = seuils[p.categorie] || this.config.seuil_alerte_stock;
+
+        if (stock <= 0) {
+            rapport.rupture.push({ 
+                ...p, 
+                status: 'ÉPUISÉ', 
+                urgence: 'CRITIQUE',
+                nom: p.nom || p.description,
+                stock_actuel: stock
+            });
+            rapport.score_sante -= 5;
+        } else if (stock <= seuil) {
+            rapport.rupture.push({ 
+                ...p, 
+                status: 'FAIBLE', 
+                urgence: 'MOYENNE',
+                nom: p.nom || p.description,
+                stock_actuel: stock
+            });
+        }
+
+        // 3. Analyse "Stars" & "Dormants"
+        const sorties = mouvements
+            .filter(m => 
+                m.lot_id === p.lot_id && 
+                m.type === 'retrait' && 
+                m.magasin_id === p.magasin_id
+            )
+            .reduce((acc, m) => acc + parseFloat(m.quantite || 0), 0);
+
+        if (sorties > (stock * 0.5) && stock > 0) {
+            rapport.stars.push({ 
+                ...p, 
+                performance: 'HAUTE ROTATION',
+                nom: p.nom || p.description 
+            });
+        } else if (sorties === 0 && stock > 0) {
+            // (b.3) Stock Dormant : vérifier si aucun mouvement depuis X jours
+            const derniereReception = p.derniere_reception || p.date_derniere_entree;
+            if (derniereReception) {
+                const joursDepuisReception = (now - new Date(derniereReception)) / (1000 * 60 * 60 * 24);
                 
-                // 1. Analyse Péremption
-                if (p.date_expiration) {
-                    const dateExp = new Date(p.date_expiration);
-                    const diffJours = (dateExp - now) / (1000 * 60 * 60 * 24);
-                    
-                    if (diffJours < 0) {
-                        rapport.peremption.push({ ...p, status: 'PERIMÉ', urgence: 'CRITIQUE' });
-                        rapport.score_sante -= 10;
-                    } else if (diffJours <= this.config.jours_avant_peremption) {
-                        rapport.peremption.push({ ...p, status: `J-${Math.ceil(diffJours)}`, urgence: 'HAUTE' });
-                        rapport.score_sante -= 5;
-                    }
-                }
-
-                // 2. Analyse Rupture
-                // Idéalement, chaque produit a son propre seuil, sinon on utilise le défaut
-                const seuil = p.seuil_alerte || this.config.seuil_alerte_stock;
-                if (stock <= 0) {
-                    rapport.rupture.push({ ...p, status: 'ÉPUISÉ', urgence: 'CRITIQUE' });
-                    rapport.score_sante -= 5;
-                } else if (stock <= seuil) {
-                    rapport.rupture.push({ ...p, status: 'FAIBLE', urgence: 'MOYENNE' });
-                }
-
-                // 3. Analyse "Stars" & "Dormants" (Nécessite les mouvements)
-                // On calcule le taux de rotation simple
-                const sorties = mouvements
-                    .filter(m => m.produit_id === p.id && (m.type === 'vente' || m.type === 'sortie'))
-                    .reduce((acc, m) => acc + parseFloat(m.quantite), 0);
-
-                if (sorties > (stock * 0.5) && stock > 0) {
-                    // Si on a écoulé plus de 50% du stock dispo sur la période
-                    rapport.stars.push({ ...p, performance: 'HAUTE ROTATION' });
-                } else if (sorties === 0 && stock > 0) {
-                    // (b.3) Stock Dormant : De l'argent qui dort !
-                    rapport.dormants.push({ ...p, value: stock * parseFloat(p.prix_ref) });
+                if (joursDepuisReception > this.config.jours_stock_dormant) {
+                    const valeur = stock * parseFloat(p.prix_ref || 0);
+                    rapport.dormants.push({ 
+                        ...p, 
+                        value: valeur,
+                        nom: p.nom || p.description,
+                        jours_immobilise: Math.floor(joursDepuisReception)
+                    });
                     rapport.score_sante -= 2;
                 }
-            });
+            }
+        }
+    });
 
-            // Normalisation du score (pas en dessous de 0)
-            rapport.score_sante = Math.max(0, rapport.score_sante);
-            return rapport;
-        },
-
+    rapport.score_sante = Math.max(0, rapport.score_sante);
+    return rapport;
+},
         /**
          * Génère un résumé visuel pour les notifications
          */
