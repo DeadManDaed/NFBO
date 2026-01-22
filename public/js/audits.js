@@ -188,8 +188,8 @@ async function rejectTransfer(id) { /* ... logique API existante ... */ }
 
 // --- 7. NOUVEAU : DÉTAIL MAGASIN & MODALE ---
 
+// --- MISE À JOUR DE LA FONCTION D'OUVERTURE POUR MIEUX FILTRER ---
 async function ouvrirDetailMagasin(magasinId, nomMagasin) {
-    // Injecter la modale si elle n'existe pas
     if (!document.getElementById('modal-detail-store')) {
         document.body.insertAdjacentHTML('beforeend', getModalHTML());
     }
@@ -197,72 +197,75 @@ async function ouvrirDetailMagasin(magasinId, nomMagasin) {
     const modal = document.getElementById('modal-detail-store');
     document.getElementById('modal-store-title').innerText = `Analyse : ${nomMagasin}`;
     modal.style.display = 'flex';
-    document.getElementById('store-tab-content').innerHTML = '<p style="text-align:center;">Chargement...</p>';
+    document.getElementById('store-tab-content').innerHTML = '<div style="text-align:center; padding:40px;"><i class="fa-solid fa-spinner fa-spin"></i> Chargement des données...</div>';
 
     try {
-        // Simulation des appels (adapter les routes si besoin)
+        // On récupère les stocks et les logs
         const [stockRes, logsRes] = await Promise.all([
-            fetch(`/api/magasins/${magasinId}/stock`), 
-            fetch(`/api/audit/recent-logs?store_id=${magasinId}`) // Supposons une route filtrée
+            fetch(`/api/magasins/${magasinId}/stock`),
+            // On s'assure que la route des logs reçoit bien l'ID du magasin
+            fetch(`/api/audit/recent-logs?magasin_id=${magasinId}`) 
         ]);
 
         const stocks = await stockRes.json();
-        // Si logsRes échoue ou renvoie tout, on filtre côté client par sécurité
-        const allLogs = await logsRes.json(); 
-        const logs = Array.isArray(allLogs) ? allLogs.filter(l => l.magasin_id == magasinId || l.magasin === nomMagasin) : [];
+        let logs = await logsRes.json();
 
-        // Intelligence
-        let analyse = { stars:[], peremption:[], rupture:[], dormants:[] };
-        if (typeof window.StockIntelligence !== 'undefined') {
-            analyse = window.StockIntelligence.analyserInventaire(stocks, logs);
+        // Sécurité supplémentaire : si l'API renvoie tous les logs, on filtre ici
+        if (Array.isArray(logs)) {
+            logs = logs.filter(l => 
+                String(l.magasin_id) === String(magasinId) || 
+                l.nom_magasin === nomMagasin
+            );
         }
 
-        activeStoreData = { stocks, logs, analyse };
-        switchTab('health'); // On ouvre direct sur la santé du stock
+        activeStoreData = { stocks, logs, analyse: {} };
+
+        // Intelligence de stock (b.1, b.2, b.3)
+        if (typeof window.StockIntelligence !== 'undefined') {
+            activeStoreData.analyse = window.StockIntelligence.analyserInventaire(stocks, logs);
+        }
+
+        // Affichage par défaut sur les transactions pour vérifier la correction
+        switchTab('transactions');
 
     } catch (e) {
-        console.error(e);
-        document.getElementById('store-tab-content').innerHTML = '<p style="color:red">Erreur chargement données magasin.</p>';
+        console.error("Erreur drill-down:", e);
+        document.getElementById('store-tab-content').innerHTML = `<p style="color:red; text-align:center;">Erreur: ${e.message}</p>`;
     }
 }
 
-window.switchTab = function(tabName) {
-    if(!activeStoreData) return;
-    
-    // Style boutons
-    document.querySelectorAll('.tab-btn').forEach(b => {
-        b.style.borderBottom = 'none'; 
-        b.style.color = '#666';
-        b.style.background = 'transparent';
-    });
-    const activeBtn = document.getElementById(`btn-${tabName}`);
-    if(activeBtn) {
-        activeBtn.style.borderBottom = '3px solid #1565c0';
-        activeBtn.style.color = '#1565c0';
-        activeBtn.style.background = '#f5fafd';
-    }
-
-    const content = document.getElementById('store-tab-content');
-    
-    if (tabName === 'transactions') {
-        content.innerHTML = renderTransactionsTable(activeStoreData.logs);
-    } else if (tabName === 'health') {
-        content.innerHTML = renderHealthDashboard(activeStoreData.analyse);
-    }
-};
-
+// --- FONCTION DE RENDU DES TRANSACTIONS CORRIGÉE ---
 function renderTransactionsTable(logs) {
-    if(!logs.length) return '<p>Aucune donnée.</p>';
-    return `<table style="width:100%; border-collapse:collapse; font-size:12px;">
-        <thead><tr style="background:#eee; text-align:left;"><th>Date</th><th>Action</th><th>Produit</th><th>Qté</th></tr></thead>
-        <tbody>${logs.map(l => `
-            <tr style="border-bottom:1px solid #eee;">
-                <td style="padding:8px;">${new Date(l.date).toLocaleDateString()}</td>
-                <td>${l.action}</td>
-                <td>${l.produit}</td>
-                <td>${l.quantite}</td>
-            </tr>`).join('')}
-        </tbody></table>`;
+    if (!logs || logs.length === 0) return '<p style="text-align:center; padding:20px;">Aucune transaction détaillée trouvée.</p>';
+    
+    return `
+    <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <thead>
+            <tr style="background:#f8f9fa; text-align:left; border-bottom:2px solid #dee2e6;">
+                <th style="padding:10px;">Date</th>
+                <th style="padding:10px;">Action</th>
+                <th style="padding:10px;">Produit</th>
+                <th style="padding:10px; text-align:right;">Qté</th>
+            </tr>
+        </thead>
+        <tbody>
+            ${logs.map(l => {
+                // Gestion des noms de propriétés flexibles (mapping)
+                const date = l.date || l.date_creation || l.created_at;
+                const action = l.action || `Admission #${l.id}`;
+                const produit = l.produit || l.nom_produit || l.description || 'Non spécifié';
+                const qte = l.quantite || l.quantite_totale || l.quantite_brute || 0;
+                
+                return `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px;">${date ? new Date(date).toLocaleDateString('fr-FR') : '--'}</td>
+                    <td style="padding:10px; font-weight:500;">${action}</td>
+                    <td style="padding:10px;">${produit}</td>
+                    <td style="padding:10px; text-align:right; font-weight:bold;">${Math.round(qte).toLocaleString('fr-FR')}</td>
+                </tr>`;
+            }).join('')}
+        </tbody>
+    </table>`;
 }
 
 function renderHealthDashboard(analyse) {
