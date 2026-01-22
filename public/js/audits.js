@@ -221,13 +221,9 @@ async function ouvrirDetailMagasin(magasinId, nomMagasin) {
 
         // Sécurité supplémentaire : si l'API renvoie tous les logs, on filtre ici
         if (Array.isArray(logs)) {
-    // Filtrage tolérant : accepte plusieurs noms de champs possibles
     logs = logs.filter(l => {
-        const idCandidates = [l.magasin_id, l.magasinId, l.magasin, l.store_id, l.storeId, l.magasin_id_str];
-        const nameCandidates = [l.nom_magasin, l.magasin_nom, l.store_name, l.nom];
-        const matchesId = idCandidates.some(v => v !== undefined && String(v) === String(magasinId));
-        const matchesName = nameCandidates.some(v => v !== undefined && String(v) === String(nomMagasin));
-        return matchesId || matchesName;
+        // Comparer directement la clé "magasin" renvoyée par l'API
+        return String(l.magasin) === String(nomMagasin);
     });
 }
 
