@@ -1,11 +1,4 @@
-<!DOCTYPE html>
-
-<html>
-<head>
-  <meta http-equiv="CONTENT-TYPE" content="text/html; charset=UTF-8">
-  <title>Hello, World!</title>
-</head>
-<script>/**
+/**
  * audit.js - Module d'Audit & Performance NBFO
  * Version unifiée : Performance, Logs et Drill-down (Détail Magasin)
  */
@@ -186,6 +179,3 @@ async function checkPendingValidations() {
 async function approveTransfer(id) { /* ... logique API existante ... */ }
 async function rejectTransfer(id) { /* ... logique API existante ... */ }
     
-</script>
-</body>
-</html>
