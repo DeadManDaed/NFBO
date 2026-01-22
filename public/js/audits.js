@@ -317,12 +317,6 @@ function switchTab(tab) {
     const content = document.getElementById('store-tab-content');
     if (!content) return;
 
-    // Si activeStoreData absent, afficher message diagnostic
-    if (typeof activeStoreData === 'undefined' || activeStoreData === null) {
-        content.innerHTML = `<p style="text-align:center; padding:20px; color:orange;">Données non chargées. Réessayez.</p>`;
-        return;
-    }
-
     // Reset styles
     document.querySelectorAll('#modal-detail-store .tab-btn').forEach(btn => {
         btn.style.background = '';
@@ -330,7 +324,6 @@ function switchTab(tab) {
         btn.style.fontWeight = 'normal';
     });
 
-    // Activer le bouton
     const activeBtn = document.getElementById(`btn-${tab}`);
     if (activeBtn) {
         activeBtn.style.background = '#1565c0';
@@ -338,19 +331,79 @@ function switchTab(tab) {
         activeBtn.style.fontWeight = 'bold';
     }
 
-    // Afficher contenu
     if (tab === 'transactions') {
-        // Diagnostic rapide : afficher nombre de logs trouvés
-        const count = Array.isArray(activeStoreData.logs) ? activeStoreData.logs.length : 0;
-        if (count === 0) {
-            content.innerHTML = `<p style="text-align:center; padding:20px; color:#999;">Aucune transaction détaillée trouvée (logs: 0). Vérifie le mapping des champs côté API.</p>`;
-        } else {
-            content.innerHTML = renderTransactionsTable(activeStoreData.logs);
-        }
+        const logs = activeStoreData.logs || [];
+        content.innerHTML = renderTransactionsTable(logs);
     } else if (tab === 'health') {
         const analyse = activeStoreData.analyse || { rupture: [], peremption: [], stars: [] };
         content.innerHTML = renderHealthDashboard(analyse);
+    } else if (tab === 'charts') {
+        content.innerHTML = renderChartsUI();   // <-- Ajout du nouvel onglet
     } else {
         content.innerHTML = `<p style="text-align:center; padding:20px;">Onglet inconnu.</p>`;
     }
+}
+
+function renderSelectedChart() {
+    const type = document.getElementById('chart-type').value;
+    const ctx = document.getElementById('chart-canvas').getContext('2d');
+
+    if (window.currentChart) {
+        window.currentChart.destroy();
+    }
+
+    if (type === 'ranking') {
+        // Exemple : classement par profit
+        const data = performanceData.map(p => ({ magasin: p.nom_magasin, profit: p.profit_virtuel_genere }));
+        window.currentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.magasin),
+                datasets: [{
+                    label: 'Profit virtuel (FCFA)',
+                    data: data.map(d => d.profit),
+                    backgroundColor: '#1565c0'
+                }]
+            }
+        });
+    } else if (type === 'flux') {
+        // Admissions vs retraits (exemple simplifié)
+        const admissions = performanceData.map(p => p.nombre_admissions);
+        const retraits = activeStoreData.logs ? activeStoreData.logs.length : 0;
+        window.currentChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Admissions', 'Retraits'],
+                datasets: [{
+                    label: 'Flux',
+                    data: [admissions.reduce((a,b)=>a+b,0), retraits],
+                    backgroundColor: ['#4caf50','#d32f2f']
+                }]
+            }
+        });
+    } else if (type === 'historique') {
+        // Historique financier (exemple simplifié)
+        const dates = activeStoreData.logs.map(l => new Date(l.date).toLocaleDateString('fr-FR'));
+        const montants = activeStoreData.logs.map(l => parseFloat(l.montant));
+        window.currentChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Montants',
+                    data: montants,
+                    borderColor: '#1565c0',
+                    fill: false
+                }]
+            }
+        });
+    }
+}
+
+function printChart() {
+    const canvas = document.getElementById('chart-canvas');
+    const win = window.open();
+    win.document.write('<img src="' + canvas.toDataURL() + '"/>');
+    win.print();
+    win.close();
 }
