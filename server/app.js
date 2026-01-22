@@ -169,31 +169,46 @@ app.get('/api/magasins/:id/transferts', async (req, res) => {
 });
 
 // GET /api/magasins/:id/stocks
-app.get('/api/magasins/:id/stocks', async (req, res) => {
+
+ app.get('/api/magasins/:id/stocks', async (req, res) => {
     const { id } = req.params;
     
     try {
         const result = await pool.query(`
             SELECT 
-                s.id,
-                l.description as nom,
-                s.stock_actuel,
-                l.prix_ref,
-                l.categorie,
-                s.date_expiration,
-                s.seuil_alerte
-            FROM stocks s
-            LEFT JOIN lots l ON s.lot_id = l.id
-            WHERE s.magasin_id = $1
-            ORDER BY s.stock_actuel DESC
+                lot_id,
+                magasin_id,
+                description as nom,
+                prix_ref,
+                unites_admises,
+                categorie,
+                unite,
+                stock_actuel,
+                derniere_reception as date_derniere_entree
+            FROM stocks
+            WHERE magasin_id = $1
+            ORDER BY stock_actuel DESC
         `, [id]);
         
-        res.json(result.rows);
+        // Parser les JSONB si nécessaire
+        const stocks = result.rows.map(s => {
+            if (typeof s.unites_admises === 'string') {
+                try {
+                    s.unites_admises = JSON.parse(s.unites_admises);
+                } catch (e) {
+                    s.unites_admises = [];
+                }
+            }
+            return s;
+        });
+        
+        res.json(stocks);
     } catch (err) {
         console.error('❌ Erreur /api/magasins/:id/stocks:', err.message);
         res.status(500).json({ error: err.message });
     }
-});
+}); 
+
 // 6. GESTION DES ERREURS
 
 app.use((req, res) => {
