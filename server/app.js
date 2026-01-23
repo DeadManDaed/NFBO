@@ -96,7 +96,7 @@ app.get('/api/magasins/:id/admissions', async (req, res) => {
             FROM admissions a
             LEFT JOIN lots l ON a.lot_id = l.id
             WHERE a.magasin_id = $1::integer -- Conversion nécessaire pour l'ID magasin
-            ORDER BY a.date_creation DESC
+            ORDER BY a.date_reception DESC
             LIMIT 100
         `, [id]);
         res.json(result.rows);
