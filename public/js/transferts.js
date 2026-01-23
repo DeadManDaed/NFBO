@@ -156,90 +156,76 @@
   // ============================================
   // FONCTION : Soumission du formulaire
   // ============================================
-  async function handleTransferSubmit(e) {
+
+async function handleTransferSubmit(e) {
     e.preventDefault();
 
-    const get = id => document.getElementById(id) && document.getElementById(id).value;
+    const get = id => document.getElementById(id)?.value;
 
     const magasinSourceId = parseInt(get('trans-magasin-source')) || null;
     const lotId = parseInt(get('trans-lot')) || null;
     const quantite = parseFloat(get('trans-qty')) || 0;
     const unite = get('trans-unite') || '';
     const destMagasinId = parseInt(get('trans-dest')) || null;
-    const chauffeurId = get('trans-driver') || '';
+    const chauffeurId = get('trans-driver') || ''; // C'est maintenant un VARCHAR (ex: EMP-001)
     const note = get('trans-note') || '';
 
-    // Validation
-    if (!magasinSourceId) {
-      alert('Veuillez sélectionner un magasin source');
-      return;
-    }
-    if (!lotId) {
-      alert('Veuillez sélectionner un lot');
-      return;
-    }
-    if (!destMagasinId) {
-      alert('Veuillez sélectionner un magasin destinataire');
-      return;
-    }
-    if (magasinSourceId === destMagasinId) {
-      alert('Le magasin source et destinataire doivent être différents');
-      return;
-    }
-    if (!chauffeurId) {
-      alert('Veuillez sélectionner un chauffeur');
-      return;
+    // Validations
+    if (!magasinSourceId || !lotId || !destMagasinId || !chauffeurId || quantite <= 0) {
+        alert('Veuillez remplir tous les champs obligatoires (Source, Destination, Lot, Quantité et Chauffeur)');
+        return;
     }
 
-    // Récupérer prix_ref et info chauffeur
+    if (magasinSourceId === destMagasinId) {
+        alert('Le magasin source et destinataire doivent être différents');
+        return;
+    }
+
+    // Récupération du prix pour la valeur du transfert
     const lotOpt = document.getElementById('trans-lot')?.selectedOptions?.[0];
     const prix_ref = lotOpt ? parseFloat(lotOpt.getAttribute('data-prix') || 0) : 0;
 
-    const chauffeurOpt = document.getElementById('trans-driver')?.selectedOptions?.[0];
-    const chauffeurNom = chauffeurOpt ? chauffeurOpt.textContent : chauffeurId;
-
+    // Construction du corps pour la table 'transferts'
     const body = {
-      lot_id: lotId,
-      quantite,
-      unite,
-      type_retrait: 'magasin',
-      destination_magasin_id: destMagasinId,
-      prix_ref,
-      utilisateur: (window.CURRENT_USER || localStorage.getItem('username') || 'unknown'),
-      magasin_id: magasinSourceId,
-      motif: `Transfert vers magasin ${destMagasinId}. Chauffeur: ${chauffeurNom} (ID: ${chauffeurId}). ${note}`
+        lot_id: lotId,
+        magasin_id: magasinSourceId, // magasin_depart
+        destination_magasin_id: destMagasinId, // magasin_destination
+        chauffeur_id: chauffeurId, // Correspond au VARCHAR(50) de la table employers
+        quantite: quantite,
+        unite: unite,
+        prix_ref: prix_ref,
+        utilisateur: (localStorage.getItem('username') || 'anonyme'),
+        motif: note
     };
 
-    console.log('Envoi transfert:', body);
+    console.log('🚀 Envoi du transfert vers le backend:', body);
 
     try {
-      const response = await fetch(`${API_BASE}/retraits`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+        const response = await fetch(`${API_BASE}/transferts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
 
-      if (!response.ok) {
-        let errText = await response.text().catch(() => null);
-        let errObj;
-        try { errObj = errText ? JSON.parse(errText) : null; } catch (e) { errObj = null; }
-        console.error('Erreur transfert (HTTP ' + response.status + '):', errObj || errText);
-        const userMsg = (errObj && (errObj.error || errObj.message)) || errText || `Erreur HTTP ${response.status}`;
-        alert('Erreur lors du transfert : ' + userMsg);
-        return;
-      }
+        const result = await response.json();
 
-      alert('Transfert enregistré ✔️');
-      e.target.reset();
-      document.getElementById('trans-lot').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
-      document.getElementById('trans-unite').innerHTML = '<option value="">-- --</option>';
-      document.getElementById('trans-driver').innerHTML = '<option value="">-- Choisir d\'abord un magasin source --</option>';
+        if (!response.ok) {
+            throw new Error(result.error || 'Erreur lors de l\'enregistrement du transfert');
+        }
+
+        alert(`✔️ Transfert #${result.transfert_id} enregistré et en transit !`);
+        
+        // Réinitialisation
+        e.target.reset();
+        // Optionnel : rafraîchir le stock affiché si nécessaire
+        if (typeof loadLotsForTransfer === 'function') loadLotsForTransfer();
 
     } catch (err) {
-      console.error('Erreur submit transfert:', err);
-      alert('Erreur réseau lors du transfert : ' + (err.message || err));
+        console.error('❌ Erreur submit transfert:', err);
+        alert('Erreur : ' + err.message);
     }
-  }
+}
+
 
   // ============================================
   // INITIALISATION AU CHARGEMENT
