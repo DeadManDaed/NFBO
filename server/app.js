@@ -90,7 +90,7 @@ app.get('/api/magasins/:id/admissions', async (req, res) => {
             SELECT 
                 a.id,
                 a.date_reception as date_operation,
-                a.quantite_brute as quantite,
+                a.quantite as quantite,
                 l.description as produit,
                 a.utilisateur as operateur -- VARCHAR : OK
             FROM admissions a
