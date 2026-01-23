@@ -89,7 +89,7 @@ app.get('/api/magasins/:id/admissions', async (req, res) => {
         const result = await pool.query(`
             SELECT 
                 a.id,
-                a.date_creation as date_operation,
+                a.date_reception as date_operation,
                 a.quantite_brute as quantite,
                 l.description as produit,
                 a.utilisateur as operateur -- VARCHAR : OK
@@ -113,14 +113,14 @@ app.get('/api/magasins/:id/retraits', async (req, res) => {
         const result = await pool.query(`
             SELECT 
                 r.id,
-                r.date_operation,
+                r.date_sortie,
                 r.quantite,
                 l.description as produit,
                 r.utilisateur as operateur -- VARCHAR : OK
             FROM retraits r
             LEFT JOIN lots l ON r.lot_id = l.id
             WHERE r.magasin_id = $1::integer
-            ORDER BY r.date_operation DESC
+            ORDER BY r.date_sortie DESC
             LIMIT 100
         `, [id]);
         res.json(result.rows);
