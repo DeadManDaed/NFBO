@@ -84,90 +84,82 @@ app.get('/', (req, res) => {
 
 // GET /api/magasins/:id/admissions
 app.get('/api/magasins/:id/admissions', async (req, res) => {
-    const { id } = req.params;
-    
     try {
+        const { id } = req.params;
         const result = await pool.query(`
             SELECT 
                 a.id,
                 a.date_creation as date_operation,
                 a.quantite_brute as quantite,
                 l.description as produit,
-                u.username as operateur
+                a.utilisateur as operateur -- VARCHAR : OK
             FROM admissions a
             LEFT JOIN lots l ON a.lot_id = l.id
-            LEFT JOIN users u ON a.user_id = u.id
-            WHERE a.magasin_id = $1
+            WHERE a.magasin_id = $1::integer -- Conversion nécessaire pour l'ID magasin
             ORDER BY a.date_creation DESC
             LIMIT 100
         `, [id]);
-        
         res.json(result.rows);
     } catch (err) {
-        console.error('❌ Erreur /api/magasins/:id/admissions:', err.message);
+        console.error('❌ Erreur admissions:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
 // GET /api/magasins/:id/retraits
 app.get('/api/magasins/:id/retraits', async (req, res) => {
-    const { id } = req.params;
-    
     try {
+        const { id } = req.params;
         const result = await pool.query(`
             SELECT 
                 r.id,
                 r.date_operation,
                 r.quantite,
                 l.description as produit,
-                u.username as operateur
+                r.utilisateur as operateur -- VARCHAR : OK
             FROM retraits r
             LEFT JOIN lots l ON r.lot_id = l.id
-            LEFT JOIN users u ON r.user_id = u.id
-            WHERE r.magasin_id = $1
+            WHERE r.magasin_id = $1::integer
             ORDER BY r.date_operation DESC
             LIMIT 100
         `, [id]);
-        
         res.json(result.rows);
     } catch (err) {
-        console.error('❌ Erreur /api/magasins/:id/retraits:', err.message);
+        console.error('❌ Erreur retraits:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
 // GET /api/magasins/:id/transferts
 app.get('/api/magasins/:id/transferts', async (req, res) => {
-    const { id } = req.params;
-    
     try {
+        const { id } = req.params;
         const result = await pool.query(`
             SELECT 
                 t.id,
                 t.date_creation as date_operation,
                 t.quantite,
                 l.description as produit,
-                u.username as operateur,
+                t.utilisateur as operateur, -- VARCHAR : OK
                 CASE 
-                    WHEN t.magasin_depart = $1 THEN 'Envoyé vers ' || m2.nom
-                    ELSE 'Reçu de ' || m1.nom
+                    WHEN t.magasin_depart = $1::integer THEN 'Envoyé vers ' || COALESCE(m2.nom, 'Inconnu')
+                    ELSE 'Reçu de ' || COALESCE(m1.nom, 'Inconnu')
                 END as details
             FROM transferts t
             LEFT JOIN lots l ON t.lot_id = l.id
-            LEFT JOIN users u ON t.user_id = u.id
             LEFT JOIN magasins m1 ON t.magasin_depart = m1.id
             LEFT JOIN magasins m2 ON t.magasin_destination = m2.id
-            WHERE t.magasin_depart = $1 OR t.magasin_destination = $1
+            WHERE t.magasin_depart = $1::integer OR t.magasin_destination = $1::integer
             ORDER BY t.date_creation DESC
             LIMIT 100
         `, [id]);
-        
         res.json(result.rows);
     } catch (err) {
-        console.error('❌ Erreur /api/magasins/:id/transferts:', err.message);
+        console.error('❌ Erreur transferts:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
+
 
 // GET /api/magasins/:id/stocks
 
