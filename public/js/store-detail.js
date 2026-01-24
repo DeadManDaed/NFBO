@@ -106,6 +106,7 @@ async function chargerDonneesMagasin(magasinId) {
     }
 }
 
+/*
 function calculerStats() {
     const totalAdmissions = storeData.transactions.filter(t => t.type === 'admission').length;
     const totalRetraits = storeData.transactions.filter(t => t.type === 'retrait').length;
@@ -124,6 +125,44 @@ function calculerStats() {
         scoreGlobal: storeData.analyse.score_sante || 100
     };
 }
+*/
+function calculerStats() {
+    // 1. Calculs
+    const totalAdmissions = storeData.transactions.filter(t => t.type === 'admission').length;
+    const totalRetraits = storeData.transactions.filter(t => t.type === 'retrait').length;
+    const totalTransferts = storeData.transactions.filter(t => t.type === 'transfert').length;
+
+    const valeurStock = storeData.stocks.reduce((sum, s) => {
+        return sum + (parseFloat(s.stock_actuel || 0) * parseFloat(s.prix_ref || 0));
+    }, 0);
+
+    storeData.stats = {
+        totalAdmissions,
+        totalRetraits,
+        totalTransferts,
+        valeurStock,
+        produitsEnStock: storeData.stocks.filter(s => parseFloat(s.stock_actuel) > 0).length,
+        scoreGlobal: storeData.analyse?.score_sante || 100
+    };
+
+    // 2. MISE À JOUR VISUELLE (Le correctif est ici)
+    const setTxt = (id, val) => { const el = document.getElementById(id); if(el) el.innerText = val; };
+    
+    setTxt('stat-valeur', Math.round(valeurStock).toLocaleString('fr-FR') + ' FCFA');
+    setTxt('stat-produits', storeData.stats.produitsEnStock);
+    setTxt('stat-operations', storeData.transactions.length); // Total filtré par période si nécessaire
+    setTxt('stat-score', storeData.stats.scoreGlobal + '/100');
+    
+    // Badge rouge sur l'onglet Alertes
+    const nbAlertes = (storeData.analyse.peremption?.length||0) + (storeData.analyse.rupture?.length||0);
+    const badge = document.getElementById('badge-alertes');
+    if(badge) {
+        badge.style.display = nbAlertes > 0 ? 'inline-block' : 'none';
+        badge.innerText = nbAlertes;
+    }
+}
+
+
 
 // ========================================
 // 3. GESTION DES ONGLETS
