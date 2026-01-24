@@ -194,10 +194,22 @@ function switchStoreTab(tab) {
         case 'alertes':
             content.innerHTML = renderAlertes();
             break;
-        case 'performances':
+        /*case 'performances':
             content.innerHTML = renderPerformances();
             initPerformanceChart();
-            break;
+            break;*/
+    case 'performances':
+        // CORRECTIF : On recalcule l'intelligence sur la période active seulement
+        const transactionsFiltrees = filtrerParPeriode(storeData.transactions);
+        storeData.analyse = window.StockIntelligence.analyserInventaire(storeData.stocks, transactionsFiltrees);
+        
+        // Mise à jour du score dans le header suite au nouveau calcul
+        calculerStats(); 
+        
+        content.innerHTML = renderPerformances();
+        setTimeout(initPerformanceChart, 50); // Petit délai pour que le canvas existe
+        break;
+
         case 'stocks':
             content.innerHTML = renderStocks();
             break;
