@@ -88,14 +88,30 @@
             });
         }
 
-        // 3. Analyse "Stars" & "Dormants"
+
+
+       /* // 3. Analyse "Stars" & "Dormants"
         const sorties = mouvements
             .filter(m => 
                 m.lot_id === p.lot_id && 
                 m.type === 'retrait' && 
                 m.magasin_id === p.magasin_id
             )
+            .reduce((acc, m) => acc + parseFloat(m.quantite || 0), 0);*/
+
+
+        // 3. Analyse "Stars" & "Dormants"
+        const sorties = mouvements
+            .filter(m => {
+                // CORRECTIF : Comparaison plus souple (ID OU Nom)
+                const memeProduit = (m.lot_id && m.lot_id === p.lot_id) || 
+                                    (m.description && p.nom && m.description === p.nom);
+                
+                return memeProduit && 
+                       (m.type === 'retrait' || m.type === 'transfert');
+            })
             .reduce((acc, m) => acc + parseFloat(m.quantite || 0), 0);
+
 
         if (sorties > (stock * 0.5) && stock > 0) {
             rapport.stars.push({ 
