@@ -418,6 +418,9 @@
         <button class="admin-nav-btn" onclick="loadAdminSection('producteurs')"><i class="fa-solid fa-wheat-awn"></i> Producteurs</button>
         <button class="admin-nav-btn" onclick="loadAdminSection('lots')"><i class="fa-solid fa-tags"></i> Référentiel Lots</button>
         <button class="admin-nav-btn" onclick="loadAdminSection('validations')"><i class="fa-solid fa-tags"></i> Validations</button>
+<button class="admin-nav-btn" onclick="loadAdminSection('caisse')">
+    <i class="fa-solid fa-cash-register"></i> Caisse & Paiements
+</button>
 
         <hr style="width:100%; border:0; border-top:1px solid #ddd;">
         <button class="btn-back" onclick="closeModule()">← Quitter</button>
@@ -430,6 +433,71 @@
         </div>
         <div id="admin-table-wrapper" class="table-container">
             </div>
+<div id="section-admin-caisse" class="admin-panel" style="display:none;">
+    <h3 style="color: #2e7d32; border-bottom: 2px solid #2e7d32; padding-bottom: 10px;">
+        <i class="fa-solid fa-wallet"></i> Décaissement & Gestion des Soldes
+    </h3>
+
+    <div style="display:grid; grid-template-columns: 1fr 1.5fr; gap:25px; margin-top:20px;">
+        
+        <div style="background:white; padding:20px; border-radius:8px; border:1px solid #ddd; height:fit-content;">
+            <h4 style="margin-top:0; color:#555;">Nouveau Paiement</h4>
+            
+            <form id="admin-caisse-form">
+                <label style="font-size:13px; font-weight:bold; color:#666;">Bénéficiaire (Producteur)</label>
+                <select id="admin-caisse-select" required onchange="updateAdminCaisseSolde()" 
+                        style="width:100%; padding:10px; margin:8px 0 15px 0; border:1px solid #ccc; border-radius:4px;">
+                    <option value="">-- Choisir un producteur --</option>
+                    </select>
+
+                <div style="background:#f1f8e9; border:1px solid #c5e1a5; padding:15px; border-radius:6px; text-align:center; margin-bottom:15px;">
+                    <div style="font-size:12px; text-transform:uppercase; color:#558b2f;">Solde Disponible</div>
+                    <div id="admin-caisse-solde-display" style="font-size:22px; font-weight:bold; color:#2e7d32;">0 FCFA</div>
+                </div>
+
+                <label style="font-size:13px; font-weight:bold; color:#666;">Montant à verser</label>
+                <input type="number" id="admin-caisse-montant" required min="1" step="50" 
+                       style="width:100%; padding:10px; margin:8px 0 15px 0; border:1px solid #ccc; border-radius:4px;">
+
+                <label style="font-size:13px; font-weight:bold; color:#666;">Mode de paiement</label>
+                <select id="admin-caisse-mode" style="width:100%; padding:10px; margin:8px 0 15px 0; border:1px solid #ccc; border-radius:4px;">
+                    <option value="especes">Espèces (Cash)</option>
+                    <option value="mobile_money">Mobile Money</option>
+                    <option value="virement">Virement Bancaire</option>
+                </select>
+
+                <button type="submit" class="btn" style="width:100%; background:#2e7d32; color:white; padding:12px; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">
+                    <i class="fa-solid fa-check"></i> VALIDER LE PAIEMENT
+                </button>
+            </form>
+        </div>
+
+        <div style="background:white; padding:20px; border-radius:8px; border:1px solid #ddd;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+                <h4 style="margin:0; color:#555;">Historique des Sorties de Caisse</h4>
+                <button onclick="loadAdminCaisseHistory()" style="background:none; border:none; cursor:pointer; color:#1565c0; font-size:12px;">
+                    <i class="fa-solid fa-rotate"></i> Actualiser
+                </button>
+            </div>
+            
+            <div style="overflow-x:auto;">
+                <table class="admin-table" style="width:100%; font-size:13px;">
+                    <thead style="background:#f9f9f9;">
+                        <tr>
+                            <th style="padding:8px;">Date</th>
+                            <th style="padding:8px;">Producteur</th>
+                            <th style="padding:8px;">Montant</th>
+                            <th style="padding:8px;">Caissier</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-caisse-history-body">
+                        </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
         <div id="section-admin-local" class="admin-panel" style="display:none; margin-top: 20px;">
     <h3 style="color: #37474f;"><i class="fa-solid fa-user-shield"></i> Approbations Locales en Attente</h3>
     <div id="local-transfer-list" class="grid-container">
