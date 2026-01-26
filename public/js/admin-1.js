@@ -95,10 +95,19 @@ async function refreshAdminTable() {
         const res = await fetch(endpoint);
         if (!res.ok) throw new Error(`Erreur HTTP ${res.status}`);
         
-        const data = await res.json();
+    /*    const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Format de données invalide');
         
+        renderAdminTable(data); */
+        const data = await res.json();
+        if (!Array.isArray(data)) throw new Error('Format de données invalide');
+
+        // SAUVEGARDE GLOBALE pour le filtrage
+        window.currentAdminData = data; 
+        
+        // On affiche
         renderAdminTable(data);
+
     } catch (err) {
         console.error('Erreur refreshAdminTable:', err);
         wrapper.innerHTML = `
@@ -114,6 +123,50 @@ async function refreshAdminTable() {
     }
 }
 
+function execFilterProducteurs() {
+    if (!window.currentAdminData) return;
+
+    const search = document.getElementById('prod-search').value.toLowerCase();
+    const soldeCritere = document.getElementById('prod-filter-solde').value;
+    const sortCritere = document.getElementById('prod-sort').value;
+
+    let filtered = window.currentAdminData.filter(p => {
+        // Recherche Nom / Matricule / Tel
+        const matchSearch = (p.nom_producteur || '').toLowerCase().includes(search) || 
+                            (p.matricule || '').toLowerCase().includes(search) ||
+                            (p.tel_producteur || '').includes(search);
+
+        // Filtre Solde
+        const s = parseFloat(p.solde || 0);
+        let matchSolde = true;
+        if (soldeCritere === 'positif') matchSolde = s > 0;
+        if (soldeCritere === 'important') matchSolde = s >= 100000;
+        if (soldeCritere === 'zero') matchSolde = s === 0;
+
+        return matchSearch && matchSolde;
+    });
+
+    // Tri
+    filtered.sort((a, b) => {
+        if (sortCritere === 'solde_desc') return parseFloat(b.solde) - parseFloat(a.solde);
+        if (sortCritere === 'recent') return b.id - a.id; // Basé sur l'ID séquentiel
+        return (a.nom_producteur || '').localeCompare(b.nom_producteur);
+    });
+
+    // On relance le rendu avec les données filtrées
+    // /!\ Attention : il faut empêcher la barre de filtre de se ré-injecter à l'infini
+    // On peut passer un flag ou simplement vider le wrapper avant
+    renderAdminTable(filtered);
+    
+    // Petit hack pour remettre le focus dans l'input après le refresh du HTML
+    const input = document.getElementById('prod-search');
+    if(input) {
+        input.focus();
+        input.setSelectionRange(search.length, search.length);
+    }
+}
+
+
 // 4. RENDU DU TABLEAU (Version Intelligente)
 function renderAdminTable(data) {
     const wrapper = document.getElementById('admin-table-wrapper');
@@ -123,6 +176,37 @@ function renderAdminTable(data) {
         return;
     }
 
+    // --- NOUVEAU : INJECTION DES FILTRES ---
+    let filterHtml = "";
+    if (currentSection === 'producteurs') {
+        filterHtml = `
+        <div class="admin-filter-bar" style="display:flex; gap:10px; margin-bottom:15px; background:#f4f7f6; padding:10px; border-radius:8px;">
+            <input type="text" id="prod-search" placeholder="Rechercher nom, matricule..." 
+                style="flex:2; padding:8px; border:1px solid #ddd; border-radius:4px;"
+                oninput="execFilterProducteurs()">
+            
+            <select id="prod-filter-solde" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;" onchange="execFilterProducteurs()">
+                <option value="all">Tous les soldes</option>
+                <option value="positif">Soldes > 0 FCFA</option>
+                <option value="important">Gros soldes (> 100k)</option>
+                <option value="zero">Soldes nuls</option>
+            </select>
+
+            <select id="prod-sort" style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px;" onchange="execFilterProducteurs()">
+                <option value="nom">Trier par Nom</option>
+                <option value="solde_desc">Plus gros soldes</option>
+                <option value="recent">Plus récents</option>
+            </select>
+        </div>`;
+    }
+    // ---------------------------------------
+
+    if(!data || data.length === 0) {
+        // On garde les filtres même si la liste est vide après filtrage
+        wrapper.innerHTML = filterHtml + "<div style='padding:40px; text-align:center; color:#888;'><i class='fa-solid fa-inbox fa-2x'></i><br>Aucune donnée disponible.</div>";
+        return;
+    }
+ 
     // A. DÉFINITION DES COLONNES PAR SECTION
     // Cela permet de ne pas afficher les mots de passe ou les ID techniques
     const columnsConfig = {
