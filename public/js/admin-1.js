@@ -23,6 +23,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // 3. NAVIGATION ET CHARGEMENT DES DONNÉES
 // On s'assure que la fonction est globale
+
+/*
+
 window.loadAdminSection = async function(section, event) {
     currentSection = section; // Utilise la variable déjà définie dans votre code
     
@@ -48,6 +51,91 @@ window.loadAdminSection = async function(section, event) {
     // Appel de votre fonction de rafraîchissement déjà existante
     await refreshAdminTable();
 };
+
+
+*/
+
+window.loadAdminSection = async function(section, event) {
+    console.log(`Chargement de la section Admin : ${section}`);
+
+    // 1. GESTION VISUELLE DU MENU (Mise en surbrillance du bouton actif)
+    document.querySelectorAll('.admin-nav-btn').forEach(btn => btn.classList.remove('active'));
+    // On cherche le bouton qui contient l'appel à cette section pour l'activer
+    const activeBtn = Array.from(document.querySelectorAll('.admin-nav-btn'))
+                           .find(b => b.getAttribute('onclick') && b.getAttribute('onclick').includes(section));
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // 2. MASQUER TOUS LES PANNEAUX PAR DÉFAUT
+    // Le tableau standard (utilisé pour Magasins, Users, etc.)
+    const tableWrapper = document.getElementById('admin-table-wrapper');
+    if (tableWrapper) tableWrapper.style.display = 'none';
+
+    // Le panneau des validations (transferts)
+    const localSection = document.getElementById('section-admin-local');
+    if (localSection) localSection.style.display = 'none';
+
+    // Le nouveau panneau Caisse
+    const caisseSection = document.getElementById('section-admin-caisse');
+    if (caisseSection) caisseSection.style.display = 'none';
+
+    // 3. GESTION DU HEADER (Titre et Bouton Ajouter)
+    const titleEl = document.getElementById('admin-title');
+    const btnAdd = document.getElementById('btn-add-admin');
+    
+    // Par défaut, on affiche le bouton "Ajouter" (on le cachera au besoin dans le switch)
+    if (btnAdd) btnAdd.style.display = 'inline-block';
+
+    // 4. LOGIQUE SPÉCIFIQUE (SWITCH)
+    switch (section) {
+        case 'magasins':
+            if (titleEl) titleEl.textContent = 'Gestion des Magasins';
+            if (tableWrapper) tableWrapper.style.display = 'block';
+            if (typeof loadMagasins === 'function') loadMagasins();
+            break;
+
+        case 'users':
+            if (titleEl) titleEl.textContent = 'Utilisateurs Système';
+            if (tableWrapper) tableWrapper.style.display = 'block';
+            if (typeof loadUsers === 'function') loadUsers();
+            break;
+
+        case 'employers':
+            if (titleEl) titleEl.textContent = 'Employés & Staff';
+            if (tableWrapper) tableWrapper.style.display = 'block';
+            if (typeof loadEmployers === 'function') loadEmployers();
+            break;
+
+        case 'producteurs':
+            if (titleEl) titleEl.textContent = 'Producteurs';
+            if (tableWrapper) tableWrapper.style.display = 'block';
+            if (typeof loadProducteurs === 'function') loadProducteurs();
+            break;
+
+        case 'lots':
+            if (titleEl) titleEl.textContent = 'Référentiel des Lots';
+            if (tableWrapper) tableWrapper.style.display = 'block';
+            if (typeof loadLots === 'function') loadLots();
+            break;
+
+        case 'validations':
+            if (titleEl) titleEl.textContent = 'Validations & Transferts';
+            if (localSection) localSection.style.display = 'block'; // Panneau spécial
+            if (btnAdd) btnAdd.style.display = 'none'; // Pas de bouton "Ajouter" ici
+            if (typeof loadValidations === 'function') loadValidations(); // Ta fonction existante
+            break;
+
+        case 'caisse':
+            if (titleEl) titleEl.textContent = 'Caisse Centrale & Paiements';
+            if (caisseSection) caisseSection.style.display = 'block'; // Panneau spécial Caisse
+            if (btnAdd) btnAdd.style.display = 'none'; // Pas de bouton "Ajouter" ici (le formulaire est intégré)
+            if (typeof initAdminCaisse === 'function') initAdminCaisse(); // La nouvelle fonction JS de caisse
+            break;
+
+        default:
+            console.warn("Section admin inconnue :", section);
+    }
+}
+
 
 async function refreshAdminTable() {
     const wrapper = document.getElementById('admin-table-wrapper');
