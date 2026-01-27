@@ -919,3 +919,132 @@ async function deleteItem(section, id) {
         console.error("Erreur delete:", error);
     }
 }
+/* ==========================================
+   GESTION MODULE CAISSE (Admin)
+   ========================================== */
+
+async function initAdminCaisse() {
+    console.log("💰 Chargement du module Caisse Admin...");
+    await loadAdminCaisseProducers();
+    await loadAdminCaisseHistory();
+}
+
+// 1. Charger la liste des producteurs avec leur solde
+async function loadAdminCaisseProducers() {
+    const select = document.getElementById('admin-caisse-select');
+    try {
+        const response = await fetch('/api/producteurs'); // Assure-toi que cette route renvoie bien le champ 'solde'
+        const producteurs = await response.json();
+
+        select.innerHTML = '<option value="">-- Choisir un producteur --</option>';
+        producteurs.forEach(p => {
+            // On stocke le solde dans un attribut data-solde pour accès rapide sans refaire de requête
+            select.innerHTML += `<option value="${p.id}" data-solde="${p.solde}">
+                ${p.nom_producteur} (${p.matricule})
+            </option>`;
+        });
+    } catch (error) {
+        console.error("Erreur chargement producteurs:", error);
+    }
+}
+
+// 2. Mettre à jour l'affichage du solde à la sélection
+window.updateAdminCaisseSolde = function() { // Attaché à window pour être accessible depuis le HTML
+    const select = document.getElementById('admin-caisse-select');
+    const display = document.getElementById('admin-caisse-solde-display');
+    
+    if (select.selectedIndex > 0) {
+        const option = select.options[select.selectedIndex];
+        const solde = parseFloat(option.getAttribute('data-solde') || 0);
+        
+        display.innerText = solde.toLocaleString('fr-FR') + ' FCFA';
+        
+        // Couleur visuelle : Vert si positif, Rouge si 0 ou négatif (bug)
+        display.style.color = solde > 0 ? '#2e7d32' : '#d32f2f';
+    } else {
+        display.innerText = '0 FCFA';
+    }
+};
+
+// 3. Soumission du Paiement
+document.getElementById('admin-caisse-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const producteurId = document.getElementById('admin-caisse-select').value;
+    const montant = parseFloat(document.getElementById('admin-caisse-montant').value);
+    const mode = document.getElementById('admin-caisse-mode').value;
+    const user = AppUser.get(); // Ton utilitaire d'auth
+
+    // Petite sécurité JS avant l'envoi
+    const select = document.getElementById('admin-caisse-select');
+    const soldeActuel = parseFloat(select.options[select.selectedIndex].getAttribute('data-solde'));
+
+    if (montant > soldeActuel) {
+        alert(`❌ Impossible : Le montant (${montant}) dépasse le solde disponible (${soldeActuel}).`);
+        return;
+    }
+
+    if (!confirm(`Confirmez-vous le paiement de ${montant.toLocaleString()} FCFA à ce producteur ?`)) return;
+
+    try {
+        const response = await fetch('/api/operations_caisse', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                producteur_id: producteurId,
+                montant: montant,
+                type_operation: 'debit', // Important pour ton trigger SQL
+                description: `Paiement Admin via ${mode}`,
+                utilisateur: user.username,
+                caisse_id: 1
+            })
+        });
+
+        if (response.ok) {
+            alert("✅ Paiement effectué avec succès !");
+            // Reset form
+            document.getElementById('admin-caisse-form').reset();
+            document.getElementById('admin-caisse-solde-display').innerText = "0 FCFA";
+            // Recharger les données pour mettre à jour les soldes et l'historique
+            initAdminCaisse();
+        } else {
+            const err = await response.json();
+            alert("Erreur : " + err.message);
+        }
+    } catch (error) {
+        console.error(error);
+        alert("Erreur de connexion serveur.");
+    }
+});
+
+// 4. Historique des transactions
+async function loadAdminCaisseHistory() {
+    const tbody = document.getElementById('admin-caisse-history-body');
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Chargement...</td></tr>';
+
+    try {
+        // On suppose une API qui renvoie les dernières opérations de type 'debit'/'retrait'
+        const response = await fetch('/api/operations_caisse?type=debit&limit=10'); 
+        const logs = await response.json();
+
+        tbody.innerHTML = '';
+        if(logs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color:#999;">Aucune transaction récente.</td></tr>';
+            return;
+        }
+
+        logs.forEach(log => {
+            tbody.innerHTML += `
+                <tr style="border-bottom:1px solid #eee;">
+                    <td style="padding:10px;">${new Date(log.date_operation).toLocaleDateString()} ${new Date(log.date_operation).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</td>
+                    <td style="padding:10px;"><strong>${log.producteur_nom || 'Producteur #' + log.producteur_id}</strong></td>
+                    <td style="padding:10px; color:#d32f2f; font-weight:bold;">-${parseFloat(log.montant).toLocaleString()}</td>
+                    <td style="padding:10px; color:#666; font-size:11px;">${log.utilisateur}</td>
+                </tr>
+            `;
+        });
+    } catch (error) {
+        tbody.innerHTML = '<tr><td colspan="4" style="color:red;">Erreur chargement historique.</td></tr>';
+    }
+}
+
