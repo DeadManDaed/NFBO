@@ -1,0 +1,191 @@
+import { useState } from 'react';
+import { useLots } from '../hooks/useLots';
+import { useAlert } from '../hooks/useAlert';
+import Alert from '../components/Alert';
+
+const DEFAULT_CRITERIA = {
+  frais: ["Fraîcheur", "Calibre minimum", "Absence de pesticides", "Présentation propre"],
+  court: ["Date récente", "Durée ≤ 7 jours", "Chaîne de froid", "Emballage adapté"],
+  secs: ["Humidité ≤ 12%", "Absence de moisissures", "Uniformité du tri", "Odeur normale"],
+  manualim: ["Conformité hygiène", "Date fabrication & péremption", "Emballage conforme", "Certification interne"],
+  nonalim: ["Finition correcte", "Solidité", "Esthétique", "Traçabilité"],
+  sensible: ["Stockage contrôlé", "Traçabilité stricte", "Emballage sécurisé", "Autorisation réglementaire"]
+};
+
+export default function DefinitionLots() {
+  const { lots, createLot } = useLots();
+  const { alert, showAlert, hideAlert } = useAlert();
+  
+  const [formData, setFormData] = useState({
+    categorie: '',
+    description: '',
+    prix_ref: '',
+    unites_admises: [],
+  });
+  
+  const [criteria, setCriteria] = useState([]);
+
+  const handleCategoryChange = (e) => {
+    const cat = e.target.value;
+    setFormData({ ...formData, categorie: cat });
+    setCriteria(DEFAULT_CRITERIA[cat] || []);
+  };
+
+  const handleUnitChange = (e) => {
+    const options = Array.from(e.target.selectedOptions, option => option.value);
+    setFormData({ ...formData, unites_admises: options });
+  };
+
+  const addCriteria = () => {
+    const newCritere = prompt("Entrez un nouveau critère d'admission :");
+    if (newCritere && newCritere.trim()) {
+      setCriteria([...criteria, newCritere.trim()]);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    try {
+      await createLot({
+        ...formData,
+        prix_ref: parseFloat(formData.prix_ref),
+        criteres_admission: criteria,
+        stock_disponible: 0
+      });
+      
+      showAlert('Lot créé avec succès ✅', 'success');
+      
+      // Reset form
+      setFormData({ categorie: '', description: '', prix_ref: '', unites_admises: [] });
+      setCriteria([]);
+    } catch (error) {
+      showAlert('Erreur lors de la création du lot ❌', 'error');
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-6">
+      <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
+      
+      <div className="border-b-2 border-primary pb-3 mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Définition des lots</h2>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">
+              Catégorie *
+            </label>
+            <select
+              required
+              value={formData.categorie}
+              onChange={handleCategoryChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            >
+              <option value="">Sélectionner</option>
+              <option value="frais">Produits frais</option>
+              <option value="court">Cycle court</option>
+              <option value="secs">Produits secs</option>
+              <option value="manualim">Manufacturés alimentaires</option>
+              <option value="nonalim">Manufacturés non alimentaires</option>
+              <option value="sensible">Produits sensibles</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">
+              Description *
+            </label>
+            <input
+              type="text"
+              required
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">
+              Prix de référence *
+            </label>
+            <input
+              type="number"
+              required
+              min="0"
+              step="0.01"
+              value={formData.prix_ref}
+              onChange={(e) => setFormData({ ...formData, prix_ref: e.target.value })}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block font-medium text-gray-700 mb-2">
+              Unités admises *
+            </label>
+            <select
+              multiple
+              required
+              value={formData.unites_admises}
+              onChange={handleUnitChange}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent h-32"
+            >
+              <option value="kg">Kilogrammes</option>
+              <option value="g">Grammes</option>
+              <option value="L">Litres</option>
+              <option value="unite">Unités</option>
+              <option value="sac">Sacs</option>
+              <option value="caisse">Caisses</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block font-medium text-gray-700 mb-2">
+            Critères d'admission
+          </label>
+          <ul className="bg-gray-50 rounded-lg p-4 space-y-2 min-h-[120px]">
+            {criteria.map((c, idx) => (
+              <li key={idx} className="bg-white p-3 rounded-lg border-l-4 border-primary">
+                {c}
+              </li>
+            ))}
+          </ul>
+          {criteria.length > 0 && (
+            <button
+              type="button"
+              onClick={addCriteria}
+              className="mt-3 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
+            >
+              ➕ Nouveau critère
+            </button>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-all font-medium"
+        >
+          Créer le lot
+        </button>
+      </form>
+
+      {/* Liste des lots créés */}
+      <div className="mt-8">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Lots créés</h3>
+        <div className="space-y-2">
+          {lots.slice(0, 5).map(lot => (
+            <div key={lot.id} className="bg-gray-50 p-4 rounded-lg border-l-4 border-primary">
+              <span className="font-medium">{lot.description}</span>
+              <span className="text-gray-600"> ({lot.categorie})</span>
+              <span className="text-primary font-semibold"> - {lot.prix_ref} FCFA</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
