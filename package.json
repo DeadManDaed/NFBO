@@ -1,0 +1,47 @@
+{
+  "name": "gestion-stocks-react",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "cd server && npm run dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server/server.js",
+    "cap:init": "cap init",
+    "cap:add:android": "cap add android",
+    "cap:add:ios": "cap add ios",
+    "cap:sync": "npm run build && cap sync",
+    "cap:open:android": "cap open android",
+    "cap:open:ios": "cap open ios",
+    "cap:run:android": "npm run build && cap sync && cap run android",
+    "cap:build:android": "npm run build && cap sync && cd android && ./gradlew assembleRelease",
+    "cap:build:ios": "npm run build && cap sync && cd ios/App && xcodebuild"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "@capacitor/core": "^5.6.0",
+    "@capacitor/android": "^5.6.0",
+    "@capacitor/ios": "^5.6.0",
+    "@capacitor/splash-screen": "^5.0.7",
+    "@capacitor/status-bar": "^5.0.7",
+    "@capacitor/keyboard": "^5.0.8",
+    "@capacitor/push-notifications": "^5.1.0",
+    "@capacitor/app": "^5.0.7",
+    "@capacitor/network": "^5.0.7",
+    "@capacitor/camera": "^5.0.9",
+    "@capacitor/filesystem": "^5.2.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.8",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "concurrently": "^8.2.2",
+    "@capacitor/cli": "^5.6.0"
+  }
+}
