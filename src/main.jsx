@@ -7,7 +7,7 @@ import './index.css';
 import { initPWA } from './utils/pwa.js';
 
 // Initialiser PWA
-initPWA();
+//initPWA();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
