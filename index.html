@@ -21,6 +21,18 @@
 <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
 <script>eruda.init();</script>
   <body>
+<h1>✅ Vercel fonctionne</h1>
+  <script>
+    fetch('/index.html')
+      .then(r => r.text())
+      .then(html => {
+        document.body.innerHTML += '<h2>Index.html existe :</h2><pre>' + 
+          html.substring(0, 500) + '</pre>';
+      })
+      .catch(e => {
+        document.body.innerHTML += '<h2>Erreur : ' + e.message + '</h2>';
+      });
+  </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
