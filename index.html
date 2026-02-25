@@ -4,36 +4,26 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
+
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
     <meta name="theme-color" content="#667eea" />
     <meta name="description" content="Système de gestion coopérative agricole NBFO" />
-    
+
     <!-- iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="NBFO" />
     <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-    
+
     <title>NBFO - Gestion Coopérative</title>
   </head>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
   <body>
-<h1>✅ Vercel fonctionne</h1>
-  <script>
-    fetch('/index.html')
-      .then(r => r.text())
-      .then(html => {
-        document.body.innerHTML += '<h2>Index.html existe :</h2><pre>' + 
-          html.substring(0, 500) + '</pre>';
-      })
-      .catch(e => {
-        document.body.innerHTML += '<h2>Erreur : ' + e.message + '</h2>';
-      });
-  </script>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Debug console (temporaire - gardez Eruda pour voir les erreurs) -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
   </body>
 </html>
