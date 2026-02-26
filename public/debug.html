@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Debug NBFO</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: monospace;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h1 { font-size: 32px; margin-bottom: 20px; color: #333; }
+    h2 { font-size: 20px; margin: 30px 0 15px; color: #667eea; }
+    pre {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 6px;
+      overflow: auto;
+      font-size: 13px;
+      border: 1px solid #dee2e6;
+    }
+    button {
+      padding: 12px 24px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 5px;
+    }
+    button:hover { background: #5568d3; }
+    .section {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #dee2e6;
+    }
+    .alert {
+      background: #fff3cd;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 20px 0;
+      border-left: 4px solid #ffc107;
+    }
+    .success {
+      background: #d4edda;
+      border-left-color: #28a745;
+    }
+    .error {
+      background: #f8d7da;
+      border-left-color: #dc3545;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Debug NBFO React</h1>
+
+    <div class="alert" id="mainStatus">
+      <strong>⏳ Vérification en cours...</strong>
+    </div>
+
+    <div class="section">
+      <h2>⚙️ Tests système</h2>
+      <pre id="systemChecks">Chargement...</pre>
+    </div>
+
+    <div class="section">
+      <h2>🌐 Informations navigateur</h2>
+      <pre id="browserInfo">Chargement...</pre>
+    </div>
+
+    <div class="section">
+      <h2>📦 Ressources chargées</h2>
+      <pre id="resources">Chargement...</pre>
+    </div>
+
+    <div class="section">
+      <h2>🚨 Erreurs console</h2>
+      <pre id="errors">Aucune erreur détectée</pre>
+    </div>
+
+    <div class="section">
+      <h2>🎯 Actions</h2>
+      <button onclick="window.location.reload()">🔄 Recharger</button>
+      <button onclick="window.location.href='/'">🏠 Accueil</button>
+      <button onclick="testReactImport()">Test React Import</button>
+      <button onclick="testAPICall()">Test API Call</button>
+      <button onclick="clearConsole()">🧹 Vider console</button>
+    </div>
+  </div>
+
+  <script>
+    const errors = [];
+
+    // Capturer les erreurs
+    window.addEventListener('error', (e) => {
+      errors.push({
+        type: 'error',
+        message: e.message,
+        file: e.filename,
+        line: e.lineno,
+        col: e.colno,
+      });
+      updateErrors();
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      errors.push({
+        type: 'promise',
+        message: e.reason?.message || e.reason,
+      });
+      updateErrors();
+    });
+
+    function updateErrors() {
+      document.getElementById('errors').textContent = 
+        errors.length > 0 ? JSON.stringify(errors, null, 2) : 'Aucune erreur détectée';
+    }
+
+    // Vérifications système
+    const systemChecks = {
+      react_loaded: typeof window.React !== 'undefined',
+      react_dom_loaded: typeof window.ReactDOM !== 'undefined',
+      root_exists: !!document.getElementById('root'),
+      service_worker: 'serviceWorker' in navigator,
+      local_storage: (() => {
+        try {
+          localStorage.setItem('test', '1');
+          localStorage.removeItem('test');
+          return true;
+        } catch(e) {
+          return false;
+        }
+      })(),
+    };
+
+    document.getElementById('systemChecks').textContent = JSON.stringify(systemChecks, null, 2);
+
+    // Informations navigateur
+    const browserInfo = {
+      userAgent: navigator.userAgent,
+      language: navigator.language,
+      online: navigator.onLine,
+      cookiesEnabled: navigator.cookieEnabled,
+      platform: navigator.platform,
+      url: window.location.href,
+    };
+
+    document.getElementById('browserInfo').textContent = JSON.stringify(browserInfo, null, 2);
+
+    // Ressources chargées
+    setTimeout(() => {
+      const resources = performance.getEntriesByType('resource').map(r => ({
+        name: r.name.split('/').pop(),
+        type: r.initiatorType,
+        duration: Math.round(r.duration) + 'ms',
+      }));
+
+      document.getElementById('resources').textContent = JSON.stringify(resources, null, 2);
+    }, 1000);
+
+    // Statut principal
+    setTimeout(() => {
+      const mainStatus = document.getElementById('mainStatus');
+      
+      if (errors.length > 0) {
+        mainStatus.className = 'alert error';
+        mainStatus.innerHTML = '<strong>❌ Erreurs détectées</strong><p>Consultez la section "Erreurs console" ci-dessous</p>';
+      } else if (!systemChecks.root_exists) {
+        mainStatus.className = 'alert error';
+        mainStatus.innerHTML = '<strong>❌ Element #root manquant</strong><p>Le DOM React ne peut pas se monter</p>';
+      } else {
+        mainStatus.className = 'alert success';
+        mainStatus.innerHTML = '<strong>✅ Système opérationnel</strong><p>Si la page principale est blanche, le problème est dans le code React</p>';
+      }
+    }, 2000);
+
+    // Tests
+    function testReactImport() {
+      fetch('/assets/index-DefE5jiN.js') // Utilisez le vrai nom du fichier
+        .then(r => r.text())
+        .then(code => {
+          alert('✅ Fichier React chargé : ' + code.length + ' caractères');
+        })
+        .catch(e => {
+          alert('❌ Erreur: ' + e.message);
+        });
+    }
+
+    function testAPICall() {
+      const apiUrl = prompt('URL API à tester:', 'https://votre-backend.onrender.com/api/lots');
+      if (!apiUrl) return;
+
+      fetch(apiUrl)
+        .then(r => r.json())
+        .then(data => {
+          alert('✅ API OK : ' + JSON.stringify(data).substring(0, 100));
+        })
+        .catch(e => {
+          alert('❌ Erreur API: ' + e.message);
+        });
+    }
+
+    function clearConsole() {
+      console.clear();
+      errors.length = 0;
+      updateErrors();
+      alert('Console vidée !');
+    }
+  </script>
+</body>
+</html>
