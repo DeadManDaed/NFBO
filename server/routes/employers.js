@@ -1,4 +1,4 @@
-// routes/employers.js
+// server/routes/employers.js
 const express = require('express');
 const router = express.Router();
 const db = require('../db'); // module de connexion PostgreSQL
