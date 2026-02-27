@@ -1,3 +1,5 @@
+//src/pages/Admissions.jsx
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../hooks/useAlert';
