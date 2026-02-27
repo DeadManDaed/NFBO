@@ -215,10 +215,11 @@ class ApiService {
   async logout() {
     return this.request('/auth/logout', { method: 'POST' });
   }
-
+/*+++++++++++TEMPORARILY DISABLED+++++++++((((
   async getCurrentUser() {
     return this.request('/auth/me');
   }
+*/
 }
 
 export default new ApiService();
