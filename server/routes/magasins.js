@@ -1,4 +1,4 @@
-//server/routez/magasins.js
+//server/routes/magasins.js
 
 const express = require('express');
 const router = express.Router();
