@@ -3,22 +3,21 @@
 
 const express = require('express');
 const router = express.Router();
-const pool = require('../db'); // Connexion à la base de données Render
+const pool = require('../db'); // Connexion à la base de données (maintenant Supabase)
 
 /**
- * Cette route répond désormais à : 
- * POST /api/login (car branchée sur /api/login dans app.js)
- * OU POST /api/auth/login
+ * POST /api/auth/login
+ * Login utilisateur
  */
 router.post(['/', '/login'], async (req, res) => {
   console.log('=== Tentative de connexion ===');
-  
+
   const { username, password } = req.body;
-  
+
   if (!username || !password) {
     return res.status(400).json({ message: 'Identifiant et mot de passe requis' });
   }
-  
+
   try {
     // Vérification sécurisée via pgcrypto
     const result = await pool.query(
@@ -29,17 +28,16 @@ router.post(['/', '/login'], async (req, res) => {
          AND statut = 'actif'`,
       [username, password]
     );
-    
+
     if (result.rows.length === 0) {
       console.log(`❌ Échec de connexion pour: ${username}`);
       return res.status(401).json({ message: 'Identifiants incorrects ou compte inactif' });
     }
-    
+
     const user = result.rows[0];
     console.log(`✅ Connexion réussie : ${user.username} (${user.role})`);
-    
-    // IMPORTANT : On renvoie directement l'objet attendu par loginForm.onsubmit
-    // data.user doit exister pour que sessionStorage.setItem('user', ...) fonctionne
+
+    // Retourner l'utilisateur
     res.json({
       user: {
         id: user.id,
@@ -56,6 +54,38 @@ router.post(['/', '/login'], async (req, res) => {
       error: err.message 
     });
   }
+});
+
+/**
+ * ✅ NOUVELLE ROUTE
+ * GET /api/auth/me
+ * Récupérer l'utilisateur connecté
+ */
+router.get('/me', async (req, res) => {
+  try {
+    // TODO: Plus tard, vérifier un JWT token ou une session
+    // Pour l'instant, retourner un utilisateur fictif pour que React fonctionne
+    
+    res.json({
+      id: 1,
+      username: 'admin',
+      role: 'superadmin',
+      magasin_id: 1,
+      nom: 'Administrateur',
+    });
+  } catch (err) {
+    console.error('❌ Erreur /auth/me:', err);
+    res.status(500).json({ error: 'Erreur serveur' });
+  }
+});
+
+/**
+ * POST /api/auth/logout
+ * Déconnexion
+ */
+router.post('/logout', async (req, res) => {
+  // TODO: Supprimer la session ou invalider le token
+  res.json({ message: 'Déconnexion réussie' });
 });
 
 module.exports = router;
