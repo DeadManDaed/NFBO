@@ -1,4 +1,4 @@
-server/routes/messages.js
+//server/routes/messages.js
 
 const express = require('express');
 const router = express.Router();
