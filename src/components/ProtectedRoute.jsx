@@ -1,4 +1,5 @@
-//src/components/ProtectedRoute.jsximport { Navigate } from 'react-router-dom';
+//src/components/ProtectedRoute.jsx
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 export default function ProtectedRoute({ children, roles = [] }) {
