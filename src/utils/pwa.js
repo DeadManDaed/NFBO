@@ -222,14 +222,14 @@ export function initPWA() {
 // src/utils/pwa.js
 
 // Enregistrement et gestion du Service Worker
-export async function registerServiceWorker() {
+/* export async function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/service-worker.js');
       console.log('✅ Service Worker enregistré:', registration.scope);
-
+*/
       // Vérifier les mises à jour
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
@@ -516,7 +516,7 @@ function hideOfflineBanner() {
 // Initialiser toutes les fonctionnalités PWA
 export function initPWA() {
   try {
-    registerServiceWorker();
+   // registerServiceWorker();
     setupInstallPrompt();
     setupOfflineDetection();
     console.log('🚀 PWA initialisée');
