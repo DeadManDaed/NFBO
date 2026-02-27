@@ -1,5 +1,5 @@
 //src/App.jsx
-
+alert('--- Début du bundle main.jsx ---');
 /*import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './hooks/useAuth';
 import { CapacitorProvider } from './components/CapacitorProvider';
@@ -107,5 +107,12 @@ function App() {
     </Router>
   );
 }
-
+alert('--- App rendu ---');
+// Ajout de handlers globaux pour capturer les erreurs
+window.addEventListener('error', e => {
+  alert('Erreur globale: ' + (e.error?.message || e.message));
+});
+window.addEventListener('unhandledrejection', e => {
+  alert('Rejet non géré: ' + e.reason);
+});
 export default App;
