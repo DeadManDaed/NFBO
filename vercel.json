@@ -4,9 +4,9 @@
     { "source": "/api/auth/me",    "destination": "/api/auth/index"    },
     { "source": "/api/auth/logout","destination": "/api/auth/index"},
     { "source": "/api/(.*)",       "destination": "/api/$1"         },
-{ "src": "/api/users(.*)", "dest": "/api/personnel/index.js" },
-{ "src": "/api/employers(.*)", "dest": "/api/personnel/index.js" },
-{ "src": "/api/lots(.*)", "dest": "/api/lots/index.js" },
+{ "source": "/api/users(.*)", "destination": "/api/personnel/index.js" },
+{ "source": "/api/employers(.*)", "destination": "/api/personnel/index.js" },
+{ "source": "/api/lots(.*)", "destination": "/api/lots/index.js" },
     { "source": "/(.*)",           "destination": "/index.html"     }
   ]
 }
