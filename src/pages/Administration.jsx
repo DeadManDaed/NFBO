@@ -973,7 +973,7 @@ export default function Administration() {
               </div>
             </>
           )}
-        </div>
+        
       </div>
     </PageLayout>
   );
