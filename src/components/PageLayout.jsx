@@ -27,7 +27,7 @@ export default function PageLayout({
   children,
   actions,
   showBack = true,
-  backTo = '/dashboard',      // cible du bouton Retour
+  backTo = '/Dashboard',      // cible du bouton Retour
   backLabel = 'Tableau de bord',
   maxWidth = '1200px',
 }) {
