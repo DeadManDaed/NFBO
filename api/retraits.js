@@ -1,8 +1,9 @@
 // api/retraits.js  →  /api/retraits et /api/retraits?id=X
 const pool = require('./_lib/db');
 const { withCors } = require('./_lib/cors');
+const { requireAuth } = require('./_lib/auth');
 
-module.exports = withCors(async (req, res) => {
+module.exports = withCors(requireAuth(async (req, res) => {
   const { id } = req.query;
 
   // GET /api/retraits
@@ -41,6 +42,9 @@ module.exports = withCors(async (req, res) => {
 
   // POST /api/retraits
   if (req.method === 'POST') {
+    if (!['superadmin', 'admin', 'stock'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Accès refusé' });
+    }
     const {
       lot_id, utilisateur, type_retrait, quantite, unite, prix_ref, valeur_totale,
       destination_producteur_id, montant_du, mode_paiement, points_utilises, statut_paiement,
@@ -83,7 +87,7 @@ module.exports = withCors(async (req, res) => {
           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23
         ) RETURNING *`,
         [
-          lot_id, utilisateur || 'system', type_retrait, quantite, unite,
+          lot_id, utilisateur || req.user.username, type_retrait, quantite, unite,
           prixRefFinal, valeur_totale || null,
           destination_producteur_id || null, montant_du || null, mode_paiement || null,
           points_utilises || null, statut_paiement || null, destination_client || null,
@@ -110,6 +114,9 @@ module.exports = withCors(async (req, res) => {
 
   // DELETE /api/retraits?id=X
   if (req.method === 'DELETE' && id) {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Suppression réservée au superadmin' });
+    }
     try {
       const result = await pool.query('DELETE FROM retraits WHERE id=$1 RETURNING *', [id]);
       if (result.rows.length === 0) return res.status(404).json({ error: 'Retrait introuvable' });
