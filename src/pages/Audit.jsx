@@ -1,43 +1,39 @@
-//scr/pages/Audit.jsx
-
+// src/pages/Audit.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../hooks/useAlert';
 import api from '../services/api';
 import Alert from '../components/Alert';
+import PageLayout, { StateLoading, StateEmpty } from '../components/PageLayout';
 
 export default function Audit() {
   const { user } = useAuth();
   const { alert, showAlert, hideAlert } = useAlert();
-  
-  const [transfertsPending, setTransfertsPending] = useState([]);
+
+  const [transfertsPending,   setTransfertsPending]   = useState([]);
   const [transfertsValidated, setTransfertsValidated] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedTransfert, setSelectedTransfert] = useState(null);
+  const [loading,             setLoading]             = useState(false);
+  const [selectedTransfert,   setSelectedTransfert]   = useState(null);
   const [showValidationModal, setShowValidationModal] = useState(false);
-  
+
   const [validationData, setValidationData] = useState({
     quantite_recue: '',
-    etat_produit: 'conforme',
-    observations: '',
+    etat_produit:   'conforme',
+    observations:   '',
   });
 
-  useEffect(() => {
-    loadTransferts();
-  }, []);
+  useEffect(() => { loadTransferts(); }, []);
 
   const loadTransferts = async () => {
     setLoading(true);
     try {
-      const pending = await api.getAuditPending();
-      setTransfertsPending(pending);
-      
-      // Charger aussi les transferts validés récents
+      const pending       = await api.getAuditPending();
       const allTransferts = await api.getRetraits();
-      const validated = allTransferts.filter(
-        t => t.type_retrait === 'magasin' && t.statut_audit === 'valide'
-      );
-      setTransfertsValidated(validated.slice(0, 10));
+      const validated     = allTransferts
+        .filter(t => t.type_retrait === 'magasin' && t.statut_audit === 'valide')
+        .slice(0, 10);
+      setTransfertsPending(pending);
+      setTransfertsValidated(validated);
     } catch (err) {
       showAlert(`❌ Erreur: ${err.message}`, 'error');
     } finally {
@@ -47,25 +43,19 @@ export default function Audit() {
 
   const handleOpenValidation = (transfert) => {
     setSelectedTransfert(transfert);
-    setValidationData({
-      quantite_recue: transfert.quantite,
-      etat_produit: 'conforme',
-      observations: '',
-    });
+    setValidationData({ quantite_recue: transfert.quantite, etat_produit: 'conforme', observations: '' });
     setShowValidationModal(true);
   };
 
   const handleValidate = async (e) => {
     e.preventDefault();
-
     try {
       await api.validateTransfert(selectedTransfert.id, {
         ...validationData,
-        quantite_recue: parseFloat(validationData.quantite_recue),
-        validateur: user?.username || 'unknown',
+        quantite_recue:  parseFloat(validationData.quantite_recue),
+        validateur:      user?.username || 'unknown',
         date_validation: new Date().toISOString(),
       });
-
       showAlert('✅ Transfert validé avec succès', 'success');
       setShowValidationModal(false);
       setSelectedTransfert(null);
@@ -77,15 +67,13 @@ export default function Audit() {
 
   const handleReject = async () => {
     if (!confirm('Êtes-vous sûr de vouloir rejeter ce transfert ?')) return;
-
     try {
       await api.validateTransfert(selectedTransfert.id, {
-        statut_audit: 'rejete',
-        observations: validationData.observations || 'Rejeté par l\'auditeur',
-        validateur: user?.username || 'unknown',
+        statut_audit:    'rejete',
+        observations:    validationData.observations || "Rejeté par l'auditeur",
+        validateur:      user?.username || 'unknown',
         date_validation: new Date().toISOString(),
       });
-
       showAlert('✅ Transfert rejeté', 'success');
       setShowValidationModal(false);
       setSelectedTransfert(null);
@@ -95,116 +83,116 @@ export default function Audit() {
     }
   };
 
+  const setVal = (field) => (e) =>
+    setValidationData(v => ({ ...v, [field]: e.target.value }));
+
+  // ── Calcul taux de validation ──
+  const total      = transfertsPending.length + transfertsValidated.length;
+  const tauxValid  = total > 0 ? Math.round((transfertsValidated.length / total) * 100) : 0;
+
+  // ── Couleur badge état produit ──
+  const etatClass = (etat) =>
+    etat === 'conforme'               ? 'badge badge-success' :
+    etat === 'partiellement_conforme' ? 'badge badge-warning' :
+                                        'badge badge-danger';
+
   return (
-    <div className="space-y-6">
+    <PageLayout
+      title="Audit des transferts"
+      icon="🔍"
+      subtitle="Validation et suivi des mouvements inter-magasins"
+      actions={
+        <button onClick={loadTransferts} className="btn btn-ghost btn-sm">
+          🔄 Actualiser
+        </button>
+      }
+    >
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
 
-      {/* Header */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">🔍 Audit des transferts</h2>
-            <p className="text-gray-600 mt-1">Validation et suivi des mouvements inter-magasins</p>
-          </div>
-          <button
-            onClick={loadTransferts}
-            className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-all"
-          >
-            🔄 Actualiser
-          </button>
-        </div>
-      </div>
-
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-2xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between">
+      {/* ── Statistiques ── */}
+      <div className="grid-3">
+        {/* En attente */}
+        <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <p className="text-yellow-100 text-sm">En attente</p>
-              <p className="text-3xl font-bold mt-2">{transfertsPending.length}</p>
+              <p className="stat-card-label">En attente</p>
+              <p className="stat-card-value">{transfertsPending.length}</p>
             </div>
-            <div className="text-5xl opacity-30">⏳</div>
+            <span style={{ fontSize: 48, opacity: .25 }}>⏳</span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between">
+        {/* Validés */}
+        <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <p className="text-green-100 text-sm">Validés</p>
-              <p className="text-3xl font-bold mt-2">{transfertsValidated.length}</p>
+              <p className="stat-card-label">Validés</p>
+              <p className="stat-card-value">{transfertsValidated.length}</p>
             </div>
-            <div className="text-5xl opacity-30">✓</div>
+            <span style={{ fontSize: 48, opacity: .25 }}>✓</span>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between">
+        {/* Taux */}
+        <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <p className="text-blue-100 text-sm">Taux validation</p>
-              <p className="text-3xl font-bold mt-2">
-                {transfertsPending.length + transfertsValidated.length > 0
-                  ? Math.round((transfertsValidated.length / (transfertsPending.length + transfertsValidated.length)) * 100)
-                  : 0}%
-              </p>
+              <p className="stat-card-label">Taux validation</p>
+              <p className="stat-card-value">{tauxValid}%</p>
             </div>
-            <div className="text-5xl opacity-30">📊</div>
+            <span style={{ fontSize: 48, opacity: .25 }}>📊</span>
           </div>
         </div>
       </div>
 
-      {/* Transferts en attente */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">
-          ⏳ Transferts en attente de validation ({transfertsPending.length})
-        </h3>
+      {/* ── Transferts en attente ── */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">
+            ⏳ En attente de validation
+            <span className="badge badge-warning" style={{ marginLeft: 8 }}>{transfertsPending.length}</span>
+          </h3>
+        </div>
 
         {loading ? (
-          <div className="text-center py-12">
-            <div className="text-5xl mb-4 animate-bounce">⏳</div>
-            <p className="text-gray-600">Chargement...</p>
-          </div>
+          <StateLoading />
         ) : transfertsPending.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="text-5xl mb-4">✅</div>
-            <p className="text-gray-600">Aucun transfert en attente</p>
-          </div>
+          <StateEmpty icon="✅" message="Aucun transfert en attente — tout est à jour !" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
+          <div className="table-responsive">
+            <table className="data-table">
               <thead>
-                <tr className="bg-gray-100">
-                  <th className="p-3 text-left">Date</th>
-                  <th className="p-3 text-left">Lot</th>
-                  <th className="p-3 text-left">Quantité</th>
-                  <th className="p-3 text-left">Source → Destination</th>
-                  <th className="p-3 text-left">Initiateur</th>
-                  <th className="p-3 text-center">Actions</th>
+                <tr>
+                  <th>Date</th>
+                  <th>Lot</th>
+                  <th>Quantité</th>
+                  <th>Source → Destination</th>
+                  <th>Initiateur</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {transfertsPending.map(t => (
-                  <tr key={t.id} className="border-b hover:bg-yellow-50">
-                    <td className="p-3">
-                      {new Date(t.date_retrait || Date.now()).toLocaleDateString()}
-                    </td>
-                    <td className="p-3 font-medium">{t.lot_description || 'N/A'}</td>
-                    <td className="p-3">{t.quantite} {t.unite}</td>
-                    <td className="p-3">
-                      <span className="text-sm">
-                        <span className="font-mono bg-blue-100 px-2 py-1 rounded">
+                  <tr key={t.id}>
+                    <td>{new Date(t.date_retrait || Date.now()).toLocaleDateString('fr-FR')}</td>
+                    <td style={{ fontWeight: 600 }}>{t.lot_description || 'N/A'}</td>
+                    <td>{t.quantite} {t.unite}</td>
+                    <td>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                        <code style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)', padding: '2px 8px', borderRadius: 4 }}>
                           {t.magasin_source_code || '?'}
-                        </span>
-                        <span className="mx-2">→</span>
-                        <span className="font-mono bg-green-100 px-2 py-1 rounded">
+                        </code>
+                        →
+                        <code style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', padding: '2px 8px', borderRadius: 4 }}>
                           {t.magasin_dest_code || '?'}
-                        </span>
+                        </code>
                       </span>
                     </td>
-                    <td className="p-3">{t.utilisateur}</td>
-                    <td className="p-3 text-center">
+                    <td>{t.utilisateur}</td>
+                    <td style={{ textAlign: 'center' }}>
                       <button
                         onClick={() => handleOpenValidation(t)}
-                        className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition-all text-sm font-medium"
+                        className="btn btn-primary btn-sm"
                       >
                         ✓ Valider
                       </button>
@@ -217,113 +205,106 @@ export default function Audit() {
         )}
       </div>
 
-      {/* Transferts validés récents */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">
-          ✅ Transferts validés récents
-        </h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-3 text-left">Date transfert</th>
-                <th className="p-3 text-left">Date validation</th>
-                <th className="p-3 text-left">Lot</th>
-                <th className="p-3 text-left">Qté envoyée</th>
-                <th className="p-3 text-left">Qté reçue</th>
-                <th className="p-3 text-left">État</th>
-                <th className="p-3 text-left">Validateur</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transfertsValidated.map(t => (
-                <tr key={t.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">
-                    {new Date(t.date_retrait || Date.now()).toLocaleDateString()}
-                  </td>
-                  <td className="p-3">
-                    {t.date_validation ? new Date(t.date_validation).toLocaleDateString() : 'N/A'}
-                  </td>
-                  <td className="p-3">{t.lot_description || 'N/A'}</td>
-                  <td className="p-3">{t.quantite} {t.unite}</td>
-                  <td className="p-3">
-                    <span className={t.quantite_recue < t.quantite ? 'text-orange-600 font-semibold' : ''}>
-                      {t.quantite_recue || t.quantite} {t.unite}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      t.etat_produit === 'conforme' ? 'bg-green-100 text-green-800' :
-                      t.etat_produit === 'partiellement_conforme' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-red-100 text-red-800'
-                    }`}>
-                      {t.etat_produit || 'conforme'}
-                    </span>
-                  </td>
-                  <td className="p-3">{t.validateur || 'N/A'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* ── Transferts validés récents ── */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">✅ Transferts validés récents</h3>
         </div>
+
+        {transfertsValidated.length === 0 ? (
+          <StateEmpty message="Aucun transfert validé pour le moment." />
+        ) : (
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date transfert</th>
+                  <th>Date validation</th>
+                  <th>Lot</th>
+                  <th>Qté envoyée</th>
+                  <th>Qté reçue</th>
+                  <th>État</th>
+                  <th>Validateur</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transfertsValidated.map(t => (
+                  <tr key={t.id}>
+                    <td>{new Date(t.date_retrait || Date.now()).toLocaleDateString('fr-FR')}</td>
+                    <td>{t.date_validation ? new Date(t.date_validation).toLocaleDateString('fr-FR') : '—'}</td>
+                    <td style={{ fontWeight: 600 }}>{t.lot_description || '—'}</td>
+                    <td>{t.quantite} {t.unite}</td>
+                    <td style={{ color: t.quantite_recue < t.quantite ? 'var(--color-warning)' : 'inherit', fontWeight: t.quantite_recue < t.quantite ? 700 : 400 }}>
+                      {t.quantite_recue || t.quantite} {t.unite}
+                    </td>
+                    <td>
+                      <span className={etatClass(t.etat_produit)}>
+                        {t.etat_produit || 'conforme'}
+                      </span>
+                    </td>
+                    <td className="text-muted">{t.validateur || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Modal de validation */}
+      {/* ── Modal de validation ── */}
       {showValidationModal && selectedTransfert && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-8">
-            <h3 className="text-2xl font-bold text-gray-800 mb-6">
-              🔍 Validation du transfert
-            </h3>
+        <div className="modal-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowValidationModal(false); }}>
+          <div className="modal">
+            <h3 style={{ marginTop: 0, marginBottom: 20 }}>🔍 Validation du transfert</h3>
 
-            {/* Informations du transfert */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-6">
-              <div className="grid grid-cols-2 gap-4">
+            {/* Récapitulatif */}
+            <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20 }}>
+              <div className="grid-2" style={{ gap: 12 }}>
                 <div>
-                  <p className="text-sm text-gray-600">Lot</p>
-                  <p className="font-semibold">{selectedTransfert.lot_description}</p>
+                  <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Lot</p>
+                  <p style={{ fontWeight: 600, fontSize: 14 }}>{selectedTransfert.lot_description}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Quantité envoyée</p>
-                  <p className="font-semibold">{selectedTransfert.quantite} {selectedTransfert.unite}</p>
+                  <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Quantité envoyée</p>
+                  <p style={{ fontWeight: 600, fontSize: 14 }}>{selectedTransfert.quantite} {selectedTransfert.unite}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Source</p>
-                  <p className="font-semibold">{selectedTransfert.magasin_source_code || 'N/A'}</p>
+                  <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Source</p>
+                  <code style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
+                    {selectedTransfert.magasin_source_code || 'N/A'}
+                  </code>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Destination</p>
-                  <p className="font-semibold">{selectedTransfert.magasin_dest_code || 'N/A'}</p>
+                  <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Destination</p>
+                  <code style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
+                    {selectedTransfert.magasin_dest_code || 'N/A'}
+                  </code>
                 </div>
               </div>
             </div>
 
-            {/* Formulaire de validation */}
-            <form onSubmit={handleValidate} className="space-y-4">
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Quantité réellement reçue *
-                </label>
+            {/* Formulaire */}
+            <form onSubmit={handleValidate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="form-group">
+                <label className="form-label">Quantité réellement reçue *</label>
                 <input
+                  className="form-control"
                   type="number"
                   required
                   min="0"
                   step="0.01"
                   value={validationData.quantite_recue}
-                  onChange={(e) => setValidationData({ ...validationData, quantite_recue: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  onChange={setVal('quantite_recue')}
                 />
               </div>
 
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  État du produit *
-                </label>
+              <div className="form-group">
+                <label className="form-label">État du produit *</label>
                 <select
+                  className="form-control"
                   required
                   value={validationData.etat_produit}
-                  onChange={(e) => setValidationData({ ...validationData, etat_produit: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  onChange={setVal('etat_produit')}
                 >
                   <option value="conforme">✓ Conforme</option>
                   <option value="partiellement_conforme">⚠️ Partiellement conforme</option>
@@ -331,38 +312,25 @@ export default function Audit() {
                 </select>
               </div>
 
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Observations
-                </label>
+              <div className="form-group">
+                <label className="form-label">Observations</label>
                 <textarea
+                  className="form-control"
+                  rows={3}
                   value={validationData.observations}
-                  onChange={(e) => setValidationData({ ...validationData, observations: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  rows="3"
+                  onChange={setVal('observations')}
                   placeholder="Notes sur l'état, la qualité, les anomalies..."
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:shadow-lg transition-all font-medium"
-                >
+              <div style={{ display: 'flex', gap: 10, paddingTop: 8 }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                   ✅ Valider le transfert
                 </button>
-                <button
-                  type="button"
-                  onClick={handleReject}
-                  className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all font-medium"
-                >
+                <button type="button" onClick={handleReject} className="btn btn-danger">
                   ✗ Rejeter
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setShowValidationModal(false)}
-                  className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-all"
-                >
+                <button type="button" onClick={() => setShowValidationModal(false)} className="btn btn-ghost">
                   Annuler
                 </button>
               </div>
@@ -370,6 +338,6 @@ export default function Audit() {
           </div>
         </div>
       )}
-    </div>
+    </PageLayout>
   );
 }

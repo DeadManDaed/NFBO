@@ -1,108 +1,72 @@
-//src/pages/Transferts.jsx
-
+// src/pages/Transferts.jsx
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../hooks/useAlert';
 import api from '../services/api';
 import Alert from '../components/Alert';
+import PageLayout, { StateEmpty } from '../components/PageLayout';
 
 export default function Transferts() {
   const { user, magasinId, isSuperAdmin } = useAuth();
-  const { alert, showAlert, hideAlert } = useAlert();
-  
-  const [showForm, setShowForm] = useState(false);
-  const [magasins, setMagasins] = useState([]);
-  const [stocks, setStocks] = useState([]);
-  const [chauffeurs, setChauffeurs] = useState([]);
-  const [transferts, setTransferts] = useState([]);
-  
+  const { alert, showAlert, hideAlert }   = useAlert();
+
+  const [showForm,          setShowForm]          = useState(false);
+  const [magasins,          setMagasins]          = useState([]);
+  const [stocks,            setStocks]            = useState([]);
+  const [chauffeurs,        setChauffeurs]        = useState([]);
+  const [transferts,        setTransferts]        = useState([]);
+  const [unitesDisponibles, setUnitesDisponibles] = useState([]);
+
   const [formData, setFormData] = useState({
     magasin_source_id: magasinId || '',
-    magasin_dest_id: '',
-    lot_id: '',
-    quantite: '',
-    unite: '',
-    chauffeur_id: '',
-    observations: '',
+    magasin_dest_id:   '',
+    lot_id:            '',
+    quantite:          '',
+    unite:             '',
+    chauffeur_id:      '',
+    observations:      '',
   });
-
-  const [unitesDisponibles, setUnitesDisponibles] = useState([]);
 
   useEffect(() => {
     loadMagasins();
     loadTransferts();
-    
     if (magasinId) {
       loadStocksForMagasin(magasinId);
       loadChauffeurs(magasinId);
     }
   }, [magasinId]);
 
-  const loadMagasins = async () => {
-    try {
-      const data = await api.getMagasins();
-      setMagasins(data);
-    } catch (err) {
-      console.error('Erreur chargement magasins:', err);
-    }
-  };
-
-  const loadStocksForMagasin = async (magId) => {
-    try {
-      const data = await api.getStockDisponible(magId);
-      setStocks(data);
-    } catch (err) {
-      console.error('Erreur chargement stocks:', err);
-    }
-  };
-
-  const loadChauffeurs = async (magSourceId, magDestId = null) => {
-    try {
-      const allChauffeurs = await api.getChauffeurs();
-      
-      // Prioriser les chauffeurs
-      const prioritized = allChauffeurs.map(c => {
-        let priority = 3; // Autres
-        let label = '⚪';
-        
-        if (c.magasin_id === parseInt(magSourceId)) {
-          priority = 1;
-          label = '🟢 Source';
-        } else if (magDestId && c.magasin_id === parseInt(magDestId)) {
-          priority = 2;
-          label = '🔵 Destination';
-        }
-        
-        return { ...c, priority, label };
-      });
-
-      // Trier par priorité
-      prioritized.sort((a, b) => a.priority - b.priority);
-      
-      setChauffeurs(prioritized);
-    } catch (err) {
-      console.error('Erreur chargement chauffeurs:', err);
-    }
-  };
-
-  const loadTransferts = async () => {
+  const loadMagasins      = async () => { try { setMagasins(await api.getMagasins());   } catch {} };
+  const loadTransferts    = async () => {
     try {
       const data = await api.getRetraits();
-      const transfertsOnly = data.filter(r => r.type_retrait === 'magasin');
-      setTransferts(transfertsOnly);
-    } catch (err) {
-      console.error('Erreur chargement transferts:', err);
-    }
+      setTransferts(data.filter(r => r.type_retrait === 'magasin'));
+    } catch {}
+  };
+  const loadStocksForMagasin = async (magId) => {
+    try { setStocks(await api.getStockDisponible(magId)); } catch {}
+  };
+  const loadChauffeurs = async (magSourceId, magDestId = null) => {
+    try {
+      const all = await api.getChauffeurs();
+      const prioritized = all.map(c => {
+        if (c.magasin_id === parseInt(magSourceId)) return { ...c, priority: 1, label: '🟢 Source' };
+        if (magDestId && c.magasin_id === parseInt(magDestId)) return { ...c, priority: 2, label: '🔵 Destination' };
+        return { ...c, priority: 3, label: '⚪' };
+      });
+      prioritized.sort((a, b) => a.priority - b.priority);
+      setChauffeurs(prioritized);
+    } catch {}
   };
 
   const handleMagasinSourceChange = (magId) => {
-    setFormData({ ...formData, magasin_source_id: magId, lot_id: '', quantite: '' });
+    setFormData(f => ({ ...f, magasin_source_id: magId, lot_id: '', quantite: '' }));
     loadStocksForMagasin(magId);
     loadChauffeurs(magId, formData.magasin_dest_id);
   };
 
   const handleMagasinDestChange = (magId) => {
-    setFormData({ ...formData, magasin_dest_id: magId });
+    setFormData(f => ({ ...f, magasin_dest_id: magId }));
     loadChauffeurs(formData.magasin_source_id, magId);
   };
 
@@ -110,276 +74,231 @@ export default function Transferts() {
     const stock = stocks.find(s => s.lot_id === parseInt(lotId));
     if (stock) {
       setUnitesDisponibles(stock.unites_admises || []);
-      setFormData({
-        ...formData,
+      setFormData(f => ({
+        ...f,
         lot_id: lotId,
-        unite: stock.unite || (stock.unites_admises && stock.unites_admises[0]) || '',
-      });
+        unite: stock.unite || stock.unites_admises?.[0] || '',
+      }));
     }
   };
 
+  const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    // Vérifier que source ≠ destination
     if (formData.magasin_source_id === formData.magasin_dest_id) {
       showAlert('❌ Le magasin source et destination ne peuvent pas être identiques', 'error');
       return;
     }
-
     const stock = stocks.find(s => s.lot_id === parseInt(formData.lot_id));
-
-    const transfert = {
-      lot_id: parseInt(formData.lot_id),
-      type_retrait: 'magasin',
-      quantite: parseFloat(formData.quantite),
-      unite: formData.unite,
-      prix_ref: stock?.prix_ref || 0,
-      magasin_id: parseInt(formData.magasin_source_id),
-      destination_magasin_id: parseInt(formData.magasin_dest_id),
-      utilisateur: user?.username || 'unknown',
-      chauffeur_id: formData.chauffeur_id ? parseInt(formData.chauffeur_id) : null,
-      observations: formData.observations || null,
-    };
-
     try {
-      await api.createTransfert(transfert);
-      showAlert('✅ Transfert enregistré avec succès', 'success');
-      
-      setFormData({
-        magasin_source_id: magasinId || '',
-        magasin_dest_id: '',
-        lot_id: '',
-        quantite: '',
-        unite: '',
-        chauffeur_id: '',
-        observations: '',
+      await api.createTransfert({
+        lot_id:                parseInt(formData.lot_id),
+        type_retrait:          'magasin',
+        quantite:              parseFloat(formData.quantite),
+        unite:                 formData.unite,
+        prix_ref:              stock?.prix_ref || 0,
+        magasin_id:            parseInt(formData.magasin_source_id),
+        destination_magasin_id:parseInt(formData.magasin_dest_id),
+        utilisateur:           user?.username || 'unknown',
+        chauffeur_id:          formData.chauffeur_id ? parseInt(formData.chauffeur_id) : null,
+        observations:          formData.observations || null,
       });
+      showAlert('✅ Transfert enregistré avec succès', 'success');
+      setFormData({ magasin_source_id: magasinId || '', magasin_dest_id: '', lot_id: '', quantite: '', unite: '', chauffeur_id: '', observations: '' });
       setUnitesDisponibles([]);
       setShowForm(false);
-      
       loadTransferts();
-      if (magasinId) {
-        loadStocksForMagasin(magasinId);
-      }
+      if (magasinId) loadStocksForMagasin(magasinId);
     } catch (err) {
       showAlert(`❌ Erreur: ${err.message}`, 'error');
     }
   };
 
+  const toggleForm = () => setShowForm(v => !v);
+
   return (
-    <div className="space-y-6">
+    <PageLayout
+      title="Transferts inter-magasins"
+      icon="🔄"
+      subtitle="Gérer les mouvements de stock entre magasins"
+      actions={
+        <button onClick={toggleForm} className={showForm ? 'btn btn-ghost' : 'btn btn-primary'}>
+          {showForm ? '✖ Annuler' : '➕ Nouveau transfert'}
+        </button>
+      }
+    >
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
 
-      {/* Header */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">🔄 Transferts inter-magasins</h2>
-            <p className="text-gray-600 mt-1">Gérer les mouvements de stock entre magasins</p>
-          </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-all font-medium"
-          >
-            {showForm ? '✖ Annuler' : '➕ Nouveau transfert'}
-          </button>
-        </div>
-      </div>
-
-      {/* Formulaire */}
+      {/* ── Formulaire ── */}
       {showForm && (
-        <div className="bg-white rounded-2xl shadow-lg p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="card">
+          <div className="card-header">
+            <h3 className="card-title">Nouveau transfert</h3>
+          </div>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-grid">
               {/* Magasin source */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Magasin source *
-                </label>
+              <div className="form-group">
+                <label className="form-label">Magasin source *</label>
                 <select
+                  className="form-control"
                   required
                   value={formData.magasin_source_id}
-                  onChange={(e) => handleMagasinSourceChange(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  onChange={e => handleMagasinSourceChange(e.target.value)}
                   disabled={!isSuperAdmin}
-                  style={!isSuperAdmin ? { background: '#f0f0f0' } : {}}
+                  style={!isSuperAdmin ? { background: 'var(--color-surface-alt)' } : {}}
                 >
                   <option value="">Sélectionner</option>
-                  {magasins.map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.nom} ({m.code})
-                    </option>
-                  ))}
+                  {magasins.map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
                 </select>
                 {!isSuperAdmin && (
-                  <p className="text-sm text-gray-500 mt-1">🔒 Verrouillé à votre magasin</p>
+                  <p className="text-muted text-xs" style={{ marginTop: 4 }}>🔒 Verrouillé à votre magasin</p>
                 )}
               </div>
 
               {/* Magasin destination */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Magasin destination *
-                </label>
+              <div className="form-group">
+                <label className="form-label">Magasin destination *</label>
                 <select
+                  className="form-control"
                   required
                   value={formData.magasin_dest_id}
-                  onChange={(e) => handleMagasinDestChange(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  onChange={e => handleMagasinDestChange(e.target.value)}
                 >
                   <option value="">Sélectionner</option>
-                  {magasins.filter(m => m.id !== parseInt(formData.magasin_source_id)).map(m => (
-                    <option key={m.id} value={m.id}>
-                      {m.nom} ({m.code})
-                    </option>
-                  ))}
+                  {magasins
+                    .filter(m => m.id !== parseInt(formData.magasin_source_id))
+                    .map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)
+                  }
                 </select>
               </div>
 
               {/* Lot */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Lot à transférer *
-                </label>
+              <div className="form-group">
+                <label className="form-label">Lot à transférer *</label>
                 <select
+                  className="form-control"
                   required
                   value={formData.lot_id}
-                  onChange={(e) => handleLotChange(e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                  onChange={e => handleLotChange(e.target.value)}
                   disabled={!formData.magasin_source_id}
                 >
                   <option value="">Sélectionner un lot</option>
-                  {stocks.map(stock => (
-                    <option key={stock.lot_id} value={stock.lot_id}>
-                      {stock.description} - Stock: {stock.stock_actuel} {stock.unite}
+                  {stocks.map(s => (
+                    <option key={s.lot_id} value={s.lot_id}>
+                      {s.description} — Stock: {s.stock_actuel} {s.unite}
                     </option>
                   ))}
                 </select>
               </div>
 
               {/* Quantité */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Quantité *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="0"
-                  step="0.01"
-                  value={formData.quantite}
-                  onChange={(e) => setFormData({ ...formData, quantite: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
+              <div className="form-group">
+                <label className="form-label">Quantité *</label>
+                <input className="form-control" type="number" required min="0" step="0.01" value={formData.quantite} onChange={set('quantite')} />
               </div>
 
               {/* Unité */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Unité *
-                </label>
-                <select
-                  required
-                  value={formData.unite}
-                  onChange={(e) => setFormData({ ...formData, unite: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  disabled={!unitesDisponibles.length}
-                >
+              <div className="form-group">
+                <label className="form-label">Unité *</label>
+                <select className="form-control" required value={formData.unite} onChange={set('unite')} disabled={!unitesDisponibles.length}>
                   <option value="">Sélectionner</option>
-                  {unitesDisponibles.map(u => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
+                  {unitesDisponibles.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
 
               {/* Chauffeur */}
-              <div>
-                <label className="block font-medium text-gray-700 mb-2">
-                  Chauffeur (optionnel)
-                </label>
-                <select
-                  value={formData.chauffeur_id}
-                  onChange={(e) => setFormData({ ...formData, chauffeur_id: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                >
+              <div className="form-group">
+                <label className="form-label">Chauffeur (optionnel)</label>
+                <select className="form-control" value={formData.chauffeur_id} onChange={set('chauffeur_id')}>
                   <option value="">Sélectionner</option>
                   {chauffeurs.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.label} {c.nom} - {magasins.find(m => m.id === c.magasin_id)?.code || ''}
+                      {c.label} {c.nom} — {magasins.find(m => m.id === c.magasin_id)?.code || ''}
                     </option>
                   ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
-                  🟢 = Magasin source • 🔵 = Magasin destination • ⚪ = Autres
+                <p className="text-muted text-xs" style={{ marginTop: 4 }}>
+                  🟢 = Source · 🔵 = Destination · ⚪ = Autres
                 </p>
-              </div>
-
-              {/* Observations */}
-              <div className="md:col-span-2">
-                <label className="block font-medium text-gray-700 mb-2">
-                  Observations
-                </label>
-                <textarea
-                  value={formData.observations}
-                  onChange={(e) => setFormData({ ...formData, observations: e.target.value })}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                  rows="2"
-                  placeholder="Notes ou remarques sur ce transfert..."
-                />
               </div>
             </div>
 
-            <button
-              type="submit"
-              className="px-8 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-all font-medium"
-            >
-              ✅ Enregistrer le transfert
-            </button>
+            {/* Observations pleine largeur */}
+            <div className="form-group">
+              <label className="form-label">Observations</label>
+              <textarea
+                className="form-control"
+                rows={2}
+                value={formData.observations}
+                onChange={set('observations')}
+                placeholder="Notes ou remarques sur ce transfert..."
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="submit" className="btn btn-primary btn-lg">
+                ✅ Enregistrer le transfert
+              </button>
+            </div>
           </form>
         </div>
       )}
 
-      {/* Liste des transferts */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Historique des transferts</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-3 text-left">Date</th>
-                <th className="p-3 text-left">Lot</th>
-                <th className="p-3 text-left">Quantité</th>
-                <th className="p-3 text-left">Source → Destination</th>
-                <th className="p-3 text-left">Utilisateur</th>
-                <th className="p-3 text-left">Statut</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transferts.slice(0, 15).map(t => (
-                <tr key={t.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3">{new Date(t.date_retrait || Date.now()).toLocaleDateString()}</td>
-                  <td className="p-3">{t.lot_description || 'N/A'}</td>
-                  <td className="p-3">{t.quantite} {t.unite}</td>
-                  <td className="p-3">
-                    <span className="text-sm">
-                      {magasins.find(m => m.id === t.magasin_id)?.code || '?'}
-                      <span className="mx-2">→</span>
-                      {magasins.find(m => m.id === t.destination_magasin_id)?.code || '?'}
-                    </span>
-                  </td>
-                  <td className="p-3">{t.utilisateur}</td>
-                  <td className="p-3">
-                    <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-                      ✓ Transféré
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* ── Historique ── */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Historique des transferts</h3>
+          <span className="badge badge-neutral">{transferts.length} total</span>
         </div>
+
+        {transferts.length === 0 ? (
+          <StateEmpty message="Aucun transfert enregistré." />
+        ) : (
+          <div className="table-responsive">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Lot</th>
+                  <th>Quantité</th>
+                  <th>Source → Destination</th>
+                  <th>Utilisateur</th>
+                  <th>Statut</th>
+                </tr>
+              </thead>
+              <tbody>
+                {transferts.slice(0, 15).map(t => {
+                  const srcCode  = magasins.find(m => m.id === t.magasin_id)?.code || '?';
+                  const destCode = magasins.find(m => m.id === t.destination_magasin_id)?.code || '?';
+                  return (
+                    <tr key={t.id}>
+                      <td>{new Date(t.date_retrait || Date.now()).toLocaleDateString('fr-FR')}</td>
+                      <td style={{ fontWeight: 600 }}>{t.lot_description || '—'}</td>
+                      <td>{t.quantite} {t.unite}</td>
+                      <td>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+                          <code style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)', padding: '2px 8px', borderRadius: 4 }}>
+                            {srcCode}
+                          </code>
+                          →
+                          <code style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', padding: '2px 8px', borderRadius: 4 }}>
+                            {destCode}
+                          </code>
+                        </span>
+                      </td>
+                      <td className="text-muted">{t.utilisateur}</td>
+                      <td><span className="badge badge-success">✓ Transféré</span></td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-    </div>
+    </PageLayout>
   );
 }

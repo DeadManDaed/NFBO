@@ -1,31 +1,32 @@
 // src/pages/Stock.jsx
-// Enrichi avec useStockIntelligence : analyse péremption, rupture, dormants, stars
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useStocks } from '../hooks/useStocks';
 import { useStockIntelligence } from '../hooks/useStockIntelligence';
 import api from '../services/api';
+import PageLayout, { StateLoading, StateEmpty } from '../components/PageLayout';
 
-// ─── Score santé visuel ────────────────────────────────────────────────────────
+// ─── Score santé — anneau SVG ─────────────────────────────────────────────────
 function ScoreSante({ score }) {
-  const color = score >= 80 ? '#2e7d32' : score >= 50 ? '#f57f17' : '#c62828';
+  const color = score >= 80 ? 'var(--color-success)' : score >= 50 ? 'var(--color-warning)' : 'var(--color-danger)';
   const label = score >= 80 ? 'Bon' : score >= 50 ? 'Moyen' : 'Critique';
+  const dash  = `${score} ${100 - score}`;
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6 flex flex-col items-center justify-center">
-      <p className="text-xs font-bold uppercase text-gray-500 mb-2 tracking-wide">Score Santé Stock</p>
-      <div className="relative w-24 h-24">
-        <svg viewBox="0 0 36 36" className="w-24 h-24 -rotate-90">
-          <circle cx="18" cy="18" r="15.9" fill="none" stroke="#eee" strokeWidth="3" />
+    <div className="stat-card" style={{ alignItems: 'center', justifyContent: 'center' }}>
+      <p className="stat-card-label">Score Santé Stock</p>
+      <div style={{ position: 'relative', width: 88, height: 88, margin: '8px 0' }}>
+        <svg viewBox="0 0 36 36" style={{ width: 88, height: 88, transform: 'rotate(-90deg)' }}>
+          <circle cx="18" cy="18" r="15.9" fill="none" stroke="var(--color-border)" strokeWidth="3" />
           <circle cx="18" cy="18" r="15.9" fill="none" stroke={color} strokeWidth="3"
-            strokeDasharray={`${score} ${100 - score}`} strokeLinecap="round" />
+            strokeDasharray={dash} strokeLinecap="round" />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold" style={{ color }}>{score}</span>
-          <span className="text-xs text-gray-500">/100</span>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 20, fontWeight: 800, color }}>{score}</span>
+          <span style={{ fontSize: 10, color: 'var(--color-text-muted)' }}>/100</span>
         </div>
       </div>
-      <span className="mt-2 text-sm font-semibold" style={{ color }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 700, color }}>{label}</span>
     </div>
   );
 }
@@ -33,15 +34,11 @@ function ScoreSante({ score }) {
 // ─── Bandeau alertes intelligence ─────────────────────────────────────────────
 function AlertesBandeau({ alertes }) {
   if (!alertes.length) return null;
-  const styles = {
-    warning: 'bg-yellow-50 border-yellow-400 text-yellow-800',
-    error: 'bg-red-50 border-red-400 text-red-800',
-    info: 'bg-blue-50 border-blue-400 text-blue-800',
-  };
+  const alertClass = { warning: 'alert alert-warning', error: 'alert alert-danger', info: 'alert alert-info' };
   return (
-    <div className="space-y-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       {alertes.map((a, i) => (
-        <div key={i} className={`border-l-4 rounded-lg p-3 text-sm font-medium ${styles[a.type]}`}>
+        <div key={i} className={alertClass[a.type] || 'alert alert-info'}>
           {a.msg}
         </div>
       ))}
@@ -49,42 +46,59 @@ function AlertesBandeau({ alertes }) {
   );
 }
 
-// ─── Panneau dormants / stars ──────────────────────────────────────────────────
+// ─── Panneau intelligence — onglets ───────────────────────────────────────────
 function PanneauIntelligence({ rapport }) {
   const [tab, setTab] = useState('rupture');
 
   const tabs = [
-    { key: 'rupture', label: `📉 Ruptures (${rapport.rupture.length})` },
-    { key: 'peremption', label: `⏰ Péremption (${rapport.peremption.length})` },
-    { key: 'stars', label: `⭐ Stars (${rapport.stars.length})` },
-    { key: 'dormants', label: `💤 Dormants (${rapport.dormants.length})` },
+    { key: 'rupture',   label: `📉 Ruptures (${rapport.rupture.length})` },
+    { key: 'peremption',label: `⏰ Péremption (${rapport.peremption.length})` },
+    { key: 'stars',     label: `⭐ Stars (${rapport.stars.length})` },
+    { key: 'dormants',  label: `💤 Dormants (${rapport.dormants.length})` },
   ];
 
-  const urgenceColor = { CRITIQUE: 'text-red-700 bg-red-100', HAUTE: 'text-orange-700 bg-orange-100', MOYENNE: 'text-yellow-700 bg-yellow-100' };
+  const urgBadge = {
+    CRITIQUE: 'badge badge-danger',
+    HAUTE:    'badge badge-warning',
+    MOYENNE:  'badge badge-neutral',
+  };
+
+  const rowStyle = {
+    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+    padding: '10px 12px', background: 'var(--color-surface-alt)',
+    borderRadius: 'var(--radius-sm)', fontSize: 13,
+  };
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
-      <h3 className="font-bold text-gray-800 mb-4 text-lg">🧠 Analyse intelligente du stock</h3>
+    <div className="card">
+      <div className="card-header">
+        <h3 className="card-title">🧠 Analyse intelligente du stock</h3>
+      </div>
 
-      <div className="flex flex-wrap gap-2 mb-4">
+      {/* Onglets */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
         {tabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t.key ? 'bg-green-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={tab === t.key ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'}
+          >
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="space-y-2 max-h-64 overflow-y-auto">
+      {/* Contenu onglet */}
+      <div style={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
         {tab === 'rupture' && (
           rapport.rupture.length === 0
-            ? <p className="text-gray-400 text-sm text-center py-4">✅ Aucune rupture détectée</p>
+            ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>✅ Aucune rupture détectée</p>
             : rapport.rupture.map((p, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
-                <span className="font-medium">{p.nom}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-500">{p.stock_actuel} {p.unite}</span>
-                  <span className={`px-2 py-0.5 rounded text-xs font-bold ${urgenceColor[p.urgence]}`}>{p.status}</span>
+              <div key={i} style={rowStyle}>
+                <span style={{ fontWeight: 600 }}>{p.nom}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="text-muted text-sm">{p.stock_actuel} {p.unite}</span>
+                  <span className={urgBadge[p.urgence] || 'badge badge-neutral'}>{p.status}</span>
                 </div>
               </div>
             ))
@@ -92,35 +106,35 @@ function PanneauIntelligence({ rapport }) {
 
         {tab === 'peremption' && (
           rapport.peremption.length === 0
-            ? <p className="text-gray-400 text-sm text-center py-4">✅ Aucun lot proche de la péremption</p>
+            ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>✅ Aucun lot proche de la péremption</p>
             : rapport.peremption.map((p, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
-                <span className="font-medium">{p.nom}</span>
-                <span className={`px-2 py-0.5 rounded text-xs font-bold ${urgenceColor[p.urgence]}`}>{p.status}</span>
+              <div key={i} style={rowStyle}>
+                <span style={{ fontWeight: 600 }}>{p.nom}</span>
+                <span className={urgBadge[p.urgence] || 'badge badge-neutral'}>{p.status}</span>
               </div>
             ))
         )}
 
         {tab === 'stars' && (
           rapport.stars.length === 0
-            ? <p className="text-gray-400 text-sm text-center py-4">Aucun produit star identifié</p>
+            ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>Aucun produit star identifié</p>
             : rapport.stars.map((p, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg text-sm">
-                <span className="font-medium">⭐ {p.nom}</span>
-                <span className="text-yellow-700 text-xs font-bold">{p.performance}</span>
+              <div key={i} style={{ ...rowStyle, background: '#fffde7' }}>
+                <span style={{ fontWeight: 600 }}>⭐ {p.nom}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309' }}>{p.performance}</span>
               </div>
             ))
         )}
 
         {tab === 'dormants' && (
           rapport.dormants.length === 0
-            ? <p className="text-gray-400 text-sm text-center py-4">Aucun stock dormant détecté</p>
+            ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>Aucun stock dormant détecté</p>
             : rapport.dormants.map((p, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg text-sm">
-                <span className="font-medium">{p.nom}</span>
-                <div className="text-right">
-                  <div className="text-blue-700 text-xs font-bold">{p.jours_immobilise} jours</div>
-                  <div className="text-gray-500 text-xs">{Number(p.value).toLocaleString()} FCFA</div>
+              <div key={i} style={{ ...rowStyle, background: 'var(--color-info-bg)' }}>
+                <span style={{ fontWeight: 600 }}>{p.nom}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-info)' }}>{p.jours_immobilise} jours</div>
+                  <div className="text-muted text-xs">{Number(p.value).toLocaleString('fr-FR')} FCFA</div>
                 </div>
               </div>
             ))
@@ -132,13 +146,13 @@ function PanneauIntelligence({ rapport }) {
 
 // ─── Page principale ───────────────────────────────────────────────────────────
 export default function Stock() {
-  const { user, magasinId, isSuperAdmin } = useAuth();
-  const [selectedMagasin, setSelectedMagasin] = useState(magasinId || '');
-  const { stocks, loading, refresh } = useStocks(selectedMagasin);
-  const [magasins, setMagasins] = useState([]);
-  const [retraits, setRetraits] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategorie, setFilterCategorie] = useState('');
+  const { magasinId, isSuperAdmin } = useAuth();
+  const [selectedMagasin,  setSelectedMagasin]  = useState(magasinId || '');
+  const { stocks, loading, refresh }            = useStocks(selectedMagasin);
+  const [magasins,         setMagasins]          = useState([]);
+  const [retraits,         setRetraits]          = useState([]);
+  const [searchTerm,       setSearchTerm]        = useState('');
+  const [filterCategorie,  setFilterCategorie]   = useState('');
 
   const { rapport, alertes } = useStockIntelligence(stocks, retraits);
 
@@ -147,59 +161,58 @@ export default function Stock() {
     api.getRetraits().then(setRetraits).catch(() => setRetraits([]));
   }, []);
 
-  const filteredStocks = stocks.filter((s) => {
-    const matchSearch = s.description?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = !filterCategorie || s.categorie === filterCategorie;
-    return matchSearch && matchCat;
-  });
+  const filteredStocks = stocks.filter(s =>
+    (s.description?.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (!filterCategorie || s.categorie === filterCategorie)
+  );
 
-  const totalValeur = filteredStocks.reduce((sum, s) => sum + (parseFloat(s.stock_actuel) * parseFloat(s.prix_ref)), 0);
-  const categories = [...new Set(stocks.map((s) => s.categorie).filter(Boolean))];
+  const totalValeur = filteredStocks.reduce(
+    (sum, s) => sum + parseFloat(s.stock_actuel) * parseFloat(s.prix_ref), 0
+  );
+  const categories = [...new Set(stocks.map(s => s.categorie).filter(Boolean))];
+
+  const seuilCat = { frais: 20, court: 15, secs: 50, manufactures_alim: 30, manufactures_non_alim: 25, sensibles: 10 };
+
+  const actions = (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      {isSuperAdmin && (
+        <select
+          className="form-control"
+          style={{ width: 'auto' }}
+          value={selectedMagasin}
+          onChange={e => setSelectedMagasin(e.target.value)}
+        >
+          <option value="">Tous les magasins</option>
+          {magasins.map(m => <option key={m.id} value={m.id}>{m.nom}</option>)}
+        </select>
+      )}
+      <button onClick={refresh} className="btn btn-ghost btn-sm">🔄 Actualiser</button>
+    </div>
+  );
 
   return (
-    <div className="space-y-6">
-
-      {/* ── Header ── */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-800">📦 Stock disponible</h2>
-            <p className="text-gray-500 text-sm mt-1">Consultation temps réel avec analyse intelligente</p>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            {isSuperAdmin && (
-              <select
-                value={selectedMagasin}
-                onChange={(e) => setSelectedMagasin(e.target.value)}
-                className="p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Tous les magasins</option>
-                {magasins.map((m) => <option key={m.id} value={m.id}>{m.nom}</option>)}
-              </select>
-            )}
-            <button onClick={refresh} className="px-4 py-2.5 bg-green-700 text-white rounded-lg hover:bg-green-800 transition text-sm font-medium">
-              🔄 Actualiser
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Alertes intelligence ── */}
+    <PageLayout
+      title="Stock disponible"
+      icon="📦"
+      subtitle="Consultation temps réel avec analyse intelligente"
+      actions={actions}
+    >
+      {/* ── Alertes ── */}
       {alertes.length > 0 && <AlertesBandeau alertes={alertes} />}
 
-      {/* ── Stats + Score santé ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white">
-          <p className="text-blue-100 text-sm">Lots en stock</p>
-          <p className="text-3xl font-bold mt-1">{filteredStocks.length}</p>
+      {/* ── Stats ── */}
+      <div className="grid-4">
+        <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg,#3b82f6,#2563eb)' }}>
+          <p className="stat-card-label">Lots en stock</p>
+          <p className="stat-card-value">{filteredStocks.length}</p>
         </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl shadow-lg p-6 text-white">
-          <p className="text-green-100 text-sm">Valeur totale</p>
-          <p className="text-2xl font-bold mt-1">{totalValeur.toLocaleString()} FCFA</p>
+        <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
+          <p className="stat-card-label">Valeur totale</p>
+          <p className="stat-card-value" style={{ fontSize: 20 }}>{totalValeur.toLocaleString('fr-FR')} FCFA</p>
         </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-lg p-6 text-white">
-          <p className="text-purple-100 text-sm">Catégories</p>
-          <p className="text-3xl font-bold mt-1">{categories.length}</p>
+        <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg,#a855f7,#7c3aed)' }}>
+          <p className="stat-card-label">Catégories</p>
+          <p className="stat-card-value">{categories.length}</p>
         </div>
         <ScoreSante score={rapport.score_sante} />
       </div>
@@ -208,87 +221,84 @@ export default function Stock() {
       <PanneauIntelligence rapport={rapport} />
 
       {/* ── Filtres ── */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1 text-sm">🔍 Rechercher</label>
-            <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Nom du produit..." className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm" />
+      <div className="card">
+        <div className="form-grid">
+          <div className="form-group">
+            <label className="form-label">🔍 Rechercher</label>
+            <input
+              className="form-control"
+              type="text"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              placeholder="Nom du produit..."
+            />
           </div>
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1 text-sm">🏷️ Catégorie</label>
-            <select value={filterCategorie} onChange={(e) => setFilterCategorie(e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 text-sm">
+          <div className="form-group">
+            <label className="form-label">🏷️ Catégorie</label>
+            <select className="form-control" value={filterCategorie} onChange={e => setFilterCategorie(e.target.value)}>
               <option value="">Toutes</option>
-              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
         </div>
       </div>
 
       {/* ── Tableau ── */}
-      <div className="bg-white rounded-2xl shadow-lg p-6">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">
-          Détail ({filteredStocks.length} produits)
-        </h3>
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Détail du stock</h3>
+          <span className="badge badge-neutral">{filteredStocks.length} produits</span>
+        </div>
 
         {loading ? (
-          <div className="text-center py-12 text-gray-500">
-            <div className="text-5xl mb-4 animate-bounce">📦</div>
-            <p>Chargement...</p>
-          </div>
+          <StateLoading message="Chargement du stock..." />
         ) : filteredStocks.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            <div className="text-5xl mb-4">📭</div>
-            <p>Aucun stock disponible</p>
-          </div>
+          <StateEmpty icon="📭" message="Aucun stock disponible" />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+          <div className="table-responsive">
+            <table className="data-table">
               <thead>
-                <tr className="bg-gray-100">
-                  {['Produit', 'Catégorie', 'Stock', 'Prix unit.', 'Valeur', 'Unités', 'Statut'].map((h) => (
-                    <th key={h} className="p-3 text-left font-semibold text-gray-600">{h}</th>
+                <tr>
+                  {['Produit', 'Catégorie', 'Stock', 'Prix unit.', 'Valeur', 'Unités', 'Statut'].map(h => (
+                    <th key={h}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredStocks.map((stock, i) => {
                   const stockNum = parseFloat(stock.stock_actuel);
-                  const seuilCat = { frais: 20, court: 15, secs: 50, manufactures_alim: 30, manufactures_non_alim: 25, sensibles: 10 };
-                  const seuil = seuilCat[stock.categorie] ?? 10;
+                  const seuil    = seuilCat[stock.categorie] ?? 10;
                   const isEpuise = stockNum <= 0;
                   const isFaible = stockNum > 0 && stockNum <= seuil;
-                  const valeur = stockNum * parseFloat(stock.prix_ref || 0);
+                  const valeur   = stockNum * parseFloat(stock.prix_ref || 0);
 
                   return (
-                    <tr key={i} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium text-gray-800">{stock.description}</td>
-                      <td className="p-3">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">{stock.categorie || '—'}</span>
+                    <tr key={i}>
+                      <td style={{ fontWeight: 600 }}>{stock.description}</td>
+                      <td>
+                        <span className="badge badge-info">{stock.categorie || '—'}</span>
                       </td>
-                      <td className="p-3">
-                        <span className={`font-semibold ${isEpuise ? 'text-red-600' : isFaible ? 'text-orange-600' : 'text-gray-800'}`}>
-                          {stockNum} {stock.unite}
-                        </span>
+                      <td style={{ color: isEpuise ? 'var(--color-danger)' : isFaible ? 'var(--color-warning)' : 'inherit', fontWeight: 600 }}>
+                        {stockNum} {stock.unite}
                       </td>
-                      <td className="p-3 text-gray-700">{Number(stock.prix_ref).toLocaleString()} FCFA</td>
-                      <td className="p-3 font-semibold text-green-700">{valeur.toLocaleString()} FCFA</td>
-                      <td className="p-3">
-                        <div className="flex flex-wrap gap-1">
-                          {(Array.isArray(stock.unites_admises) ? stock.unites_admises : []).map((u) => (
-                            <span key={u} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">{u}</span>
+                      <td>{Number(stock.prix_ref).toLocaleString('fr-FR')} FCFA</td>
+                      <td style={{ fontWeight: 700, color: 'var(--color-success)' }}>
+                        {valeur.toLocaleString('fr-FR')} FCFA
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {(Array.isArray(stock.unites_admises) ? stock.unites_admises : []).map(u => (
+                            <span key={u} className="badge badge-neutral">{u}</span>
                           ))}
                         </div>
                       </td>
-                      <td className="p-3">
-                        {isEpuise ? (
-                          <span className="px-2 py-1 bg-red-100 text-red-800 rounded-full text-xs font-bold">🚫 Épuisé</span>
-                        ) : isFaible ? (
-                          <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-bold">⚠️ Faible</span>
-                        ) : (
-                          <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">✓ OK</span>
-                        )}
+                      <td>
+                        {isEpuise
+                          ? <span className="badge badge-danger">🚫 Épuisé</span>
+                          : isFaible
+                            ? <span className="badge badge-warning">⚠️ Faible</span>
+                            : <span className="badge badge-success">✓ OK</span>
+                        }
                       </td>
                     </tr>
                   );
@@ -298,6 +308,6 @@ export default function Stock() {
           </div>
         )}
       </div>
-    </div>
+    </PageLayout>
   );
 }
