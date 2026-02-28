@@ -1,3 +1,4 @@
+//src/pages/Administration.jsx
 import { useState, useEffect, useCallback } from "react";
 import PageLayout, { StateLoading, StateEmpty } from '../components/PageLayout';
 
