@@ -8,6 +8,16 @@ import { useLots } from '../hooks/useLots';
 import api from '../services/api';
 import Alert from '../components/Alert';
 
+import PageLayout, { StateLoading, StateEmpty } from '../components/PageLayout';
+
+export default function Admissions() {
+  return (
+    <PageLayout
+      title="Réception de Lot"
+      icon="📥"
+      subtitle="Admission avec audit qualité"
+      actions={<button className="btn btn-primary">+ Nouvelle admission</button>}
+    >
 // ─── Critères d'audit qualité par catégorie (portés depuis window.COOP_CRITERIA) ───
 const COOP_CRITERIA = {
   frais: ['Aspect visuel (couleur/forme)', 'Absence de moisissures', 'Odeur', 'Fermeté / Texture', 'Présence de parasites'],
@@ -453,5 +463,8 @@ export default function Admissions() {
         </div>
       </div>
     </div>
+  );
+}
+</PageLayout>
   );
 }
