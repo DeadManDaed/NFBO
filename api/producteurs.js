@@ -1,8 +1,9 @@
 // api/producteurs.js  →  /api/producteurs et /api/producteurs/[id]
 const pool = require('./_lib/db');
 const { withCors } = require('./_lib/cors');
+const { requireAuth } = require('./_lib/auth');
 
-module.exports = withCors(async (req, res) => {
+module.exports = withCors(requireAuth(async (req, res) => {
   const { id } = req.query; // Vercel expose les query params, y compris les segments dynamiques
 
   // GET /api/producteurs
@@ -93,4 +94,4 @@ module.exports = withCors(async (req, res) => {
   }
 
   res.status(405).end();
-});
+}));
