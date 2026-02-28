@@ -1,9 +1,13 @@
 // api/audit.js  →  /api/audit?action=performance-by-store|recent-logs|global-stats
 const pool = require('./_lib/db');
 const { withCors } = require('./_lib/cors');
+const { requireAuth } = require('./_lib/auth');
 
-module.exports = withCors(async (req, res) => {
+module.exports = withCors(requireAuth(async (req, res) => {
   if (req.method !== 'GET') return res.status(405).end();
+  if (!['superadmin', 'auditeur'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Accès réservé aux auditeurs et superadmins' });
+  }
 
   const { action } = req.query;
 
@@ -50,4 +54,4 @@ module.exports = withCors(async (req, res) => {
     console.error('Erreur audit:', err.message);
     return res.status(500).json({ error: 'Erreur serveur', details: err.message });
   }
-});
+}));
