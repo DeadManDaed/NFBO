@@ -126,14 +126,13 @@ function NavButton({ section, currentSection, onClick }) {
   const isActive = currentSection === section;
   return (
     <button
-      onClick={() => onClick(section)}
+      onClick={() => { onClick(section); }}
       className={`sidebar-nav-btn${isActive ? ' active' : ''}`}
     >
       <span>{cfg.icon}</span> {cfg.label}
     </button>
   );
 }
-
 // ─── TABLEAU GÉNÉRIQUE ─────────────────────────────────────────────────────────
 
 function AdminTable({ data, section, onDelete }) {
@@ -812,6 +811,15 @@ export default function Administration() {
   const [status,       setStatus]       = useState("loading");
   const [errorMsg,     setErrorMsg]     = useState("");
   const [showForm,     setShowForm]     = useState(false);
+  const [drawerOpen,   setDrawerOpen]   = useState(false);
+
+  const openDrawer  = () => setDrawerOpen(true);
+  const closeDrawer = () => setDrawerOpen(false);
+
+  const handleNavClick = (sec) => {
+    loadSection(sec);
+    closeDrawer();
+  };
 
   const loadSection = useCallback(async (sec) => {
     setSection(sec);
@@ -853,32 +861,82 @@ export default function Administration() {
   return (
     <PageLayout title="Administration" icon="⚙️" subtitle="Configuration et gestion du système">
 
-      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      {/* ── OVERLAY (ferme le drawer en cliquant à côté) ── */}
+      {drawerOpen && (
+        <div
+          onClick={closeDrawer}
+          style={{
+            position: "fixed", inset: 0, zIndex: 40,
+            background: "rgba(0,0,0,0.45)",
+          }}
+        />
+      )}
 
-        {/* ── Sidebar ── */}
-        <nav style={{ width: 220, flexShrink: 0 }}>
-          <p style={{ fontSize: 11, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, marginBottom: 8 }}>
-            Configuration
-          </p>
-          <div className="sidebar-nav">
-            {navSections.map(s => <NavButton key={s} section={s} currentSection={section} onClick={loadSection} />)}
-          </div>
-        </nav>
+      {/* ── DRAWER SIDEBAR ── */}
+      <nav style={{
+        position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 50,
+        width: 260,
+        background: "var(--color-surface)",
+        boxShadow: "4px 0 20px rgba(0,0,0,0.3)",
+        transform: drawerOpen ? "translateX(0)" : "translateX(-100%)",
+        transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
+        display: "flex", flexDirection: "column",
+        padding: "60px 16px 24px",
+        overflowY: "auto",
+      }}>
+        {/* Bouton fermeture en haut du drawer */}
+        <button
+          onClick={closeDrawer}
+          style={{
+            position: "absolute", top: 16, right: 16,
+            background: "none", border: "none",
+            fontSize: 22, cursor: "pointer",
+            color: "var(--color-text)",
+          }}
+          aria-label="Fermer le menu"
+        >
+          ✕
+        </button>
 
-        {/* ── Contenu ── */}
-        <div style={{ flexGrow: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 11, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, marginBottom: 12 }}>
+          Configuration
+        </p>
+        <div className="sidebar-nav">
+          {navSections.map(s => (
+            <NavButton key={s} section={s} currentSection={section} onClick={handleNavClick} />
+          ))}
+        </div>
+      </nav>
 
-          {/* Header de section */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      {/* ── CONTENU PLEINE LARGEUR ── */}
+      <div style={{ width: "100%", minWidth: 0 }}>
+
+        {/* Header de section : hamburger + titre + bouton Ajouter */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button
+              onClick={openDrawer}
+              style={{
+                background: "none", border: "none",
+                fontSize: 22, cursor: "pointer",
+                color: "var(--color-primary)",
+                padding: "4px 8px",
+                lineHeight: 1,
+              }}
+              aria-label="Ouvrir le menu"
+            >
+              ☰
+            </button>
             <h2 style={{ margin: 0, fontSize: "1.2rem", color: "var(--color-text)" }}>
               {SECTIONS_CONFIG[section]?.icon} {SECTIONS_CONFIG[section]?.label}
             </h2>
-            {needsAddBtn && !showForm && (
-              <button onClick={() => setShowForm(true)} className="btn btn-primary">
-                + Ajouter
-              </button>
-            )}
           </div>
+          {needsAddBtn && !showForm && (
+            <button onClick={() => setShowForm(true)} className="btn btn-primary">
+              + Ajouter
+            </button>
+          )}
+        </div>
 
           {/* Formulaire inline */}
           {showForm && FormComponent && (
