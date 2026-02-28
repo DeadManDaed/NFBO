@@ -1,8 +1,9 @@
 // api/magasins.js  →  /api/magasins et /api/magasins?id=X
 const pool = require('./_lib/db');
 const { withCors } = require('./_lib/cors');
+const { requireAuth } = require('./_lib/auth');
 
-module.exports = withCors(async (req, res) => {
+module.exports = withCors(requireAuth(async (req, res) => {
   const { id } = req.query;
 
   // GET /api/magasins
@@ -22,6 +23,9 @@ module.exports = withCors(async (req, res) => {
 
   // POST /api/magasins
   if (req.method === 'POST') {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Création réservée au superadmin' });
+    }
     const { nom, region_id, code } = req.body;
     try {
       if (region_id) {
@@ -40,6 +44,9 @@ module.exports = withCors(async (req, res) => {
 
   // PUT /api/magasins?id=X
   if (req.method === 'PUT' && id) {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Modification réservée au superadmin' });
+    }
     const { nom, region_id, code } = req.body;
     try {
       if (region_id) {
@@ -59,6 +66,9 @@ module.exports = withCors(async (req, res) => {
 
   // DELETE /api/magasins?id=X
   if (req.method === 'DELETE' && id) {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Suppression réservée au superadmin' });
+    }
     try {
       await pool.query('DELETE FROM magasins WHERE id=$1', [id]);
       return res.json({ message: 'Magasin supprimé (cascade sur admissions, retraits, employés)' });
@@ -68,4 +78,4 @@ module.exports = withCors(async (req, res) => {
   }
 
   res.status(405).end();
-});
+}));
