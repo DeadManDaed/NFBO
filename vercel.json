@@ -4,7 +4,7 @@
     { "source": "/api/auth/me",    "destination": "/api/auth/index"    },
     { "source": "/api/auth/logout","destination": "/api/auth/index"},
     { "source": "/api/(.*)",       "destination": "/api/$1"         },
-    { "source": "/(.*)",           "destination": "/index.html"     }
+    { "source": "/(.*)",           "destination": "/index.html"     },
 { "src": "/api/users(.*)", "dest": "/api/personnel/index.js" },
 { "src": "/api/employers(.*)", "dest": "/api/personnel/index.js" },
 { "src": "/api/lots(.*)", "dest": "/api/lots/index.js" }
