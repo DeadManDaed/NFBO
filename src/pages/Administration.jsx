@@ -57,10 +57,10 @@ const CATEGORIES_MAPPING = {
 
 const SECTIONS_CONFIG = {
   magasins:    { label: "Gestion des Magasins",       icon: "🏪", endpoint: "/api/magasins" },
-  users:       { label: "Utilisateurs Système",        icon: "👥", endpoint: "/api/users" },
-  employers:   { label: "Employés & Staff",            icon: "🪪", endpoint: "/api/employers" },
+  users:       { label: "Utilisateurs Système",        icon: "👥", endpoint: "/api/personnel/index" },
+  employers:   { label: "Employés & Staff",            icon: "🪪", endpoint: "/api/personnel/index" },
   producteurs: { label: "Gestion des Producteurs",     icon: "🌾", endpoint: "/api/producteurs" },
-  lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots" },
+  lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots/index" },
   validations: { label: "Validations & Transferts",    icon: "✅", endpoint: "/api/validations" },
   caisse:      { label: "Caisse Centrale & Paiements", icon: "💰", endpoint: null },
 };
