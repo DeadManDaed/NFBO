@@ -721,7 +721,8 @@ function ModuleCaisse() {
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 20 }}>
+    automatique
+<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 16 }}>
       {/* Panneau paiement */}
       <div className="card">
         <h4 style={{ marginTop: 0, marginBottom: 16, color: "var(--color-text)" }}>Nouveau Paiement</h4>
