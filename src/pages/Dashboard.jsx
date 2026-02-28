@@ -3,22 +3,22 @@ import { useAuth } from '../hooks/useAuth';
 import { useStocks } from '../hooks/useStocks';
 import api from '../services/api';
 
-// ─── Lazy-load des modules (même dossier src/pages) ───────────────────────────
-import Administration from './Administration';
+// ─── Imports des modules — tous présents dans src/pages/ ─────────────────────
+import Administration  from './Administration';
+import Admissions      from './Admissions';
+import Retraits        from './Retraits';
+import Transferts      from './Transferts';
+import Audit           from './Audit';
+import Stock           from './Stock';
+import DefinitionLots  from './DefinitionLots';
 
-// Placeholders pour les modules non encore fournis — remplace par les vrais imports
-const Admissions   = () => <ModulePlaceholder label="Admissions"    icon="📥" color="#16a34a" />;
-const Retraits     = () => <ModulePlaceholder label="Retraits"      icon="📤" color="#ea580c" />;
-const Transferts   = () => <ModulePlaceholder label="Transferts"    icon="🔄" color="#2563eb" />;
-const Audit        = () => <ModulePlaceholder label="Audit"         icon="📊" color="#7c3aed" />;
-const Messagerie   = () => <ModulePlaceholder label="Messagerie"    icon="✉️"  color="#0891b2" />;
-
-function ModulePlaceholder({ label, icon, color }) {
+// Messagerie n'a pas encore son fichier dédié — placeholder léger
+function Messagerie() {
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60vh', gap:16 }}>
-      <div style={{ fontSize:56 }}>{icon}</div>
-      <p style={{ fontFamily:'Sora,sans-serif', fontSize:22, fontWeight:700, color }}>Module {label}</p>
-      <p style={{ fontFamily:'Sora,sans-serif', fontSize:14, color:'#94a3b8' }}>À intégrer</p>
+      <div style={{ fontSize:56 }}>✉️</div>
+      <p style={{ fontFamily:'Sora,sans-serif', fontSize:18, fontWeight:700, color:'#0891b2' }}>Messagerie</p>
+      <p style={{ fontFamily:'Sora,sans-serif', fontSize:13, color:'#94a3b8' }}>Module à venir</p>
     </div>
   );
 }
@@ -29,6 +29,7 @@ const TABS = [
   { id: 'admissions',     label: 'Entrées',   icon: AdmIcon,        roles: ['superadmin','admin','stock','auditeur'] },
   { id: 'retraits',       label: 'Sorties',   icon: RetIcon,        roles: ['superadmin','admin','caisse'] },
   { id: 'transferts',     label: 'Transf.',   icon: TransfIcon,     roles: ['superadmin','admin','stock','auditeur'] },
+  { id: 'stock',          label: 'Stock',     icon: StockIcon,      roles: ['superadmin','admin','stock','auditeur'] },
   { id: 'audit',          label: 'Audit',     icon: AuditIcon,      roles: ['superadmin','admin','auditeur'] },
   { id: 'messagerie',     label: 'Messages',  icon: MsgIcon,        roles: ['all'] },
   { id: 'administration', label: 'Admin',     icon: AdminIcon,      roles: ['superadmin','admin'] },
@@ -38,9 +39,11 @@ const MODULE_MAP = {
   admissions:     Admissions,
   retraits:       Retraits,
   transferts:     Transferts,
+  stock:          Stock,
   audit:          Audit,
   messagerie:     Messagerie,
   administration: Administration,
+  definitionlots: DefinitionLots,
 };
 
 // ─── SVG Icons ────────────────────────────────────────────────────────────────
@@ -48,6 +51,7 @@ function HomeIcon({ active })  { return <svg width="22" height="22" viewBox="0 0
 function AdmIcon({ active })   { return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>; }
 function RetIcon({ active })   { return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>; }
 function TransfIcon({ active }){ return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>; }
+function StockIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>; }
 function AuditIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>; }
 function MsgIcon({ active })   { return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>; }
 function AdminIcon({ active }) { return <svg width="22" height="22" viewBox="0 0 24 24" fill={active?'currentColor':'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 1 0-16 0"/><circle cx="12" cy="8" r="1.5" fill="currentColor"/></svg>; }
@@ -75,6 +79,27 @@ const GLOBAL_CSS = `
   }
 
   html, body, #root { height: 100%; background: var(--bg); font-family: 'Sora', sans-serif; color: var(--text); overscroll-behavior: none; }
+
+  /* ── Neutralise le layout parent (menu hamburger, header App, nav globale) ── */
+  /* Cible les patterns communs de App.jsx / Layout.jsx wrappant les pages       */
+  body > #root > *:not(.nbfo-dashboard),
+  #root > div > header,
+  #root > div > nav:not(.tab-bar),
+  #root > header,
+  #root > nav:not(.tab-bar),
+  .app-header,
+  .app-nav,
+  .app-sidebar,
+  .navbar,
+  .top-bar,
+  .hamburger-menu,
+  [class*="Header"],
+  [class*="Navbar"],
+  [class*="Sidebar"] {
+    display: none !important;
+  }
+  /* S'assure que le wrapper direct du Dashboard prend tout l'espace */
+  #root > * { padding: 0 !important; margin: 0 !important; }
 
   ::-webkit-scrollbar { width: 0; }
 
@@ -573,6 +598,36 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('home');
   const scrollRef = useRef(null);
 
+  // Masque le layout parent (header/nav hamburger de App.jsx) pendant que
+  // Dashboard est monté, et le restaure au démontage.
+  useEffect(() => {
+    // Cherche tous les éléments frères directs du conteneur Dashboard
+    // qui ne font pas partie de notre UI (header, nav, sidebar App)
+    const root = document.getElementById('root');
+    const dashboardEl = scrollRef.current?.closest('[data-dashboard]');
+    const hiddenEls = [];
+
+    if (root) {
+      Array.from(root.children).forEach(child => {
+        // On cache tout sauf le nœud qui contient notre Dashboard
+        if (dashboardEl && child.contains(dashboardEl)) return;
+        if (child.tagName === 'STYLE') return;
+        const prev = child.style.display;
+        child.setAttribute('data-prev-display', prev);
+        child.style.setProperty('display', 'none', 'important');
+        hiddenEls.push(child);
+      });
+    }
+
+    return () => {
+      hiddenEls.forEach(el => {
+        const prev = el.getAttribute('data-prev-display') || '';
+        el.style.display = prev;
+        el.removeAttribute('data-prev-display');
+      });
+    };
+  }, []);
+
   // Filtrer les onglets selon le rôle
   const visibleTabs = TABS.filter(t =>
     t.roles.includes('all') || t.roles.includes(user?.role)
@@ -590,7 +645,7 @@ export default function Dashboard() {
       {/* Injection CSS globale */}
       <style>{GLOBAL_CSS}</style>
 
-      <div ref={scrollRef} className="page-scroll">
+      <div ref={scrollRef} className="page-scroll" data-dashboard="true">
         {isHome ? (
           <HomeScreen
             user={user}
