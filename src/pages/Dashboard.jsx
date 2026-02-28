@@ -1,16 +1,41 @@
 // src/pages/Dashboard.jsx
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useStocks } from '../hooks/useStocks';
 import api from '../services/api';
 
+function Tile({ icon, title, subtitle, value, badge }) {
+  return (
+    <div className="bg-white rounded-2xl shadow p-4 flex items-start gap-3">
+      <div className="flex-none w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center text-2xl">
+        {icon}
+      </div>
+      <div className="flex-1">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-gray-500">{subtitle}</p>
+            <p className="font-semibold text-gray-900 text-lg truncate">{title}</p>
+          </div>
+          {badge !== undefined && (
+            <div className="ml-3">
+              <span className="px-2 py-0.5 bg-gray-100 text-gray-800 rounded-full text-xs font-medium">
+                {badge}
+              </span>
+            </div>
+          )}
+        </div>
+        {value !== undefined && (
+          <p className="mt-3 text-2xl font-bold text-gray-800">{value}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user, magasinId } = useAuth();
-  const { stocks, loading: stocksLoading } = useStocks(magasinId);
-  const [isLoading, setIsLoading] = useState(true);
+  const { stocks } = useStocks(magasinId);
 
-  // 🔒 CONSERVATION DES DONNÉES : Structure d'état originale préservée
   const [stats, setStats] = useState({
     totalAdmissions: 0,
     totalRetraits: 0,
@@ -21,142 +46,284 @@ export default function Dashboard() {
     alertesStock: [],
   });
 
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
   useEffect(() => {
     loadDashboardData();
-  }, [magasinId, stocks]); // Ajout de 'stocks' comme dépendance pour recalculer la valeur si le stock change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [magasinId, (stocks || []).length]);
 
   const loadDashboardData = async () => {
-    setIsLoading(true);
+    setLoading(true);
     try {
       const [admissions, retraits] = await Promise.all([
         api.getAdmissions(),
         api.getRetraits(),
       ]);
 
-      // Filtrage sécurisé selon le magasin
-      const admissionsFiltered = magasinId 
-        ? admissions.filter(a => a.magasin_id === magasinId)
-        : admissions;
+      const admissionsList = admissions || [];
+      const retraitsList = retraits || [];
+
+      const admissionsFiltered = magasinId
+        ? admissionsList.filter(a => a.magasin_id === magasinId)
+        : admissionsList;
 
       const retraitsFiltered = magasinId
-        ? retraits.filter(r => r.magasin_id === magasinId)
-        : retraits;
+        ? retraitsList.filter(r => r.magasin_id === magasinId)
+        : retraitsList;
 
       const transferts = retraitsFiltered.filter(r => r.type_retrait === 'magasin');
 
-      // Calcul précis de la valeur du stock
-      const valeurStock = stocks?.reduce((sum, s) => sum + (s.stock_actuel * s.prix_ref), 0) || 0;
+      const valeurStock = (stocks || []).reduce(
+        (sum, s) => sum + ((s.stock_actuel || 0) * (s.prix_ref || 0)),
+        0
+      );
 
-      // Mise à jour de l'état sans écraser les données non calculées ici
+      const alertesStock = (stocks || []).filter(s => (s.stock_actuel || 0) < 10);
+
       setStats({
         totalAdmissions: admissionsFiltered.length,
         totalRetraits: retraitsFiltered.length,
         totalTransferts: transferts.length,
         valeurStock,
-        admissionsRecentes: admissionsFiltered.slice(0, 5), // Les 5 dernières
+        admissionsRecentes: admissionsFiltered.slice(0, 5),
         retraitsRecents: retraitsFiltered.slice(0, 5),
-        alertesStock: stocks?.filter(s => s.stock_actuel < 10) || [], // Exemple de règle d'alerte
+        alertesStock,
       });
-    } catch (error) {
-      console.error("Erreur lors du chargement des données du dashboard", error);
+    } catch (err) {
+      console.error('Erreur chargement dashboard:', err);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+      setRefreshing(false);
     }
   };
 
-  if (isLoading || stocksLoading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-gray-50">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-green-500 border-t-transparent"></div>
-      </div>
-    );
-  }
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadDashboardData();
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* 1. HEADER (Profil & Salutation) */}
-      <header className="bg-white px-6 pt-12 pb-6 shadow-sm rounded-b-3xl mb-6">
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gray-50 pb-28">
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b z-30">
+        <div className="max-w-xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
-            <p className="text-sm text-gray-500 font-medium">Bonjour,</p>
-            <h1 className="text-2xl font-bold text-gray-800 tracking-tight">
-              {user?.username || 'Utilisateur'}
+            <p className="text-sm text-gray-500">Bienvenue</p>
+            <h1 className="text-lg font-bold text-gray-900 truncate">
+              {user?.nom || user?.username || 'Utilisateur'}
             </h1>
+            <p className="text-xs text-gray-500">
+              {user?.role === 'superadmin' ? "Vue d'ensemble globale" : `Magasin: ${user?.magasin_nom || 'N/A'}`}
+            </p>
           </div>
-          <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-lg shadow-inner">
-            {user?.username?.charAt(0).toUpperCase() || 'U'}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onRefresh}
+              aria-label="Rafraîchir"
+              className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200"
+            >
+              {refreshing ? '⟳' : '⟳'}
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="px-4 space-y-6">
-        
-        {/* 2. CARTE HÉROS : Valeur du Stock (Design Premium) */}
-        <section className="bg-gradient-to-br from-green-600 to-green-800 rounded-3xl p-6 shadow-lg text-white relative overflow-hidden">
-          {/* Cercle décoratif */}
-          <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-10 blur-2xl"></div>
-          
-          <p className="text-green-100 text-sm font-medium mb-1">Valeur Totale du Stock</p>
-          <h2 className="text-4xl font-extrabold tracking-tight mb-4">
-            {stats.valeurStock.toLocaleString('fr-FR')} <span className="text-2xl font-medium text-green-200">FCFA</span>
-          </h2>
-          
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-green-500/30">
-            <div className="text-center">
-              <p className="text-green-200 text-xs uppercase tracking-wider mb-1">Admissions</p>
-              <p className="font-bold text-lg">{stats.totalAdmissions}</p>
-            </div>
-            <div className="text-center border-x border-green-500/30">
-              <p className="text-green-200 text-xs uppercase tracking-wider mb-1">Retraits</p>
-              <p className="font-bold text-lg">{stats.totalRetraits}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-green-200 text-xs uppercase tracking-wider mb-1">Transferts</p>
-              <p className="font-bold text-lg">{stats.totalTransferts}</p>
-            </div>
-          </div>
+      {/* Content */}
+      <main className="max-w-xl mx-auto px-4 pt-28 space-y-4">
+        {/* Tiles grid */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Tile
+            icon="📥"
+            title={`${stats.totalAdmissions}`}
+            subtitle="Total Admissions"
+            value={undefined}
+            badge={`+${stats.admissionsRecentes.length} récentes`}
+          />
+          <Tile
+            icon="📤"
+            title={`${stats.totalRetraits}`}
+            subtitle="Total Retraits"
+            value={undefined}
+            badge={`${stats.retraitsRecents.length} récents`}
+          />
+          <Tile
+            icon="🔄"
+            title={`${stats.totalTransferts}`}
+            subtitle="Transferts inter-magasins"
+            value={undefined}
+            badge="Inter-magasins"
+          />
+          <Tile
+            icon="💰"
+            title={`${stats.valeurStock.toLocaleString()} FCFA`}
+            subtitle="Valeur du stock"
+            value={undefined}
+            badge={`${(stocks || []).length} lots`}
+          />
         </section>
 
-        {/* 3. ACTIONS RAPIDES (Ergonomie tactile) */}
-        <section>
-          <h3 className="text-lg font-bold text-gray-800 mb-4 px-2">⚡ Actions Rapides</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <button className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-gray-100 group">
-              <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center text-2xl mb-3 group-hover:bg-blue-100 transition-colors">
-                📥
+        {/* Alertes */}
+        {stats.alertesStock.length > 0 && (
+          <section>
+            <div className="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">⚠️</div>
+                <div className="flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-yellow-800">Alertes stock faible</h3>
+                    <span className="text-xs text-yellow-700">{stats.alertesStock.length}</span>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    {stats.alertesStock.slice(0, 5).map((s, i) => (
+                      <p key={i} className="text-yellow-800 text-sm">
+                        • <strong>{s.description}</strong> : {s.stock_actuel} {s.unite}
+                      </p>
+                    ))}
+                  </div>
+                </div>
               </div>
-              <span className="text-sm font-semibold text-gray-700">Admission</span>
-            </button>
-            
-            <button className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-gray-100 group">
-              <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center text-2xl mb-3 group-hover:bg-orange-100 transition-colors">
-                📤
-              </div>
-              <span className="text-sm font-semibold text-gray-700">Retrait</span>
-            </button>
-            
-            <button className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-gray-100 group">
-              <div className="w-14 h-14 rounded-full bg-purple-50 flex items-center justify-center text-2xl mb-3 group-hover:bg-purple-100 transition-colors">
-                🔄
-              </div>
-              <span className="text-sm font-semibold text-gray-700">Transfert</span>
-            </button>
-            
-            <button className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl shadow-sm hover:shadow-md active:scale-95 transition-all border border-gray-100 group">
-              <div className="w-14 h-14 rounded-full bg-red-50 flex items-center justify-center text-2xl mb-3 group-hover:bg-red-100 transition-colors">
-                ⚠️
-              </div>
-              <span className="text-sm font-semibold text-gray-700">Audit / Alerte</span>
-              {stats.alertesStock.length > 0 && (
-                <span className="absolute top-4 right-4 bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center shadow-sm">
-                  {stats.alertesStock.length}
-                </span>
+            </div>
+          </section>
+        )}
+
+        {/* Activités récentes */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-bold text-gray-800">Activités récentes</h2>
+            <button onClick={onRefresh} className="text-sm text-primary hover:underline">Rafraîchir</button>
+          </div>
+
+          <div className="grid gap-3">
+            <div className="bg-white rounded-2xl p-3 shadow">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">📥 Admissions récentes</h3>
+              {stats.admissionsRecentes.length === 0 ? (
+                <p className="text-gray-500 text-center py-6">Aucune admission récente</p>
+              ) : (
+                <div className="space-y-2">
+                  {stats.admissionsRecentes.map(a => (
+                    <div key={a.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">{a.lot_description || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">{a.nom_producteur} • {a.quantite} {a.unite}</p>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <div className="font-semibold text-green-600">{(a.quantite * (a.prix_ref || 0)).toLocaleString()} FCFA</div>
+                        <div>{new Date(a.date_reception).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
-            </button>
+            </div>
+
+            <div className="bg-white rounded-2xl p-3 shadow">
+              <h3 className="text-sm font-semibold text-gray-700 mb-2">📤 Retraits récents</h3>
+              {stats.retraitsRecents.length === 0 ? (
+                <p className="text-gray-500 text-center py-6">Aucun retrait récent</p>
+              ) : (
+                <div className="space-y-2">
+                  {stats.retraitsRecents.map(r => (
+                    <div key={r.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                      <div>
+                        <p className="font-medium text-gray-800 text-sm">{r.lot_description || 'N/A'}</p>
+                        <p className="text-xs text-gray-500">{r.quantite} {r.unite}</p>
+                      </div>
+                      <div className="text-right text-xs text-gray-500">
+                        <div className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          r.type_retrait === 'vente' ? 'bg-green-100 text-green-800' :
+                          r.type_retrait === 'producteur' ? 'bg-blue-100 text-blue-800' :
+                          r.type_retrait === 'magasin' ? 'bg-purple-100 text-purple-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {r.type_retrait}
+                        </div>
+                        <div className="mt-1">{new Date(r.date_retrait || Date.now()).toLocaleDateString()}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </section>
 
+        {/* Top produits */}
+        <section className="bg-white rounded-2xl p-3 shadow">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">📦 Top 10 produits en stock</h3>
+          <div className="space-y-2">
+            {(stocks || []).slice(0, 10).map((stock, idx) => (
+              <div key={idx} className="flex items-center justify-between p-2 rounded hover:bg-gray-50">
+                <div>
+                  <p className="font-medium text-gray-800 text-sm">{stock.description}</p>
+                  <p className="text-xs text-gray-500 mt-1">{stock.categorie}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold text-green-600">{stock.stock_actuel} {stock.unite}</p>
+                  <p className="text-xs text-gray-500">{(stock.stock_actuel * (stock.prix_ref || 0)).toLocaleString()} FCFA</p>
+                </div>
+              </div>
+            ))}
+            {(stocks || []).length === 0 && <p className="text-gray-500 text-center py-4">Aucun stock disponible</p>}
+          </div>
+        </section>
+
+        {/* Quick actions */}
+        <section className="bg-white rounded-2xl p-3 shadow">
+          <h3 className="text-sm font-semibold text-gray-700 mb-3">⚡ Actions rapides</h3>
+          <div className="grid grid-cols-4 gap-2">
+            <button className="flex flex-col items-center gap-1 p-2 bg-green-50 rounded-lg">
+              <div className="text-2xl">📥</div>
+              <div className="text-xs font-medium">Admission</div>
+            </button>
+            <button className="flex flex-col items-center gap-1 p-2 bg-blue-50 rounded-lg">
+              <div className="text-2xl">📤</div>
+              <div className="text-xs font-medium">Retrait</div>
+            </button>
+            <button className="flex flex-col items-center gap-1 p-2 bg-purple-50 rounded-lg">
+              <div className="text-2xl">🔄</div>
+              <div className="text-xs font-medium">Transfert</div>
+            </button>
+            <button className="flex flex-col items-center gap-1 p-2 bg-orange-50 rounded-lg">
+              <div className="text-2xl">📊</div>
+              <div className="text-xs font-medium">Stock</div>
+            </button>
+          </div>
+        </section>
       </main>
+
+      {/* Bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t z-40">
+        <div className="max-w-xl mx-auto px-4 py-2 flex items-center justify-between">
+          <button className="flex flex-col items-center text-xs text-gray-700">
+            <span className="text-xl">🏠</span>
+            <span>Accueil</span>
+          </button>
+          <button className="flex flex-col items-center text-xs text-gray-700">
+            <span className="text-xl">📋</span>
+            <span>Lots</span>
+          </button>
+          <button className="flex flex-col items-center text-xs text-gray-700">
+            <span className="text-xl">🔍</span>
+            <span>Rechercher</span>
+          </button>
+          <button className="flex flex-col items-center text-xs text-gray-700">
+            <span className="text-xl">⚙️</span>
+            <span>Profil</span>
+          </button>
+        </div>
+      </nav>
+
+      {/* Loading overlay */}
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/20 z-50">
+          <div className="bg-white p-4 rounded-lg shadow">
+            <div className="animate-spin mb-2">⟳</div>
+            <div className="text-sm text-gray-700">Chargement...</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
