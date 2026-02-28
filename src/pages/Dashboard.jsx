@@ -80,27 +80,6 @@ const GLOBAL_CSS = `
 
   html, body, #root { height: 100%; background: var(--bg); font-family: 'Sora', sans-serif; color: var(--text); overscroll-behavior: none; }
 
-  /* ── Neutralise le layout parent (menu hamburger, header App, nav globale) ── */
-  /* Cible les patterns communs de App.jsx / Layout.jsx wrappant les pages       */
-  body > #root > *:not(.nbfo-dashboard),
-  #root > div > header,
-  #root > div > nav:not(.tab-bar),
-  #root > header,
-  #root > nav:not(.tab-bar),
-  .app-header,
-  .app-nav,
-  .app-sidebar,
-  .navbar,
-  .top-bar,
-  .hamburger-menu,
-  [class*="Header"],
-  [class*="Navbar"],
-  [class*="Sidebar"] {
-    display: none !important;
-  }
-  /* S'assure que le wrapper direct du Dashboard prend tout l'espace */
-  #root > * { padding: 0 !important; margin: 0 !important; }
-
   ::-webkit-scrollbar { width: 0; }
 
   /* ── Animations ── */
@@ -598,35 +577,7 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('home');
   const scrollRef = useRef(null);
 
-  // Masque le layout parent (header/nav hamburger de App.jsx) pendant que
-  // Dashboard est monté, et le restaure au démontage.
-  useEffect(() => {
-    // Cherche tous les éléments frères directs du conteneur Dashboard
-    // qui ne font pas partie de notre UI (header, nav, sidebar App)
-    const root = document.getElementById('root');
-    const dashboardEl = scrollRef.current?.closest('[data-dashboard]');
-    const hiddenEls = [];
 
-    if (root) {
-      Array.from(root.children).forEach(child => {
-        // On cache tout sauf le nœud qui contient notre Dashboard
-        if (dashboardEl && child.contains(dashboardEl)) return;
-        if (child.tagName === 'STYLE') return;
-        const prev = child.style.display;
-        child.setAttribute('data-prev-display', prev);
-        child.style.setProperty('display', 'none', 'important');
-        hiddenEls.push(child);
-      });
-    }
-
-    return () => {
-      hiddenEls.forEach(el => {
-        const prev = el.getAttribute('data-prev-display') || '';
-        el.style.display = prev;
-        el.removeAttribute('data-prev-display');
-      });
-    };
-  }, []);
 
   // Filtrer les onglets selon le rôle
   const visibleTabs = TABS.filter(t =>
