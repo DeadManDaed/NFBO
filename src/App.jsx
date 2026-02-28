@@ -23,13 +23,25 @@ function App() {
           <Routes>
             <Route path="/login" element={<Login />} />
 
+            {/* ─── Dashboard : route autonome, SANS DashboardLayout ─────────
+                Le Dashboard gère lui-même sa navigation par tab bar interne.
+                DashboardLayout (header + hamburger) ne s'affiche plus ici.   */}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            } />
+
+            {/* ─── Autres routes : gardent DashboardLayout si besoin ────────
+                À terme ces routes peuvent être supprimées car Dashboard
+                charge les modules en interne. Elles restent pour compatibilité
+                avec d'éventuels liens directs ou deep links Capacitor.        */}
             <Route path="/" element={
               <ProtectedRoute>
                 <DashboardLayout />
               </ProtectedRoute>
             }>
               <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
               <Route path="lots" element={<DefinitionLots />} />
               <Route path="admissions" element={<Admissions />} />
               <Route path="retraits" element={<Retraits />} />
