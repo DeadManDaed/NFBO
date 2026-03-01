@@ -4,6 +4,7 @@
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
 const { createToken, verifyToken } = require('../_lib/auth');
+const { sendConfirmationEmail }    = require('../_lib/mailer');
 
 module.exports = withCors(async (req, res) => {
   // Routage interne basé sur la méthode et le suffixe d'URL
@@ -105,9 +106,12 @@ module.exports = withCors(async (req, res) => {
         // Log du lien en console (à remplacer par un vrai envoi email)
         console.log(`[register] Lien de confirmation pour ${email} : ${confirmUrl}`);
 
-        // TODO: Intégrer Resend ou SendGrid ici
-        // await sendConfirmationEmail(email, prenom, confirmUrl);
-      }
+      try {
+          await sendConfirmationEmail(email, prenom, confirmUrl);
+        } catch (mailErr) {
+          // L'email a échoué mais le compte est créé — on log sans bloquer
+          console.error('[register] Échec envoi email de confirmation:', mailErr.message);
+        }
 
       return res.status(201).json({
         message: email
