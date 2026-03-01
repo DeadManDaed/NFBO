@@ -8,10 +8,13 @@ let pool;
 
 function getPool() {
   if (!pool) {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false } // requis pour Supabase
-    });
+    const connString = (process.env.DATABASE_URL || process.env.POSTGRES_URL || '').trim();
+pool = new Pool({
+  connectionString: connString.includes('?') 
+    ? connString 
+    : `${connString}?pgbouncer=true`,
+  ssl: { rejectUnauthorized: false }
+});
   }
   return pool;
 }
