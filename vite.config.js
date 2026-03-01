@@ -1,10 +1,11 @@
 //vite.config.js
+
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-base: '/',
+  base: '/',
   server: {
     port: 3000,
     proxy: {
@@ -17,5 +18,7 @@ base: '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    minify: false,        // ← désactive la minification
+    sourcemap: true,      // ← active les source maps
   },
 });
