@@ -63,7 +63,91 @@ module.exports = withCors(async (req, res) => {
       return res.status(500).json({ message: 'Erreur serveur', error: err.message });
     }
   }
+// ─── REGISTER ────────────────────────────────────────────────────────────────
+  if (action === 'register' && req.method === 'POST') {
+    const { username, password, prenom, nom, telephone, email } = req.body || {};
 
+    if (!username || !password || !prenom || !nom || !telephone) {
+      return res.status(400).json({ message: 'Champs obligatoires manquants (username, password, prenom, nom, telephone)' });
+    }
+
+    try {
+      // Vérifier unicité username
+      const checkUser = await pool.query('SELECT id FROM users WHERE username=$1', [username]);
+      if (checkUser.rows.length > 0) {
+        return res.status(400).json({ message: 'Ce nom d\'utilisateur est déjà pris' });
+      }
+
+      // Vérifier unicité email si fourni
+      if (email) {
+        const checkEmail = await pool.query('SELECT id FROM users WHERE email=$1', [email]);
+        if (checkEmail.rows.length > 0) {
+          return res.status(400).json({ message: 'Cette adresse email est déjà utilisée' });
+        }
+      }
+
+      // Créer le compte avec statut 'en_attente' et rôle 'stock' par défaut
+      const result = await pool.query(
+        `INSERT INTO users (username, password_hash, prenom, nom, telephone, email, role, statut)
+         VALUES ($1, crypt($2, gen_salt('bf')), $3, $4, $5, $6, 'stock', 'en_attente')
+         RETURNING id, username, prenom, nom, email, statut`,
+        [username, password, prenom, nom, telephone, email || null]
+      );
+
+      const newUser = result.rows[0];
+
+      // Envoi email de confirmation si email fourni
+      if (email) {
+        const confirmToken = createToken({ id: newUser.id, action: 'confirm_email' });
+        const appUrl = process.env.APP_URL || 'https://nfbo.vercel.app';
+        const confirmUrl = `${appUrl}/api/auth/confirm?token=${confirmToken}`;
+
+        // Log du lien en console (à remplacer par un vrai envoi email)
+        console.log(`[register] Lien de confirmation pour ${email} : ${confirmUrl}`);
+
+        // TODO: Intégrer Resend ou SendGrid ici
+        // await sendConfirmationEmail(email, prenom, confirmUrl);
+      }
+
+      return res.status(201).json({
+        message: email
+          ? 'Compte créé. Vérifiez votre email pour confirmer votre adresse.'
+          : 'Compte créé. Un administrateur doit l\'activer avant votre première connexion.',
+        user: newUser,
+      });
+
+    } catch (err) {
+      console.error('[auth/register] Erreur:', err.message);
+      if (err.code === '23505') {
+        return res.status(400).json({ message: 'Username ou email déjà utilisé' });
+      }
+      return res.status(500).json({ message: 'Erreur serveur', error: err.message });
+    }
+  }
+
+  // ─── CONFIRM EMAIL ───────────────────────────────────────────────────────────
+  if (action === 'confirm' && req.method === 'GET') {
+    const { token } = req.query;
+    try {
+      const payload = verifyToken(token);
+
+      if (payload.action !== 'confirm_email') {
+        return res.status(400).json({ message: 'Token invalide' });
+      }
+
+      await pool.query(
+        `UPDATE users SET statut='actif', email_confirmed=true WHERE id=$1`,
+        [payload.id]
+      );
+
+      // Redirection vers le dashboard de production
+      const appUrl = process.env.APP_URL || 'https://nfbo.vercel.app';
+      return res.redirect(302, `${appUrl}/dashboard?confirmed=1`);
+
+    } catch (err) {
+      return res.status(400).json({ message: `Lien invalide ou expiré : ${err.message}` });
+    }
+  }
   // ─── LOGOUT ──────────────────────────────────────────────────────────────────
   if (action === 'logout' && req.method === 'POST') {
     // TODO: invalider le JWT si implémenté côté serveur
