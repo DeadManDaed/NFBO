@@ -1,6 +1,7 @@
 // src/pages/Administration.jsx
 import { useState, useEffect, useCallback } from "react";
 import PageLayout, { StateLoading, StateEmpty, StateError } from '../components/PageLayout';
+import { useAuth } from '../hooks/useAuth
 
 // ─── CONSTANTES ────────────────────────────────────────────────────────────────
 
@@ -656,6 +657,7 @@ function FormLot({ onCancel, onSuccess }) {
 // ─── MODULE CAISSE ─────────────────────────────────────────────────────────────
 
 function ModuleCaisse() {
+const { user } = useAuth(); 
   const [producteurs,  setProducteurs]  = useState([]);
   const [selectedProd, setSelectedProd] = useState("");
   const [solde,        setSolde]        = useState(0);
@@ -697,7 +699,6 @@ function ModuleCaisse() {
     if (!confirm(`Confirmer le paiement de ${m.toLocaleString("fr-FR")} FCFA ?`)) return;
     setLoading(true);
     try {
-      const user = JSON.parse(localStorage.getItem("nbfo_user") || "{}");
       await apiFetch("/api/operations_caisse", {
         method: "POST",
         body: JSON.stringify({
