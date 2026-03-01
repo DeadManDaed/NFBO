@@ -34,7 +34,7 @@ function baseTemplate({ title, body, ctaUrl, ctaLabel }) {
               <tr>
                 <td style="background:linear-gradient(135deg,#2d5a2d,#1a3a1a);padding:32px;text-align:center;">
                   <div style="font-size:48px;margin-bottom:8px;">📦</div>
-                  <h1 style="margin:0;color:#4caf50;font-size:24px;font-weight:800;">NBFO</h1>
+                  <h1 style="margin:0;color:#4caf50;font-size:24px;font-weight:800;">NFBO</h1>
                   <p style="margin:4px 0 0;color:#a5d6a7;font-size:13px;">
                     Gestion Coopérative Agricole
                   </p>
