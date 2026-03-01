@@ -30,9 +30,11 @@ export async function authFetch(url, options = {}) {
   });
 
   if (res.status === 401) {
-    // Token expiré ou invalide → nettoyage silencieux
-    localStorage.removeItem(TOKEN_KEY);
-    window.dispatchEvent(new Event('auth:expired'));
+    // Délai pour éviter la déconnexion pendant le chargement initial
+    setTimeout(() => {
+      localStorage.removeItem(TOKEN_KEY);
+      window.dispatchEvent(new Event('auth:expired'));
+    }, 2000);
   }
 
   if (!res.ok) {
