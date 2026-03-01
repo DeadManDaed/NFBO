@@ -1,7 +1,7 @@
 // src/pages/Administration.jsx
 import { useState, useEffect, useCallback } from "react";
 import PageLayout, { StateLoading, StateEmpty, StateError } from '../components/PageLayout';
-import { useAuth } from '../hooks/useAuth
+import { useAuth } from '../hooks/useAuth'
 
 // ─── CONSTANTES ────────────────────────────────────────────────────────────────
 
