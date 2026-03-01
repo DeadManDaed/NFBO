@@ -7,7 +7,7 @@ import { createContext, useContext, useState, useEffect, useCallback } from 'rea
 
 const AuthContext = createContext(null);
 
-const TOKEN_KEY = 'nbfo_token';
+const TOKEN_KEY = 'nfbo_token';
 const API_BASE  = '/api';
 
 // ─── Helpers fetch authentifié ────────────────────────────────────────────────
