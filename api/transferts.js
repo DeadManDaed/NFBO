@@ -1,9 +1,13 @@
 // api/transferts.js  →  POST /api/transferts
 const pool = require('./_lib/db');
 const { withCors } = require('./_lib/cors');
+const { requireAuth } = require('./_lib/auth');
 
-module.exports = withCors(async (req, res) => {
+module.exports = withCors(requireAuth(async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();
+  if (!['superadmin', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Transferts réservés aux administrateurs' });
+  }
 
   const {
     lot_id, quantite, unite, magasin_id, destination_magasin_id,
@@ -46,7 +50,7 @@ module.exports = withCors(async (req, res) => {
        (lot_id, magasin_depart, magasin_destination, chauffeur_id, quantite, unite, prix_ref, utilisateur, motif, statut)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'en_transit')
        RETURNING id`,
-      [lot_id, magasin_id, destination_magasin_id, chauffeur_id || null, quantite, unite, prix_ref, utilisateur, motif]
+     [lot_id, magasin_id, destination_magasin_id, chauffeur_id || null, quantite, unite, prix_ref, utilisateur || req.user.username, motif]
     );
 
     await client.query('COMMIT');
@@ -59,4 +63,4 @@ module.exports = withCors(async (req, res) => {
   } finally {
     client.release();
   }
-});
+}));
