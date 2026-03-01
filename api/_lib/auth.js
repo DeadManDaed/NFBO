@@ -96,8 +96,6 @@ function requireAuth(handler, { roles } = {}) {
 }
 
 module.exports = { createToken, verifyToken, requireAuth };
-FICHIER 2 — Modifier api/auth/index.js
-Cherche l'en-tête du fichier (ligne 1) :
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
 Remplace par :
