@@ -112,7 +112,7 @@ module.exports = withCors(async (req, res) => {
           // L'email a échoué mais le compte est créé — on log sans bloquer
           console.error('[register] Échec envoi email de confirmation:', mailErr.message);
         }
-
+}
       return res.status(201).json({
         message: email
           ? 'Compte créé. Vérifiez votre email pour confirmer votre adresse.'
