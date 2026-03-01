@@ -13,6 +13,35 @@ import Transferts from './pages/Transferts';
 import Stock from './pages/Stock';
 import Audit from './pages/Audit';
 import Administration from './pages/Administration';
+import React from 'react';
+
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  componentDidCatch(error, info) {
+    console.error('=== ERREUR CAPTURÉE ===', error.message, info.componentStack);
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ padding: 24, color: 'red', background: '#111', minHeight: '100vh' }}>
+          <h2>Erreur détectée :</h2>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 13 }}>
+            {this.state.error.message}
+            {'\n\n'}
+            {this.state.error.stack}
+          </pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ─── Redirection intelligente depuis / ────────────────────────────────────────
 // Si authentifié → /dashboard, sinon → /login
@@ -37,7 +66,8 @@ function LoginRoute() {
 // ─── App ──────────────────────────────────────────────────────────────────────
 function App() {
   return (
-    <Router>
+   <ErrorBoundary>
+ <Router>
       <AuthProvider>
         <CapacitorProvider>
           <Routes>
@@ -106,6 +136,7 @@ function App() {
         </CapacitorProvider>
       </AuthProvider>
     </Router>
+</ErrorBoundary>
   );
 }
 
