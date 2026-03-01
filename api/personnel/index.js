@@ -16,8 +16,9 @@
 
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
 
-module.exports = withCors(async (req, res) => {
+module.exports = withCors(requireAuth(async (req, res) => {
   const { id, magasin_id } = req.query;
 
   // Déterminer la ressource cible depuis l'URL : /api/users/... ou /api/employers/...
@@ -33,6 +34,11 @@ module.exports = withCors(async (req, res) => {
   // BLOC USERS
   // ════════════════════════════════════════════════════════════════════════════
   if (isUsers) {
+
+    // Seuls admin et superadmin accèdent aux users
+    if (!['superadmin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Accès réservé aux administrateurs' });
+    }
 
     // ─── GET /api/users ─────────────────────────────────────────────────────
     if (req.method === 'GET') {
@@ -63,6 +69,9 @@ module.exports = withCors(async (req, res) => {
 
     // ─── POST /api/users ─────────────────────────────────────────────────────
     if (req.method === 'POST') {
+      if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: 'Création d\'utilisateur réservée au superadmin' });
+      }
       const { username, password, role, prenom, nom, email, telephone, magasin_id: mg, statut } = req.body;
       if (!username || !password || !role) {
         return res.status(400).json({ error: 'Champs obligatoires manquants (username, password, role)' });
@@ -104,7 +113,11 @@ module.exports = withCors(async (req, res) => {
     }
 
     // ─── DELETE /api/users?id=X ──────────────────────────────────────────────
+    // ─── DELETE /api/users?id=X ──────────────────────────────────────────────
     if (req.method === 'DELETE' && id) {
+      if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: 'Suppression réservée au superadmin' });
+      }
       try {
         const result = await pool.query('DELETE FROM users WHERE id=$1 RETURNING username', [id]);
         if (result.rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' });
@@ -199,4 +212,4 @@ module.exports = withCors(async (req, res) => {
 
     return res.status(405).json({ error: `Méthode non supportée : ${req.method}` });
   }
-});
+}));
