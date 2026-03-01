@@ -2,7 +2,9 @@
   "rewrites": [
     { "source": "/api/auth/login",      "destination": "/api/auth/index"        },
     { "source": "/api/auth/me",         "destination": "/api/auth/index"        },
-    { "source": "/api/auth/logout",     "destination": "/api/auth/index"        },
+   { "source": "/api/auth/logout",     "destination": "/api/auth/index"        },
+    { "source": "/api/auth/register",   "destination": "/api/auth/index"        },
+    { "source": "/api/auth/confirm",    "destination": "/api/auth/index"        },
     { "source": "/api/users(.*)",       "destination": "/api/personnel/index"   },
     { "source": "/api/employers(.*)",   "destination": "/api/personnel/index"   },
     { "source": "/api/lots(.*)",        "destination": "/api/lots/index"        },
