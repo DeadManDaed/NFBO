@@ -1,7 +1,6 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useAuth } from './hooks/useAuth';
-import { AuthProvider } from './hooks/useAuth';
+import { useAuth, AuthProvider } from './hooks/useAuth';
 import { CapacitorProvider } from './components/CapacitorProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
