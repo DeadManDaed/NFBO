@@ -10,8 +10,9 @@
 
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
 
-module.exports = withCors(async (req, res) => {
+module.exports = withCors(requireAuth(async (req, res) => {
   const { id, magasinId } = req.query;
 
   // Détecter le sous-chemin : /api/lots/stock
@@ -117,6 +118,9 @@ module.exports = withCors(async (req, res) => {
 
   // ─── DELETE /api/lots?id=X ────────────────────────────────────────────────────
   if (req.method === 'DELETE' && id) {
+    if (req.user.role !== 'superadmin') {
+      return res.status(403).json({ message: 'Suppression réservée au superadmin' });
+    }
     try {
       const result = await pool.query('DELETE FROM lots WHERE id=$1 RETURNING *', [id]);
       if (result.rows.length === 0) return res.status(404).json({ message: 'Lot non trouvé' });
@@ -132,4 +136,4 @@ module.exports = withCors(async (req, res) => {
   }
 
   return res.status(405).json({ error: `Méthode non supportée : ${req.method}` });
-});
+}));
