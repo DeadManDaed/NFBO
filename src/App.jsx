@@ -57,7 +57,7 @@ function LoginRoute() {
   const location = useLocation();
   if (loading) return null;
   if (isAuthenticated) {
-    const from = location.state?.from?.pathname || '/dashboard';
+    const from = location.state?.from || '/dashboard';
     return <Navigate to={from} state={null} replace />;
   }
   return <Login />;
