@@ -112,7 +112,14 @@ function App() {
 
 // ─── Page de confirmation email ───────────────────────────────────────────────
 function ConfirmedPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
+
+  if (loading) return null;
+
+  if (isAuthenticated) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -131,9 +138,20 @@ function ConfirmedPage() {
           Email confirmé !
         </h2>
         <p style={{ color: 'var(--color-text-muted, #aaa)', marginBottom: 24 }}>
-          Votre adresse email a bien été vérifiée. Un administrateur doit encore activer votre compte avant votre première connexion.
+          Votre adresse email a bien été vérifiée. Un administrateur doit encore
+          activer votre compte avant votre première connexion.
         </p>
-        <Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />
+        <a
+          href="/login"
+          style={{
+            display: 'inline-block', padding: '12px 28px',
+            background: 'var(--color-primary, #4caf50)',
+            color: 'white', borderRadius: 10, textDecoration: 'none',
+            fontWeight: 700,
+          }}
+        >
+          🔐 Aller à la connexion
+        </a>
       </div>
     </div>
   );
