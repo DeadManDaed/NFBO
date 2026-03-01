@@ -14,6 +14,16 @@ module.exports = withCors(async (req, res) => {
   const url = req.url?.split('?')[0].replace(/\/$/, ''); // ex: "/api/auth/login"
   const action = url.split('/').pop(); // "login" | "logout" | "me"
 
+// DEBUG TEMPORAIRE
+  if (action === 'debug-env') {
+    return res.json({
+      has_db_url:   !!process.env.DATABASE_URL,
+      db_start:     (process.env.DATABASE_URL || 'NON DEFINIE').substring(0, 40),
+      has_app_url:  !!process.env.APP_URL,
+      app_url:      process.env.APP_URL || 'NON DEFINIE',
+      node_env:     process.env.NODE_ENV,
+    });
+  }
   // ─── LOGIN ───────────────────────────────────────────────────────────────────
   if (action === 'login' && req.method === 'POST') {
     const { username, password } = req.body || {};
