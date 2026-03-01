@@ -1,12 +1,12 @@
 {
   "rewrites": [
-    { "source": "/api/auth/login", "destination": "/api/auth/index" },
-    { "source": "/api/auth/me",    "destination": "/api/auth/index"    },
-    { "source": "/api/auth/logout","destination": "/api/auth/index"},
-    { "source": "/api/(.*)",       "destination": "/api/$1"         },
-{ "source": "/api/users(.*)", "destination": "/api/personnel/index.js" },
-{ "source": "/api/employers(.*)", "destination": "/api/personnel/index.js" },
-{ "source": "/api/lots(.*)", "destination": "/api/lots/index.js" },
-    { "source": "/(.*)",           "destination": "/index.html"     }
+    { "source": "/api/auth/login",      "destination": "/api/auth/index"        },
+    { "source": "/api/auth/me",         "destination": "/api/auth/index"        },
+    { "source": "/api/auth/logout",     "destination": "/api/auth/index"        },
+    { "source": "/api/users(.*)",       "destination": "/api/personnel/index"   },
+    { "source": "/api/employers(.*)",   "destination": "/api/personnel/index"   },
+    { "source": "/api/lots(.*)",        "destination": "/api/lots/index"        },
+    { "source": "/api/(.*)",            "destination": "/api/$1"                },
+    { "source": "/(.*)",                "destination": "/index.html"            }
   ]
 }
