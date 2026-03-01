@@ -18,7 +18,7 @@ module.exports = withCors(async (req, res) => {
   if (action === 'debug-env') {
     return res.json({
       has_db_url:   !!process.env.DATABASE_URL,
-      db_start:     (process.env.DATABASE_URL || 'NON DEFINIE').substring(0, 40),
+      db_start: (process.env.DATABASE_URL || 'NON DEFINIE').substring(0, 120),
       has_app_url:  !!process.env.APP_URL,
       app_url:      process.env.APP_URL || 'NON DEFINIE',
       node_env:     process.env.NODE_ENV,
