@@ -1,118 +1,273 @@
-//src/pages/login.jsx
-
+src/pages/Login.jsx
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-import { useAlert } from '../hooks/useAlert';
-import Alert from '../components/Alert';
 
 export default function Login() {
   const { login } = useAuth();
-  const navigate = useNavigate();
-  const { alert, showAlert, hideAlert } = useAlert();
+  const navigate   = useNavigate();
 
-  const [formData, setFormData] = useState({
-    username: '',
-    password: '',
+  const [mode,    setMode]    = useState('login');   // 'login' | 'register'
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState('');
+  const [success, setSuccess] = useState('');
+
+  const [form, setForm] = useState({
+    username: '', password: '', confirmPassword: '',
+    prenom: '', nom: '', telephone: '', email: '',
   });
 
-  const [loading, setLoading] = useState(false);
+  const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const handleSubmit = async (e) => {
+  // ─── Connexion ─────────────────────────────────────────────────────────────
+  const handleLogin = async e => {
     e.preventDefault();
-    setLoading(true);
-
+    setError(''); setLoading(true);
     try {
-      await login(formData);
-      showAlert('✅ Connexion réussie', 'success');
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 500);
-    } catch (error) {
-      showAlert(`❌ ${error.message}`, 'error');
+      await login({ username: form.username, password: form.password });
+      navigate('/dashboard', { replace: true });
+    } catch (err) {
+      setError(err.message || 'Identifiants incorrects');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Inscription ───────────────────────────────────────────────────────────
+  const handleRegister = async e => {
+    e.preventDefault();
+    setError(''); setSuccess('');
+
+    if (form.password !== form.confirmPassword) {
+      return setError('Les mots de passe ne correspondent pas.');
+    }
+    if (form.password.length < 6) {
+      return setError('Le mot de passe doit contenir au moins 6 caractères.');
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username:  form.username,
+          password:  form.password,
+          prenom:    form.prenom,
+          nom:       form.nom,
+          telephone: form.telephone,
+          email:     form.email || null,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Erreur lors de l\'inscription');
+
+      setSuccess(
+        form.email
+          ? `✅ Compte créé ! Un lien de confirmation a été envoyé à ${form.email}. Vérifiez votre boîte mail.`
+          : '✅ Compte créé ! Un administrateur doit l\'activer avant votre première connexion.'
+      );
+      setForm({ username: '', password: '', confirmPassword: '', prenom: '', nom: '', telephone: '', email: '' });
+      setTimeout(() => setMode('login'), 4000);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-purple-500 to-secondary flex items-center justify-center p-6">
-      <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
+    <div style={{
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #1a2e1a 0%, #2d5a2d 50%, #1a3a1a 100%)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }}>
+      <div style={{
+        background: 'var(--color-surface, #1e2d1e)',
+        borderRadius: 20,
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        padding: '36px 32px',
+        width: '100%',
+        maxWidth: 420,
+      }}>
 
-      <div className="bg-white rounded-3xl shadow-2xl p-10 w-full max-w-md">
-        {/* Logo et titre */}
-        <div className="text-center mb-8">
-          <div className="text-6xl mb-4">📦</div>
-          <h1 className="text-3xl font-bold text-gray-800">NBFO</h1>
-          <p className="text-gray-600 mt-2">Gestion Coopérative Agricole</p>
-        </div>
-
-        {/* Formulaire */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label className="block font-medium text-gray-700 mb-2">
-              Nom d'utilisateur
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.username}
-              onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-              className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              placeholder="Entrez votre nom d'utilisateur"
-              autoComplete="username"
-            />
-          </div>
-
-          <div>
-            <label className="block font-medium text-gray-700 mb-2">
-              Mot de passe
-            </label>
-            <input
-              type="password"
-              required
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-              placeholder="Entrez votre mot de passe"
-              autoComplete="current-password"
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-4 bg-gradient-to-r from-primary to-secondary text-white rounded-xl font-semibold text-lg transition-all ${
-              loading ? 'opacity-50 cursor-not-allowed' : 'hover:shadow-lg hover:scale-105'
-            }`}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Connexion en cours...
-              </span>
-            ) : (
-              '🔐 Se connecter'
-            )}
-          </button>
-        </form>
-
-        {/* Lien mot de passe oublié */}
-        <div className="mt-6 text-center">
-          <a href="#" className="text-primary hover:underline text-sm">
-            Mot de passe oublié ?
-          </a>
-        </div>
-
-        {/* Informations */}
-        <div className="mt-8 p-4 bg-blue-50 rounded-xl">
-          <p className="text-sm text-blue-800 text-center">
-            <strong>💡 Astuce :</strong> Utilisez vos identifiants fournis par l'administrateur
+        {/* ── Logo ── */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <div style={{ fontSize: 52, marginBottom: 8 }}>📦</div>
+          <h1 style={{ margin: 0, fontSize: '1.8rem', color: 'var(--color-primary, #4caf50)', fontWeight: 800 }}>
+            NBFO
+          </h1>
+          <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted, #aaa)', fontSize: 13 }}>
+            Gestion Coopérative Agricole
           </p>
         </div>
+
+        {/* ── Onglets ── */}
+        <div style={{ display: 'flex', background: 'var(--color-surface-alt, #162016)', borderRadius: 10, padding: 4, marginBottom: 24 }}>
+          {[['login', '🔐 Connexion'], ['register', '📝 Créer un compte']].map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => { setMode(key); setError(''); setSuccess(''); }}
+              style={{
+                flex: 1, padding: '8px 0', border: 'none', borderRadius: 8, cursor: 'pointer',
+                fontWeight: 600, fontSize: 13, transition: 'all 0.2s',
+                background: mode === key ? 'var(--color-primary, #4caf50)' : 'transparent',
+                color: mode === key ? 'white' : 'var(--color-text-muted, #aaa)',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Messages ── */}
+        {error && (
+          <div style={{ background: '#3b0f0f', border: '1px solid #c62828', color: '#ff8a80', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
+            ❌ {error}
+          </div>
+        )}
+        {success && (
+          <div style={{ background: '#1b3a1b', border: '1px solid #388e3c', color: '#a5d6a7', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13 }}>
+            {success}
+          </div>
+        )}
+
+        {/* ══════════════ FORMULAIRE CONNEXION ══════════════ */}
+        {mode === 'login' && (
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="form-group">
+              <label className="form-label">Nom d'utilisateur</label>
+              <input
+                className="form-control"
+                required
+                autoComplete="username"
+                value={form.username}
+                onChange={set('username')}
+                placeholder="ex: jdupont"
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Mot de passe</label>
+              <input
+                className="form-control"
+                type="password"
+                required
+                autoComplete="current-password"
+                value={form.password}
+                onChange={set('password')}
+                placeholder="••••••••"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary btn-full"
+              style={{ padding: '13px 0', fontSize: 15, marginTop: 4 }}
+            >
+              {loading ? '⏳ Connexion...' : '🔐 Se connecter'}
+            </button>
+          </form>
+        )}
+
+        {/* ══════════════ FORMULAIRE INSCRIPTION ══════════════ */}
+        {mode === 'register' && (
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div className="form-group">
+                <label className="form-label">Prénom *</label>
+                <input className="form-control" required value={form.prenom} onChange={set('prenom')} placeholder="Jean" />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Nom *</label>
+                <input className="form-control" required value={form.nom} onChange={set('nom')} placeholder="Dupont" />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Nom d'utilisateur *</label>
+              <input
+                className="form-control"
+                required
+                autoComplete="username"
+                value={form.username}
+                onChange={set('username')}
+                placeholder="ex: jdupont"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Téléphone *</label>
+              <input
+                className="form-control"
+                required
+                type="tel"
+                value={form.telephone}
+                onChange={set('telephone')}
+                placeholder="6XXXXXXXX"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                Email <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(optionnel — pour confirmation)</span>
+              </label>
+              <input
+                className="form-control"
+                type="email"
+                value={form.email}
+                onChange={set('email')}
+                placeholder="jean.dupont@email.com"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Mot de passe * <span style={{ color: 'var(--color-text-muted)', fontWeight: 400 }}>(min. 6 caractères)</span></label>
+              <input
+                className="form-control"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={form.password}
+                onChange={set('password')}
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Confirmer le mot de passe *</label>
+              <input
+                className="form-control"
+                type="password"
+                required
+                autoComplete="new-password"
+                value={form.confirmPassword}
+                onChange={set('confirmPassword')}
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div style={{ background: 'rgba(255,193,7,0.1)', border: '1px solid rgba(255,193,7,0.3)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: '#ffe082' }}>
+              ⚠️ Votre compte sera créé avec le rôle <strong>En attente</strong> et devra être activé par un administrateur avant la première connexion.
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn btn-primary btn-full"
+              style={{ padding: '13px 0', fontSize: 15 }}
+            >
+              {loading ? '⏳ Création en cours...' : '📝 Créer mon compte'}
+            </button>
+          </form>
+        )}
+
+        {/* ── Footer ── */}
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--color-text-muted, #666)' }}>
+          NBFO © {new Date().getFullYear()} — Gestion coopérative
+        </p>
       </div>
     </div>
   );
