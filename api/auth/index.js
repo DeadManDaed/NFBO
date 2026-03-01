@@ -3,6 +3,7 @@
 
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
+const { createToken, verifyToken } = require('../_lib/auth');
 
 module.exports = withCors(async (req, res) => {
   // Routage interne basé sur la méthode et le suffixe d'URL
@@ -35,11 +36,25 @@ module.exports = withCors(async (req, res) => {
       }
 
       const user = result.rows[0];
+      const token = createToken({
+        id:         user.id,
+        username:   user.username,
+        role:       user.role,
+        magasin_id: user.magasin_id || null,
+      });
+
+      // Mettre à jour last_login
+      await pool.query(
+        'UPDATE users SET last_login = NOW() WHERE id = $1',
+        [user.id]
+      );
+
       return res.status(200).json({
+        token,
         user: {
-          id: user.id,
-          username: user.username,
-          role: user.role,
+          id:         user.id,
+          username:   user.username,
+          role:       user.role,
           magasin_id: user.magasin_id || null,
         },
       });
@@ -57,16 +72,26 @@ module.exports = withCors(async (req, res) => {
 
   // ─── ME ───────────────────────────────────────────────────────────────────────
   if (action === 'me' && req.method === 'GET') {
-    // TODO: décoder un JWT depuis Authorization header
-    // const token = req.headers.authorization?.split(' ')[1];
-    // const user = verifyJWT(token);
-    return res.status(200).json({
-      id: 1,
-      username: 'admin',
-      role: 'superadmin',
-      magasin_id: 1,
-      nom: 'Administrateur',
-    });
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+      const payload = verifyToken(token);
+
+      // Récupérer les infos fraîches depuis la DB
+      const result = await pool.query(
+        `SELECT id, username, role, magasin_id, prenom, nom, email, statut
+         FROM users WHERE id = $1 AND statut = 'actif'`,
+        [payload.id]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(401).json({ message: 'Utilisateur introuvable ou inactif' });
+      }
+
+      return res.status(200).json(result.rows[0]);
+    } catch (err) {
+      return res.status(401).json({ message: `Non autorisé : ${err.message}` });
+    }
   }
 
   // ─── ROUTE INCONNUE ───────────────────────────────────────────────────────────
