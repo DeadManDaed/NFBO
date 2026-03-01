@@ -5,7 +5,7 @@
 // Variables d'environnement requises :
 //   RESEND_API_KEY  → clé API Resend
 //   APP_URL         → https://nfbo.vercel.app
-//   MAIL_FROM       → ex: NBFO <noreply@tondomaine.com>
+//   MAIL_FROM       → ex: NFBO <noreply@tondomaine.com>
 //                     Sans domaine propre, utiliser : onboarding@resend.dev
 
 const { Resend } = require('resend');
@@ -94,7 +94,7 @@ async function sendConfirmationEmail(email, prenom, confirmUrl) {
     body: `
       <p>Bonjour <strong style="color:#fff;">${prenom}</strong>,</p>
       <p>
-        Votre compte NBFO a bien été créé. Pour activer votre adresse email
+        Votre compte NFBO a bien été créé. Pour activer votre adresse email
         et finaliser votre inscription, cliquez sur le bouton ci-dessous.
       </p>
       <p>
@@ -109,7 +109,7 @@ async function sendConfirmationEmail(email, prenom, confirmUrl) {
   const { data, error } = await resend.emails.send({
     from:    FROM,
     to:      email,
-    subject: '📦 NBFO — Confirmez votre adresse email',
+    subject: '📦 NFBO — Confirmez votre adresse email',
     html,
   });
 
@@ -124,7 +124,7 @@ async function sendWelcomeEmail(email, prenom) {
     body: `
       <p>Bonjour <strong style="color:#fff;">${prenom}</strong>,</p>
       <p>
-        Bonne nouvelle — votre compte NBFO a été activé par un administrateur.
+        Bonne nouvelle — votre compte NFBO a été activé par un administrateur.
         Vous pouvez maintenant vous connecter.
       </p>
     `,
@@ -135,7 +135,7 @@ async function sendWelcomeEmail(email, prenom) {
   const { data, error } = await resend.emails.send({
     from:    FROM,
     to:      email,
-    subject: '📦 NBFO — Votre compte est activé',
+    subject: '📦 NFBO — Votre compte est activé',
     html,
   });
 
