@@ -11,7 +11,6 @@ const TOKEN_KEY = 'nfbo_token';
 const API_BASE  = '/api';
 
 // ─── Flag module-level (accessible par authFetch) ─────────────────────────────
-let _isLoggingIn = false;
 let _logoutHandler = null; // sera injecté par le Provider
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -30,7 +29,7 @@ export async function authFetch(url, options = {}) {
     },
   });
 
-  if (res.status === 401 && !_isLoggingIn) {
+  if (res.status === 401 && !window.__nbfo_logging_in) {
     localStorage.removeItem(TOKEN_KEY);
     window.dispatchEvent(new Event('auth:expired'));
     const err = await res.json().catch(() => ({ message: 'Session expirée' }));
@@ -69,13 +68,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     loadUser();
-    const onExpired = () => { if (!_isLoggingIn) setUser(null); };
+    const onExpired = () => { if (!window.__nfbo_logging_in) setUser(null); };
     window.addEventListener('auth:expired', onExpired);
     return () => window.removeEventListener('auth:expired', onExpired);
   }, [loadUser]);
 
   const login = async ({ username, password }) => {
-    _isLoggingIn = true;
+    window.__nfbo_logging_in = true;
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -95,7 +94,7 @@ export function AuthProvider({ children }) {
     } finally {
       // On garde le flag actif 4s après le login pour laisser
       // le Dashboard charger ses données sans risque de déconnexion
-      setTimeout(() => { _isLoggingIn = false; }, 4000);
+      setTimeout(() => { window.__nfbo_logging_in = false; }, 4000);
     }
   };
 
