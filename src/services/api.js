@@ -4,39 +4,16 @@
 // Si le serveur répond 401 → déconnexion silencieuse via événement 'auth:expired'.
 // Si le serveur répond 403 → erreur claire "rôle insuffisant".
 
-const API_BASE = '/api';
+
+const API_BASE  = '/api';
 const TOKEN_KEY = 'nfbo_token';
 
-class ApiService {
-// Flag partagé avec useAuth — importé pour cohérence
-// On l'expose via window pour éviter un import circulaire
+// ─── Flag partagé avec useAuth via window ─────────────────────────────────────
 function isLoggingIn() {
   return window.__nfbo_logging_in === true;
 }
 
 class ApiService {
-
-  async request(endpoint, options = {}) {
-    const token = localStorage.getItem(TOKEN_KEY);
-
-    try {
-      const response = await fetch(`${API_BASE}${endpoint}`, {
-        ...options,
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          ...(options.headers || {}),
-        },
-      });
-
-      if (response.status === 401) {
-        if (!isLoggingIn()) {          // ← protection ajoutée
-          localStorage.removeItem(TOKEN_KEY);
-          window.dispatchEvent(new Event('auth:expired'));
-        }
-        throw new Error('Session expirée. Veuillez vous reconnecter.');
-      }
-
 
   // ─── Requête de base ────────────────────────────────────────────────────────
   async request(endpoint, options = {}) {
@@ -52,16 +29,16 @@ class ApiService {
         },
       });
 
-      // Token expiré ou invalide → déconnexion automatique
       if (response.status === 401) {
-        localStorage.removeItem(TOKEN_KEY);
-        window.dispatchEvent(new Event('auth:expired'));
+        if (!isLoggingIn()) {
+          localStorage.removeItem(TOKEN_KEY);
+          window.dispatchEvent(new Event('auth:expired'));
+        }
         throw new Error('Session expirée. Veuillez vous reconnecter.');
       }
 
-      // Accès refusé → rôle insuffisant
       if (response.status === 403) {
-        throw new Error('Accès refusé : vous n\'avez pas les droits nécessaires.');
+        throw new Error("Accès refusé : vous n'avez pas les droits nécessaires.");
       }
 
       if (!response.ok) {
@@ -77,24 +54,21 @@ class ApiService {
   }
 
   // ─── Vérification de rôle côté client (pré-filtre UX) ───────────────────────
-  // Utilisation : api.checkRole(['superadmin', 'admin']) → lance une erreur si KO
-  // Cela ne remplace PAS la vérification serveur — c'est uniquement pour l'UX.
   checkRole(allowedRoles) {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) throw new Error('Non authentifié');
-
     try {
       const payload = JSON.parse(atob(token.split('.')[1]));
       if (!allowedRoles.includes(payload.role)) {
         throw new Error(`Action réservée aux rôles : ${allowedRoles.join(', ')}`);
       }
-      return payload; // Retourne le payload si le rôle est OK
-    } catch (err) {
+      return payload;
+    } catch {
       throw new Error('Token invalide ou rôle non vérifié');
     }
   }
 
-  // ─── Décoder le token sans vérification serveur (usage UI uniquement) ────────
+  // ─── Décoder le token sans vérification serveur ───────────────────────────
   decodeToken() {
     const token = localStorage.getItem(TOKEN_KEY);
     if (!token) return null;
@@ -108,20 +82,16 @@ class ApiService {
   // ========== AUTH ==========
 
   async login(credentials) {
-    // Pas de token sur le login — requête publique
     const response = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
-
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
       throw new Error(err.message || 'Identifiants incorrects');
     }
-
     const data = await response.json();
-    // Stocker le token dès la réponse
     if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
     return data;
   }
@@ -150,18 +120,12 @@ class ApiService {
 
   async createLot(data) {
     this.checkRole(['superadmin', 'admin']);
-    return this.request('/lots', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/lots', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateLot(id, data) {
     this.checkRole(['superadmin', 'admin']);
-    return this.request(`/lots?id=${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/lots?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteLot(id) {
@@ -177,10 +141,7 @@ class ApiService {
 
   async createAdmission(data) {
     this.checkRole(['superadmin', 'admin', 'stock']);
-    return this.request('/admissions', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/admissions', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async deleteAdmission(id) {
@@ -200,10 +161,7 @@ class ApiService {
 
   async createRetrait(data) {
     this.checkRole(['superadmin', 'admin', 'stock']);
-    return this.request('/retraits', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/retraits', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async deleteRetrait(id) {
@@ -229,10 +187,7 @@ class ApiService {
 
   async createTransfert(data) {
     this.checkRole(['superadmin', 'admin']);
-    return this.request('/transferts', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/transferts', { method: 'POST', body: JSON.stringify(data) });
   }
 
   // ========== PRODUCTEURS ==========
@@ -247,18 +202,12 @@ class ApiService {
 
   async createProducteur(data) {
     this.checkRole(['superadmin', 'admin', 'stock']);
-    return this.request('/producteurs', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/producteurs', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateProducteur(id, data) {
     this.checkRole(['superadmin', 'admin']);
-    return this.request(`/producteurs?id=${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/producteurs?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteProducteur(id) {
@@ -274,18 +223,12 @@ class ApiService {
 
   async createMagasin(data) {
     this.checkRole(['superadmin']);
-    return this.request('/magasins', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/magasins', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateMagasin(id, data) {
     this.checkRole(['superadmin']);
-    return this.request(`/magasins?id=${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/magasins?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteMagasin(id) {
@@ -307,18 +250,12 @@ class ApiService {
 
   async createEmployer(data) {
     this.checkRole(['superadmin', 'admin']);
-    return this.request('/employers', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/employers', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateEmployer(id, data) {
     this.checkRole(['superadmin', 'admin']);
-    return this.request(`/employers?id=${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/employers?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteEmployer(id) {
@@ -336,18 +273,12 @@ class ApiService {
 
   async createUser(data) {
     this.checkRole(['superadmin']);
-    return this.request('/users', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/users', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateUser(id, data) {
     this.checkRole(['superadmin', 'admin']);
-    return this.request(`/users?id=${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
+    return this.request(`/users?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteUser(id) {
@@ -356,7 +287,6 @@ class ApiService {
   }
 
   // ========== GEO ==========
-  // Routes publiques — pas de vérification de rôle
 
   async getRegions() {
     return this.request('/geo?type=regions');
@@ -400,10 +330,7 @@ class ApiService {
   }
 
   async sendMessage(data) {
-    return this.request('/messages', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/messages', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async getDestinataires(role, magasinId = null) {
@@ -421,11 +348,16 @@ class ApiService {
 
   async createOperationCaisse(data) {
     this.checkRole(['superadmin', 'admin', 'caisse']);
-    return this.request('/operations_caisse', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
+    return this.request('/operations_caisse', { method: 'POST', body: JSON.stringify(data) });
   }
 }
 
 export default new ApiService();
+
+  
+
+
+
+
+
+
