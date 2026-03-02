@@ -513,7 +513,7 @@ function HomeScreen({ user, data, loading, onNavigate }) {
 }
 
 // ─── Wrapper module exclusif ──────────────────────────────────────────────────
-function ModuleView({ moduleId, onBack }) {
+function ModuleView({ moduleId, onBack, onUnreadChange }) {
   const Component = MODULE_MAP[moduleId];
   const cfg = TABS.find(t => t.id === moduleId);
   if (!Component) return null;
@@ -531,7 +531,7 @@ function ModuleView({ moduleId, onBack }) {
         </h2>
       </div>
       <div style={{ padding:'16px' }}>
-        <Component />
+        <Component onUnreadChange={moduleId === 'messagerie' ? onUnreadChange : undefined} />
       </div>
     </div>
   );
@@ -567,6 +567,7 @@ export default function Dashboard() {
   const { data, loading } = useDashboardData(magasinId, stocks);
 
   const [activeTab, setActiveTab] = useState('home');
+const [unreadMessages, setUnreadMessages] = useState(0); // ← ajout
   const scrollRef = useRef(null);
 
 
@@ -600,6 +601,7 @@ export default function Dashboard() {
           <ModuleView
             moduleId={activeTab}
             onBack={() => setActiveTab('home')}
+            onUnreadChange={setUnreadMessages}
           />
         )}
       </div>
@@ -608,7 +610,7 @@ export default function Dashboard() {
         tabs={visibleTabs}
         activeTab={activeTab}
         onSelect={handleTabSelect}
-        unreadMessages={0}
+        unreadMessages={unreadMessages}
       />
     </>
   );
