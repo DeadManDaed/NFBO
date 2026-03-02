@@ -1,23 +1,24 @@
 // src/hooks/useAuth.jsx
 // Gestion de l'authentification via JWT.
-// Le token est stocké dans localStorage sous la clé 'nbfo_token'.
+// Le token est stocké dans localStorage sous la clé 'nfbo_token'.
 // L'objet user est reconstruit depuis /api/auth/me à chaque chargement.
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
 const AuthContext = createContext(null);
 
 const TOKEN_KEY = 'nfbo_token';
 const API_BASE  = '/api';
 
-// ─── Helpers fetch authentifié ────────────────────────────────────────────────
+// ─── Flag module-level (accessible par authFetch) ─────────────────────────────
+let _isLoggingIn = false;
+let _logoutHandler = null; // sera injecté par le Provider
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-// Fetch avec Authorization header automatique.
-// Utilisable partout dans l'app : import { authFetch } from '../hooks/useAuth'
 export async function authFetch(url, options = {}) {
   const token = getToken();
   const res = await fetch(url, {
@@ -29,11 +30,11 @@ export async function authFetch(url, options = {}) {
     },
   });
 
-  if (res.status === 401) {
-    if (!isLoggingIn.current) {
-      localStorage.removeItem(TOKEN_KEY);
-      window.dispatchEvent(new Event('auth:expired'));
-    }
+  if (res.status === 401 && !_isLoggingIn) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.dispatchEvent(new Event('auth:expired'));
+    const err = await res.json().catch(() => ({ message: 'Session expirée' }));
+    throw new Error(err.message || 'Session expirée');
   }
 
   if (!res.ok) {
@@ -45,13 +46,10 @@ export async function authFetch(url, options = {}) {
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
-
 export function AuthProvider({ children }) {
-    const [user,         setUser]         = useState(null);
-const [loading,      setLoading]      = useState(true);
-const isLoggingIn = useRef(false);
+  const [user,    setUser]    = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  // Charger l'utilisateur depuis /api/auth/me si un token existe
   const loadUser = useCallback(async () => {
     const token = getToken();
     if (!token) {
@@ -61,8 +59,7 @@ const isLoggingIn = useRef(false);
     try {
       const userData = await authFetch(`${API_BASE}/auth/me`);
       setUser(userData);
-    } catch (err) {
-      // Token invalide ou expiré
+    } catch {
       localStorage.removeItem(TOKEN_KEY);
       setUser(null);
     } finally {
@@ -72,77 +69,64 @@ const isLoggingIn = useRef(false);
 
   useEffect(() => {
     loadUser();
-
-    // Écouter l'événement d'expiration émis par authFetch
-    const onExpired = () => setUser(null);
+    const onExpired = () => { if (!_isLoggingIn) setUser(null); };
     window.addEventListener('auth:expired', onExpired);
     return () => window.removeEventListener('auth:expired', onExpired);
   }, [loadUser]);
 
-  // ─── Login ──────────────────────────────────────────────────────────────────
   const login = async ({ username, password }) => {
-    isLoggingIn.current = true;
+    _isLoggingIn = true;
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
 
-    const res = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || 'Identifiants incorrects');
+      }
 
-    if (!res.ok) {
-      isLoggingIn.current = false;
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || 'Identifiants incorrects');
+      const { token, user: userData } = await res.json();
+      localStorage.setItem(TOKEN_KEY, token);
+      setUser(userData);
+      return userData;
+    } finally {
+      // On garde le flag actif 4s après le login pour laisser
+      // le Dashboard charger ses données sans risque de déconnexion
+      setTimeout(() => { _isLoggingIn = false; }, 4000);
     }
-
-    const { token, user: userData } = await res.json();
-    localStorage.setItem(TOKEN_KEY, token);
-    setUser(userData);
-
-    setTimeout(() => {
-      isLoggingIn.current = false;
-    }, 5000);
-
-    return userData;
   };
 
-  // ─── Logout ─────────────────────────────────────────────────────────────────
   const logout = async () => {
     try {
       await authFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
-    } catch (_) {
-      // On déconnecte côté client même si le serveur répond mal
-    } finally {
+    } catch (_) {}
+    finally {
       localStorage.removeItem(TOKEN_KEY);
       setUser(null);
     }
   };
 
-  // ─── Valeurs exposées ────────────────────────────────────────────────────────
-  const value = {
-    user,
-    loading,
-    login,
-    logout,
-    isAuthenticated: !!user,
-    isSuperAdmin:    user?.role === 'superadmin',
-    isAdmin:         user?.role === 'admin' || user?.role === 'superadmin',
-    magasinId:       user?.magasin_id ?? null,
-  };
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      logout,
+      isAuthenticated: !!user,
+      isSuperAdmin:    user?.role === 'superadmin',
+      isAdmin:         user?.role === 'admin' || user?.role === 'superadmin',
+      magasinId:       user?.magasin_id ?? null,
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }
