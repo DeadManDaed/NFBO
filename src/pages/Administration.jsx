@@ -429,9 +429,13 @@ function FormProducteur({ onCancel, onSuccess }) {
   const [arrondissements, setArrondissements] = useState([]);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  useEffect(() => {
-    fetch("/api/geo/api/regions").then(r => r.json()).then(setRegions).catch(() => {});
+    useEffect(() => {
+    // Utilisation de apiFetch pour le Token + URL propre
+    apiFetch("/api/geo?type=regions")
+      .then(setRegions)
+      .catch(err => console.error("Erreur Géo:", err));
   }, []);
+
 
   const onRegionChange = async e => {
     const id = e.target.value;
