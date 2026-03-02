@@ -97,7 +97,7 @@ export default function Login() {
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <div style={{ fontSize: 52, marginBottom: 8 }}>📦</div>
           <h1 style={{ margin: 0, fontSize: '1.8rem', color: 'var(--color-primary, #4caf50)', fontWeight: 800 }}>
-            NBFO
+            NFBO
           </h1>
           <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted, #aaa)', fontSize: 13 }}>
             Gestion Coopérative Agricole
@@ -266,7 +266,7 @@ export default function Login() {
 
         {/* ── Footer ── */}
         <p style={{ textAlign: 'center', marginTop: 20, fontSize: 11, color: 'var(--color-text-muted, #666)' }}>
-          NBFO © {new Date().getFullYear()} — Gestion coopérative
+          NFBO © {new Date().getFullYear()} — Gestion coopérative
         </p>
       </div>
     </div>
