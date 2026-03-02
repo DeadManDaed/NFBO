@@ -1,6 +1,6 @@
 {
   "appId": "com.nbfo.app",
-  "appName": "NBFO",
+  "appName": "NFBO",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "server": {
