@@ -3,10 +3,17 @@
 const pool = require('./_lib/db');
 const { withCors } = require('./_lib/cors');
 
+// api/geo.js
 module.exports = withCors(async (req, res) => {
   if (req.method !== 'GET') return res.status(405).end();
 
-  const { type, region_id, departement_id } = req.query;
+  // On extrait le type soit du query (?type=), soit de la fin de l'URL (/api/geo/regions)
+  const urlParts = req.url.split('?')[0].split('/');
+  const typeFromPath = urlParts[urlParts.length - 1]; // récupère 'regions' si l'URL finit par ça
+  
+  const type = req.query.type || typeFromPath; 
+  const { region_id, departement_id } = req.query;
+
 
   try {
     if (type === 'regions' || !type) {
