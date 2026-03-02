@@ -11,7 +11,7 @@ class ApiService {
 // Flag partagé avec useAuth — importé pour cohérence
 // On l'expose via window pour éviter un import circulaire
 function isLoggingIn() {
-  return window.__nbfo_logging_in === true;
+  return window.__nfbo_logging_in === true;
 }
 
 class ApiService {
