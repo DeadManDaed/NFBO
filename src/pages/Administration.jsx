@@ -58,6 +58,7 @@ const CATEGORIES_MAPPING = {
   ],
 };
 
+/*
 const SECTIONS_CONFIG = {
   magasins:    { label: "Gestion des Magasins",       icon: "🏪", endpoint: "/api/magasins" },
   users:       { label: "Utilisateurs Système",        icon: "👥", endpoint: "/api/personnel/index/users" },
@@ -93,6 +94,21 @@ const COLUMNS_CONFIG = {
     { key: "statut",           label: "Statut",        type: "badge" },
   ],
 };
+
+*/
+
+const SECTIONS_CONFIG = {
+  magasins:    { label: "Gestion des Magasins",       icon: "🏪", endpoint: "/api/magasins" },
+  users:       { label: "Utilisateurs Système",        icon: "👥", endpoint: "/api/personnel/users" },
+  employers:   { label: "Employés & Staff",            icon: "🪪", endpoint: "/api/personnel/employers" },
+  producteurs: { label: "Gestion des Producteurs",     icon: "🌾", endpoint: "/api/producteurs" },
+  lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots" }, // Correction ici aussi
+  validations: { label: "Validations & Transferts",    icon: "✅", endpoint: "/api/validations" },
+  caisse:      { label: "Caisse Centrale & Paiements", icon: "💰", endpoint: null },
+};
+
+
+
 
 // ─── UTILITAIRES ───────────────────────────────────────────────────────────────
 
