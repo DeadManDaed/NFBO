@@ -1,5 +1,5 @@
 {
-  "appId": "com.nbfo.app",
+  "appId": "com.nfbo.app",
   "appName": "NFBO",
   "webDir": "dist",
   "bundledWebRuntime": false,
@@ -28,7 +28,7 @@
   "android": {
     "buildOptions": {
       "keystorePath": "release-key.keystore",
-      "keystoreAlias": "nbfo-key"
+      "keystoreAlias": "nfbo-key"
     },
     "allowMixedContent": true
   },
