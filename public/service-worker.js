@@ -1,7 +1,7 @@
 //public/service-worker.js
 
-const CACHE_NAME = 'nbfo-v1';
-const RUNTIME_CACHE = 'nbfo-runtime-v1';
+const CACHE_NAME = 'nfbo-v1';
+const RUNTIME_CACHE = 'nfbo-runtime-v1';
 
 // Ressources à mettre en cache immédiatement
 const PRECACHE_URLS = [
@@ -19,7 +19,7 @@ const PRECACHE_URLS = [
 // Installation du Service Worker
 self.addEventListener('install', (event) => {
   console.log('🔧 Service Worker: Installation');
-  
+
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
@@ -33,7 +33,7 @@ self.addEventListener('install', (event) => {
 // Activation et nettoyage des anciens caches
 self.addEventListener('activate', (event) => {
   console.log('✅ Service Worker: Activation');
-  
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -73,7 +73,7 @@ self.addEventListener('fetch', (event) => {
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
   const cached = await cache.match(request);
-  
+
   if (cached) {
     console.log('📦 Cache HIT:', request.url);
     return cached;
@@ -81,16 +81,16 @@ async function cacheFirst(request) {
 
   try {
     const response = await fetch(request);
-    
+
     // Ne mettre en cache que les réponses valides
     if (response.status === 200) {
       cache.put(request, response.clone());
     }
-    
+
     return response;
   } catch (error) {
     console.error('❌ Fetch échoué:', request.url, error);
-    
+
     // Retourner une page offline si disponible
     return cache.match('/offline.html') || new Response('Hors ligne', {
       status: 503,
@@ -105,18 +105,18 @@ async function networkFirst(request) {
 
   try {
     const response = await fetch(request);
-    
+
     // Mettre en cache les réponses API réussies
     if (response.status === 200) {
       cache.put(request, response.clone());
     }
-    
+
     return response;
   } catch (error) {
     console.log('🌐 Network échoué, utilisation du cache:', request.url);
-    
+
     const cached = await cache.match(request);
-    
+
     if (cached) {
       return cached;
     }
@@ -154,9 +154,9 @@ async function syncAdmissions() {
 // Notifications Push (optionnel)
 self.addEventListener('push', (event) => {
   const data = event.data ? event.data.json() : {};
-  
+
   const options = {
-    body: data.body || 'Nouvelle notification NBFO',
+    body: data.body || 'Nouvelle notification nfbo',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/badge-72x72.png',
     vibrate: [200, 100, 200],
@@ -164,13 +164,13 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || 'NBFO', options)
+    self.registration.showNotification(data.title || 'NFBO', options)
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
+
   event.waitUntil(
     clients.openWindow(event.notification.data)
   );
