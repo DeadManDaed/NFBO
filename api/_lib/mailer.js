@@ -70,7 +70,7 @@ function baseTemplate({ title, body, ctaUrl, ctaLabel }) {
               <tr>
                 <td style="padding:16px 32px;border-top:1px solid #2a3a2a;text-align:center;">
                   <p style="margin:0;color:#555;font-size:11px;">
-                    © ${new Date().getFullYear()} NBFO — Gestion Coopérative •
+                    © ${new Date().getFullYear()} NFBO — Gestion Coopérative •
                     <a href="${APP_URL}" style="color:#4caf50;text-decoration:none;">
                       ${APP_URL.replace('https://','')}
                     </a>
