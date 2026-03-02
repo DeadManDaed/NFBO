@@ -5,9 +5,38 @@
 // Si le serveur répond 403 → erreur claire "rôle insuffisant".
 
 const API_BASE = '/api';
-const TOKEN_KEY = 'nbfo_token';
+const TOKEN_KEY = 'nfbo_token';
 
 class ApiService {
+// Flag partagé avec useAuth — importé pour cohérence
+// On l'expose via window pour éviter un import circulaire
+function isLoggingIn() {
+  return window.__nbfo_logging_in === true;
+}
+
+class ApiService {
+
+  async request(endpoint, options = {}) {
+    const token = localStorage.getItem(TOKEN_KEY);
+
+    try {
+      const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(options.headers || {}),
+        },
+      });
+
+      if (response.status === 401) {
+        if (!isLoggingIn()) {          // ← protection ajoutée
+          localStorage.removeItem(TOKEN_KEY);
+          window.dispatchEvent(new Event('auth:expired'));
+        }
+        throw new Error('Session expirée. Veuillez vous reconnecter.');
+      }
+
 
   // ─── Requête de base ────────────────────────────────────────────────────────
   async request(endpoint, options = {}) {
