@@ -8,6 +8,7 @@
 const crypto = require('crypto');
 
 const SECRET = process.env.JWT_SECRET || 'changeme_en_prod';
+console.log('[auth] JWT_SECRET défini:', !!process.env.JWT_SECRET, '— longueur:', SECRET.length);
 const EXPIRES_IN = 60 * 60 * 8; // 8 heures en secondes
 
 // ─── Encodage base64url (compatible JWT) ──────────────────────────────────────
