@@ -68,7 +68,7 @@ const SECTIONS_CONFIG = {
   validations: { label: "Validations & Transferts",    icon: "✅", endpoint: "/api/validations" },
   caisse:      { label: "Caisse Centrale & Paiements", icon: "💰", endpoint: null },
 };
-
+*/
 const COLUMNS_CONFIG = {
   users: [
     { key: "id",       label: "ID" },
@@ -95,7 +95,7 @@ const COLUMNS_CONFIG = {
   ],
 };
 
-*/
+
 
 const SECTIONS_CONFIG = {
   magasins:    { label: "Gestion des Magasins",       icon: "🏪", endpoint: "/api/magasins" },
