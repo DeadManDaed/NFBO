@@ -41,20 +41,35 @@ module.exports = withCors(requireAuth(async (req, res) => {
     }
 
     // ─── GET /api/users ─────────────────────────────────────────────────────
+        // ─── GET /api/users ─────────────────────────────────────────────────────
     if (req.method === 'GET') {
       try {
         let query = 'SELECT id, username, role, prenom, nom, email, telephone, magasin_id, statut FROM users';
         const params = [];
-        if (magasin_id) {
-          query += ' WHERE magasin_id=$1';
+        let conditions = [];
+
+        // Protection de données : Si pas Superadmin, on filtre STRICTEMENT par magasin
+        if (req.user.role !== 'superadmin') {
+          conditions.push(`magasin_id = $${params.length + 1}`);
+          params.push(req.user.magasin_id);
+        } else if (magasin_id) { 
+          // Le Superadmin peut choisir de filtrer par magasin s'il le souhaite
+          conditions.push(`magasin_id = $${params.length + 1}`);
           params.push(magasin_id);
         }
+
         if (id) {
-          query += magasin_id ? ' AND id=$2' : ' WHERE id=$1';
+          conditions.push(`id = $${params.length + 1}`);
           params.push(id);
         }
+
+        if (conditions.length > 0) {
+          query += ' WHERE ' + conditions.join(' AND ');
+        }
+
         query += ' ORDER BY id DESC';
         const result = await pool.query(query, params);
+
 
         if (id) {
           if (result.rows.length === 0) return res.status(404).json({ error: 'Utilisateur introuvable' });
