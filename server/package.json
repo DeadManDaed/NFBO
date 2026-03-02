@@ -1,5 +1,5 @@
 {
-  "name": "nbfocoop-server",
+  "name": "nfbocoop-server",
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
