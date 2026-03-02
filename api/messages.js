@@ -16,7 +16,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       const r = await pool.query(
         `SELECT COUNT(*) AS count FROM messages
-         WHERE destinataire_id = $1 AND lu = false`,
+         WHERE destinataire_id = $1::integer AND lu = false`,
         [userId]
       );
       return res.json({ count: parseInt(r.rows[0].count, 10) });
@@ -35,7 +35,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
       if (targetRole === 'superadmin') {
         usersRes = await pool.query(
           `SELECT id, username, nom, prenom, role, magasin_id
-           FROM users WHERE statut = 'actif' AND id != $1
+           FROM users WHERE statut = 'actif' AND id != $1::integer
            ORDER BY nom`,
           [userId]
         );
@@ -44,7 +44,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
           `SELECT id, username, nom, prenom, role, magasin_id
            FROM users
            WHERE statut = 'actif'
-             AND id != $1
+             AND id != $1::integer
              AND (magasin_id = $2 OR role IN ('superadmin', 'admin', 'auditeur'))
            ORDER BY nom`,
           [userId, targetMagasin]
@@ -80,7 +80,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
                 u.username AS destinataire_username
          FROM messages m
          LEFT JOIN users u ON u.id = m.destinataire_id
-         WHERE m.expediteur_id = $1
+         WHERE m.expediteur_id = $1::integer
          ORDER BY m.inserted_at DESC
          LIMIT 100`,
         [userId]
@@ -100,7 +100,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
                 u.role AS exp_role
          FROM messages m
          LEFT JOIN users u ON u.id = m.expediteur_id
-         WHERE m.id = $1
+         WHERE m.id = $1::integer
            AND (m.destinataire_id = $2 OR m.expediteur_id = $2)`,
         [id, userId]
       );
@@ -109,7 +109,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
       // Marquer lu si destinataire
       if (r.rows[0].destinataire_id === userId && !r.rows[0].lu) {
         await pool.query(
-          'UPDATE messages SET lu = TRUE, updated_at = NOW() WHERE id = $1',
+          'UPDATE messages SET lu = TRUE, updated_at = NOW() WHERE id = $1::integer',
           [id]
         );
       }
@@ -130,7 +130,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
                 u.username AS exp_username, u.role AS exp_role
          FROM messages m
          LEFT JOIN users u ON u.id = m.expediteur_id
-         WHERE m.destinataire_id = $1
+         WHERE m.destinataire_id = $1::integer
          ORDER BY m.inserted_at DESC
          LIMIT 100`,
         [userId]
@@ -163,7 +163,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       // Résoudre le nom de l'expéditeur
       const userRes = await pool.query(
-        'SELECT nom, prenom, username FROM users WHERE id = $1',
+        'SELECT nom, prenom, username FROM users WHERE id = $1::integer',
         [userId]
       );
       const u       = userRes.rows[0] || {};
@@ -208,7 +208,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     const { lu } = req.body;
     try {
       await pool.query(
-        'UPDATE messages SET lu = $1, updated_at = NOW() WHERE id = $2 AND destinataire_id = $3',
+        'UPDATE messages SET lu = $1::integer, updated_at = NOW() WHERE id = $2 AND destinataire_id = $3',
         [lu !== false, id, userId]
       );
       return res.json({ success: true });
@@ -222,7 +222,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       // On ne supprime que ses propres messages (envoyés ou reçus)
       await pool.query(
-        `DELETE FROM messages WHERE id = $1
+        `DELETE FROM messages WHERE id = $1::integer
          AND (expediteur_id = $2 OR destinataire_id = $2)`,
         [id, userId]
       );
