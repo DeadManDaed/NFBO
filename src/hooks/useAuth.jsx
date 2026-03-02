@@ -3,7 +3,7 @@
 // Le token est stocké dans localStorage sous la clé 'nbfo_token'.
 // L'objet user est reconstruit depuis /api/auth/me à chaque chargement.
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -30,11 +30,10 @@ export async function authFetch(url, options = {}) {
   });
 
   if (res.status === 401) {
-    // Délai pour éviter la déconnexion pendant le chargement initial
-    setTimeout(() => {
+    if (!isLoggingIn.current) {
       localStorage.removeItem(TOKEN_KEY);
       window.dispatchEvent(new Event('auth:expired'));
-    }, 2000);
+    }
   }
 
   if (!res.ok) {
@@ -48,8 +47,9 @@ export async function authFetch(url, options = {}) {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }) {
-  const [user,    setUser]    = useState(null);
-  const [loading, setLoading] = useState(true);
+    const [user,         setUser]         = useState(null);
+const [loading,      setLoading]      = useState(true);
+const isLoggingIn = useRef(false);
 
   // Charger l'utilisateur depuis /api/auth/me si un token existe
   const loadUser = useCallback(async () => {
@@ -81,6 +81,8 @@ export function AuthProvider({ children }) {
 
   // ─── Login ──────────────────────────────────────────────────────────────────
   const login = async ({ username, password }) => {
+    isLoggingIn.current = true;
+
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -88,6 +90,7 @@ export function AuthProvider({ children }) {
     });
 
     if (!res.ok) {
+      isLoggingIn.current = false;
       const err = await res.json().catch(() => ({}));
       throw new Error(err.message || 'Identifiants incorrects');
     }
@@ -95,6 +98,11 @@ export function AuthProvider({ children }) {
     const { token, user: userData } = await res.json();
     localStorage.setItem(TOKEN_KEY, token);
     setUser(userData);
+
+    setTimeout(() => {
+      isLoggingIn.current = false;
+    }, 5000);
+
     return userData;
   };
 
