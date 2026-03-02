@@ -3,7 +3,6 @@
 const pool = require('./_lib/db');
 const { withCors } = require('./_lib/cors');
 
-// api/geo.js
 module.exports = withCors(async (req, res) => {
   if (req.method !== 'GET') return res.status(405).end();
 
