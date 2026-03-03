@@ -318,7 +318,18 @@ class ApiService {
     this.checkRole(['superadmin', 'auditeur']);
     return this.request('/audit?action=global-stats');
   }
+async getAuditPending() {
+  this.checkRole(['superadmin', 'admin', 'auditeur']);
+  return this.request('/audit?action=pending-transfers');
+}
 
+async validateTransfert(id, data) {
+  this.checkRole(['superadmin', 'admin', 'auditeur']);
+  return this.request(`/transferts?id=${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
   // ========== MESSAGES ==========
 
   async getMessages() {
