@@ -22,9 +22,14 @@ module.exports = withCors(requireAuth(async (req, res) => {
   const { id, magasin_id } = req.query;
 
   // Déterminer la ressource cible depuis l'URL : /api/users/... ou /api/employers/...
-  const url = req.url?.split('?')[0].replace(/\/$/, '');
-  const isEmployers = url.includes('/employers');
-  const isUsers     = url.includes('/users');
+  const rawUrl = (
+  req.headers['x-forwarded-uri'] ||
+  req.headers['x-matched-path']  ||
+  req.url || ''
+).split('?')[0];
+const { resource } = req.query;
+const isEmployers = resource === 'employers' || rawUrl.includes('/employers');
+const isUsers     = resource === 'users'     || rawUrl.includes('/users');
 
   if (!isUsers && !isEmployers) {
     return res.status(404).json({ error: 'Route introuvable. Utilisez /api/users ou /api/employers.' });
