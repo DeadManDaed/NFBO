@@ -11,8 +11,9 @@ import Transferts      from './Transferts';
 import Audit           from './Audit';
 import Stock           from './Stock';
 import DefinitionLots  from './DefinitionLots';
+import Messagerie      from './Messagerie';
 
-// Messagerie n'a pas encore son fichier dédié — placeholder léger
+
 function Messagerie() {
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60vh', gap:16 }}>
