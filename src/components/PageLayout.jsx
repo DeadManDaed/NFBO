@@ -1,22 +1,4 @@
 // src/components/PageLayout.jsx
-// Composant wrapper universel pour toutes les pages de l'app.
-// Gère : bouton Retour → Dashboard, padding safe-area Capacitor,
-// titre de page, actions optionnelles en header.
-//
-// Usage :
-//   <PageLayout title="Admissions" icon="📥">
-//     ... contenu de la page ...
-//   </PageLayout>
-//
-//   Avec actions header :
-//   <PageLayout title="Stock" icon="📦" actions={<button className="btn btn-primary">+ Ajouter</button>}>
-//     ...
-//   </PageLayout>
-//
-//   Sans bouton Retour (ex: Dashboard lui-même) :
-//   <PageLayout title="Tableau de bord" showBack={false}>
-//     ...
-//   </PageLayout>
 
 export default function PageLayout({
   title,
@@ -29,25 +11,59 @@ export default function PageLayout({
   onBack,
   maxWidth = '1200px',
 }) {
-  // plus d'import useNavigate, plus de navigate()
-
   return (
-    // ...
-    {showBack} && (
-      <button
-        className="btn-back"
-        onClick={() => onBack?.()}
-        aria-label={`Retour à ${backLabel}`}
+    <div
+      className="page-container page-stack"
+      style={{ maxWidth, margin: '0 auto' }}
+    >
+      {/* ── Barre supérieure : Retour + Titre + Actions ── */}
+      <div
+        className="flex items-center flex-wrap gap-md"
+        style={{ justifyContent: 'space-between' }}
       >
-        <span aria-hidden="true">←</span>
-        {backLabel}
-      </button>
-    )}
+        {/* Gauche : bouton Retour + titre */}
+        <div className="flex items-center gap-md flex-wrap">
+          {showBack && (
+            <button
+              className="btn-back"
+              onClick={() => onBack?.()}
+              aria-label={`Retour à ${backLabel}`}
+            >
+              <span aria-hidden="true">←</span>
+              {backLabel}
+            </button>
+          )}
+
+          {(title || icon) && (
+            <div>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
+                {icon && <span aria-hidden="true">{icon}</span>}
+                {title}
+              </h2>
+              {subtitle && (
+                <p className="text-muted text-sm" style={{ marginTop: 2 }}>
+                  {subtitle}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Droite : actions optionnelles */}
+        {actions && (
+          <div className="flex items-center gap-sm flex-wrap">
+            {actions}
+          </div>
+        )}
+      </div>
+
+      {/* ── Contenu de la page ── */}
+      {children}
+    </div>
   );
 }
 
-// ─── Sous-composants d'état réutilisables ──────────────────────────────────────
-// Remplace les blocs "loading / error / empty" répétés partout
+// ─── Sous-composants d'état réutilisables ─────────────────────────────────────
 
 export function StateLoading({ message = 'Chargement...' }) {
   return (
