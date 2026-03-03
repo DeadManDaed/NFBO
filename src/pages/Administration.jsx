@@ -58,10 +58,13 @@ const CATEGORIES_MAPPING = {
   ],
 };
 
+//_______________
+
 const SECTIONS_CONFIG = {
   magasins:    { label: "Gestion des Magasins",       icon: "🏪", endpoint: "/api/magasins" },
-  users:       { label: "Utilisateurs Système",        icon: "👥", endpoint: "/api/personnel/users" },
-  employers:   { label: "Employés & Staff",            icon: "🪪", endpoint: "/api/personnel/employers" },
+  users:     { label: "Utilisateurs Système", icon: "👥", endpoint: "/api/users?resource=users" },
+
+  employers: { label: "Employés & Staff",     icon: "🪪", endpoint: "/api/employers?resource=employers" },
   producteurs: { label: "Gestion des Producteurs",     icon: "🌾", endpoint: "/api/producteurs" },
   lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots/index" },
   validations: { label: "Validations & Transferts",    icon: "✅", endpoint: "/api/validations" },
@@ -289,13 +292,15 @@ function FormField({ label, children }) {
 
 // ─── FORMULAIRES ───────────────────────────────────────────────────────────────
 
+//+++++++Magasins+++++++
+
 function FormMagasin({ onCancel, onSuccess }) {
   const [form, setForm] = useState({ nom: "", code: "", region_id: "" });
   const [regions, setRegions] = useState([]);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
-    fetch("/api/geo/api/regions").then(r => r.json()).then(setRegions).catch(() => {});
+    apiFetch("/api/geo?type=regions").then(r => r.json()).then(setRegions).catch(() => {});
   }, []);
 
   const handleSubmit = async e => {
@@ -329,6 +334,9 @@ function FormMagasin({ onCancel, onSuccess }) {
     </FormWrapper>
   );
 }
+
+
+//++++++++++++Users+++++++++++++
 
 function FormUser({ onCancel, onSuccess }) {
   const [form, setForm] = useState({ username: "", password: "", role: "stock", magasin_id: "", prenom: "", nom: "", email: "", telephone: "", statut: "actif" });
@@ -397,6 +405,9 @@ function FormUser({ onCancel, onSuccess }) {
   );
 }
 
+
+//++++++++++Producteurs+++++++++++
+
 function FormProducteur({ onCancel, onSuccess }) {
   const [form, setForm] = useState({
     nom_producteur: "", tel_producteur: "", type_producteur: "individuel",
@@ -409,7 +420,7 @@ function FormProducteur({ onCancel, onSuccess }) {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
-    fetch("/api/geo/api/regions").then(r => r.json()).then(setRegions).catch(() => {});
+    apiFetch("/api/geo?type=regions").then(r => r.json()).then(setRegions).catch(() => {});
   }, []);
 
   const onRegionChange = async e => {
@@ -417,7 +428,7 @@ function FormProducteur({ onCancel, onSuccess }) {
     setForm(f => ({ ...f, region_id: id, departement_id: "", arrondissement_id: "" }));
     setDepartements([]); setArrondissements([]);
     if (id) {
-      const data = await fetch(`/api/geo/api/departements?region_id=${id}`).then(r => r.json()).catch(() => []);
+      const data = await apiFetch(`/api/geo?type=departements&region_id=${id}`).then(r => r.json()).catch(() => []);
       setDepartements(data);
     }
   };
@@ -427,7 +438,7 @@ function FormProducteur({ onCancel, onSuccess }) {
     setForm(f => ({ ...f, departement_id: id, arrondissement_id: "" }));
     setArrondissements([]);
     if (id) {
-      const data = await fetch(`/api/geo/api/arrondissements?departement_id=${id}`).then(r => r.json()).catch(() => []);
+      const data = await apiFetch(`/api/geo?type=arrondissements&departement_id=${id}`).then(r => r.json()).catch(() => []);
       setArrondissements(data);
     }
   };
