@@ -14,15 +14,7 @@ import DefinitionLots  from './DefinitionLots';
 import Messagerie      from './Messagerie';
 
 
-function Messagerie() {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'60vh', gap:16 }}>
-      <div style={{ fontSize:56 }}>✉️</div>
-      <p style={{ fontFamily:'Sora,sans-serif', fontSize:18, fontWeight:700, color:'#0891b2' }}>Messagerie</p>
-      <p style={{ fontFamily:'Sora,sans-serif', fontSize:13, color:'#94a3b8' }}>Module à venir</p>
-    </div>
-  );
-}
+
 
 // ─── Config de la tab bar ─────────────────────────────────────────────────────
 const TABS = [
