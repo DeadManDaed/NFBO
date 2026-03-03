@@ -33,7 +33,7 @@ export default function PageLayout({
 
   return (
     // ...
-    {showBack && (
+    {showBack} && (
       <button
         className="btn-back"
         onClick={() => onBack?.()}
