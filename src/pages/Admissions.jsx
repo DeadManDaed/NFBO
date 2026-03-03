@@ -152,7 +152,7 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
 }
 
 // ─── Page principale ────────────────────────────────────────────────────────────
-export default function Admissions() {
+export default function Admissions({ onBack }) {
   const { user, magasinId } = useAuth();
   const { alert, showAlert, hideAlert } = useAlert();
   const { lots } = useLots();
@@ -278,7 +278,7 @@ export default function Admissions() {
   return (
     <PageLayout
       title="Réception de Lot"
-      icon="📥"
+      icon="📥" onBack={onBack}
       subtitle="Admission avec audit qualité automatique"
     >
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
