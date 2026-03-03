@@ -540,7 +540,10 @@ function ModuleView({ moduleId, onBack }) {
         </h2>
       </div>
       <div style={{ padding:'16px' }}>
-        <Component />
+        <Component
+  onBack={onBack}
+  onUnreadChange={moduleId === 'messagerie' ? onUnreadChange : undefined}
+/>
       </div>
     </div>
   );
