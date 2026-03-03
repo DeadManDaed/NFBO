@@ -18,8 +18,6 @@
 //     ...
 //   </PageLayout>
 
-import { useNavigate } from 'react-router-dom';
-
 export default function PageLayout({
   title,
   subtitle,
@@ -27,61 +25,24 @@ export default function PageLayout({
   children,
   actions,
   showBack = true,
-  backTo = '/Dashboard',      // cible du bouton Retour
   backLabel = 'Tableau de bord',
+  onBack,
   maxWidth = '1200px',
 }) {
-  const navigate = useNavigate();
+  // plus d'import useNavigate, plus de navigate()
 
   return (
-    <div
-      className="page-container page-stack"
-      style={{ maxWidth, margin: '0 auto' }}
-    >
-      {/* ── Barre supérieure : Retour + Titre + Actions ── */}
-      <div
-        className="flex items-center flex-wrap gap-md"
-        style={{ justifyContent: 'space-between' }}
+    // ...
+    {showBack && (
+      <button
+        className="btn-back"
+        onClick={() => onBack?.()}
+        aria-label={`Retour à ${backLabel}`}
       >
-        {/* Gauche : bouton Retour + titre */}
-        <div className="flex items-center gap-md flex-wrap">
-          {showBack && (
-            <button
-              className="btn-back"
-              onClick={() => navigate(backTo)}
-              aria-label={`Retour à ${backLabel}`}
-            >
-              <span aria-hidden="true">←</span>
-              {backLabel}
-            </button>
-          )}
-
-          {(title || icon) && (
-            <div>
-              <h2 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}>
-                {icon && <span aria-hidden="true">{icon}</span>}
-                {title}
-              </h2>
-              {subtitle && (
-                <p className="text-muted text-sm" style={{ marginTop: 2 }}>
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Droite : actions optionnelles */}
-        {actions && (
-          <div className="flex items-center gap-sm flex-wrap">
-            {actions}
-          </div>
-        )}
-      </div>
-
-      {/* ── Contenu de la page ── */}
-      {children}
-    </div>
+        <span aria-hidden="true">←</span>
+        {backLabel}
+      </button>
+    )}
   );
 }
 
