@@ -54,9 +54,7 @@ export default function DashboardLayout() {
                 <h1 className="text-xl font-bold text-gray-800">NFBO</h1>
                 <p className="text-sm text-gray-600">
                   {user?.nom || user?.username}
-                  {isNative && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
-                    {platform}
-                  </span>}
+                  {isNative && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{platform}</span>}
                 </p>
               </div>
             </div>
