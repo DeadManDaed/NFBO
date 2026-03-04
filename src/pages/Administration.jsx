@@ -66,7 +66,7 @@ const SECTIONS_CONFIG = {
 
   employers: { label: "Employés & Staff",     icon: "🪪", endpoint: "/api/employers?resource=employers" },
   producteurs: { label: "Gestion des Producteurs",     icon: "🌾", endpoint: "/api/producteurs" },
-  lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots/index" },
+  lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots" },
   validations: { label: "Validations & Transferts",    icon: "✅", endpoint: "/api/validations" },
   caisse:      { label: "Caisse Centrale & Paiements", icon: "💰", endpoint: null },
 };
