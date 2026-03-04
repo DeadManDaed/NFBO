@@ -29,7 +29,7 @@ export async function authFetch(url, options = {}) {
     },
   });
 
-  if (res.status === 401 && !window.__nbfo_logging_in) {
+  res.status === 401 && !window.__nfbo_logging_in) {
     localStorage.removeItem(TOKEN_KEY);
     window.dispatchEvent(new Event('auth:expired'));
     const err = await res.json().catch(() => ({ message: 'Session expirée' }));
