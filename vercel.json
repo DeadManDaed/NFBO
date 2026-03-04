@@ -6,10 +6,11 @@
   { "source": "/api/auth/register", "destination": "/api/auth/index" },
 { "source": "/api/auth/confirm",  "destination": "/api/auth/index" },
     { "source": "/api/auth/confirm",    "destination": "/api/auth/index"        },
-    { "source": "/api/users(.*)",       "destination": "/api/personnel/index"   },
+  { "source": "/api/users(.*)",      "destination": "/api/personnel/index" },
+{ "source": "/api/employers(.*)",  "destination": "/api/personnel/index" },
 { "source": "/api/auth/debug-env", "destination": "/api/auth/index" },
     { "source": "/api/employers(.*)",   "destination": "/api/personnel/index"   },
-    { "source": "/api/lots(.*)",        "destination": "/api/lots/index"        },
+
     { "source": "/api/(.*)",            "destination": "/api/$1"                },
     { "source": "/(.*)",                "destination": "/index.html"            }
   ]
