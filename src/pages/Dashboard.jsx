@@ -570,7 +570,8 @@ export default function Dashboard() {
   const { data, loading } = useDashboardData(magasinId, stocks);
 
   const [activeTab, setActiveTab] = useState('home');
-  const scrollRef = useRef(null);
+  const [unreadMessages, setUnreadMessages] = useState(0);
+const scrollRef = useRef(null);
 
 
 
