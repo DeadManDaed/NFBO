@@ -29,12 +29,12 @@ export async function authFetch(url, options = {}) {
     },
   });
 
-  res.status === 401 && !window.__nfbo_logging_in) {
+  if (res.status === 401 && !window.__nfbo_logging_in) {
     localStorage.removeItem(TOKEN_KEY);
     window.dispatchEvent(new Event('auth:expired'));
     const err = await res.json().catch(() => ({ message: 'Session expirée' }));
     throw new Error(err.message || 'Session expirée');
-  }
+}
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `Erreur HTTP ${res.status}` }));
