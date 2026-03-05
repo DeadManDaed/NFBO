@@ -857,7 +857,8 @@ export default function Administration() {
 
   const handleDelete = async (sec, id) => {
     if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ?")) return;
-    await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
+    try { 
+await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
       loadSection(sec);
     } catch (err) { alert("Erreur: " + err.message); }
   };
