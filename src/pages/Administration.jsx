@@ -857,10 +857,7 @@ export default function Administration() {
 
   const handleDelete = async (sec, id) => {
     if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ?")) return;
-    const map = { utilisateurs: "users", employes: "employers", magasins: "magasins", lots: "lots", producteurs: "producteurs" };
-    const ep = map[sec] || sec;
-    try {
-      await apiFetch(`/api/${ep}/${id}`, { method: "DELETE" });
+    await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
       loadSection(sec);
     } catch (err) { alert("Erreur: " + err.message); }
   };
