@@ -602,7 +602,7 @@ const scrollRef = useRef(null);
         ) : (
           <ModuleView
             moduleId={activeTab}
-            onBack={() => setActiveTab('home') onUnreadChange={setUnreadMessages}
+            onBack={() => setActiveTab('home')} onUnreadChange={setUnreadMessages}
           />
         )}
       </div>
