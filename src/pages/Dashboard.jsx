@@ -602,7 +602,7 @@ export default function Dashboard() {
         ) : (
           <ModuleView
             moduleId={activeTab}
-            onBack={() => setActiveTab('home')}
+            onBack={() => setActiveTab('home') onUnreadChange={setUnreadMessages}
           />
         )}
       </div>
@@ -611,7 +611,7 @@ export default function Dashboard() {
         tabs={visibleTabs}
         activeTab={activeTab}
         onSelect={handleTabSelect}
-        unreadMessages={0}
+        unreadMessages={unreadMessages}
       />
     </>
   );
