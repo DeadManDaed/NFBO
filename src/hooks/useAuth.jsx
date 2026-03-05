@@ -1,25 +1,18 @@
 // src/hooks/useAuth.jsx
-// Gestion de l'authentification via JWT.
-// Le token est stocké dans localStorage sous la clé 'nfbo_token'.
-// L'objet user est reconstruit depuis /api/auth/me à chaque chargement.
+// Authentification via Supabase Auth.
+// Le token est géré automatiquement par le client Supabase.
+// Les données métier (role, magasin_id, nom) viennent de public.users via auth_id.
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-const TOKEN_KEY = 'nfbo_token';
-const API_BASE  = '/api';
-
-// ─── Flag module-level (accessible par authFetch) ─────────────────────────────
-let _logoutHandler = null; // sera injecté par le Provider
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-
+// ─── Helper fetch authentifié ─────────────────────────────────────────────────
 export async function authFetch(url, options = {}) {
-  const token = getToken();
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const res = await fetch(url, {
     ...options,
     headers: {
@@ -29,12 +22,11 @@ export async function authFetch(url, options = {}) {
     },
   });
 
-  if (res.status === 401 && !window.__nfbo_logging_in) {
-    localStorage.removeItem(TOKEN_KEY);
+  if (res.status === 401) {
+    await supabase.auth.signOut();
     window.dispatchEvent(new Event('auth:expired'));
-    const err = await res.json().catch(() => ({ message: 'Session expirée' }));
-    throw new Error(err.message || 'Session expirée');
-}
+    throw new Error('Session expirée');
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `Erreur HTTP ${res.status}` }));
@@ -44,68 +36,89 @@ export async function authFetch(url, options = {}) {
   return res.json();
 }
 
+export function getToken() {
+  // Compatibilité avec le code existant qui appelle getToken()
+  // Retourne null — le token est géré par Supabase
+  return null;
+}
+
+// ─── Charger les données métier depuis public.users ───────────────────────────
+async function loadUserProfile(authId) {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
+    .eq('auth_id', authId)
+    .single();
+
+  if (error || !data) return null;
+  if (data.statut !== 'actif') return null;
+  return data;
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const loadUser = useCallback(async () => {
-    const token = getToken();
-    if (!token) {
+  useEffect(() => {
+    // Charger la session existante au démarrage
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const profile = await loadUserProfile(session.user.id);
+        setUser(profile);
+      }
       setLoading(false);
-      return;
-    }
-    try {
-      const userData = await authFetch(`${API_BASE}/auth/me`);
-      setUser(userData);
-    } catch {
-      localStorage.removeItem(TOKEN_KEY);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
+    });
+
+    // Écouter les changements de session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          const profile = await loadUserProfile(session.user.id);
+          setUser(profile);
+        } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
+          setUser(null);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Refresh silencieux — garder le profil existant
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    loadUser();
-    const onExpired = () => { if (!window.__nfbo_logging_in) setUser(null); };
-    window.addEventListener('auth:expired', onExpired);
-    return () => window.removeEventListener('auth:expired', onExpired);
-  }, [loadUser]);
-
   const login = async ({ username, password }) => {
-    window.__nfbo_logging_in = true;
-    try {
-      const res = await fetch(`${API_BASE}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      });
+    // Supabase Auth exige un email — username peut être un email
+    // Si username n'est pas un email, on cherche l'email correspondant
+    let email = username;
 
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Identifiants incorrects');
-      }
-
-      const { token, user: userData } = await res.json();
-      localStorage.setItem(TOKEN_KEY, token);
-      setUser(userData);
-      return userData;
-    } finally {
-      // On garde le flag actif 4s après le login pour laisser
-      // le Dashboard charger ses données sans risque de déconnexion
-      setTimeout(() => { window.__nfbo_logging_in = false; }, 4000);
+    if (!username.includes('@')) {
+      const { data } = await supabase
+        .from('users')
+        .select('email')
+        .eq('username', username)
+        .single();
+      if (!data?.email) throw new Error('Utilisateur introuvable');
+      email = data.email;
     }
+
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) throw new Error(error.message || 'Identifiants incorrects');
+
+    const profile = await loadUserProfile(data.user.id);
+    if (!profile) throw new Error('Profil utilisateur introuvable ou inactif');
+
+    setUser(profile);
+    return profile;
   };
 
   const logout = async () => {
-    try {
-      await authFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
-    } catch (_) {}
-    finally {
-      localStorage.removeItem(TOKEN_KEY);
-      setUser(null);
-    }
+    await supabase.auth.signOut();
+    setUser(null);
   };
 
   return (
