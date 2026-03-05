@@ -514,7 +514,7 @@ function HomeScreen({ user, data, loading, onNavigate }) {
 }
 
 // ─── Wrapper module exclusif ──────────────────────────────────────────────────
-function ModuleView({ moduleId, onBack }) {
+function ModuleView({ moduleId, onBack, onUnreadChange }) {
   const Component = MODULE_MAP[moduleId];
   const cfg = TABS.find(t => t.id === moduleId);
   if (!Component) return null;
@@ -531,7 +531,6 @@ function ModuleView({ moduleId, onBack }) {
           {cfg?.label || moduleId}
         </h2>
       </div>
-      <div style={{ padding:'16px' }}>
         <Component
   onBack={onBack}
   onUnreadChange={moduleId === 'messagerie' ? onUnreadChange : undefined}
