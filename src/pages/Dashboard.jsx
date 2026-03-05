@@ -536,7 +536,6 @@ function ModuleView({ moduleId, onBack, onUnreadChange }) {
   onUnreadChange={moduleId === 'messagerie' ? onUnreadChange : undefined}
 />
       </div>
-    </div>
   );
 }
 
