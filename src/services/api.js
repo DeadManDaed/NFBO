@@ -1,23 +1,21 @@
 // src/services/api.js
 // Toutes les requêtes API passent par request().
-// Le token JWT est lu depuis localStorage et injecté automatiquement.
-// Si le serveur répond 401 → déconnexion silencieuse via événement 'auth:expired'.
-// Si le serveur répond 403 → erreur claire "rôle insuffisant".
+// Le token Supabase est lu depuis la session active et injecté automatiquement.
 
-
-const API_BASE  = '/api';
-const TOKEN_KEY = 'nfbo_token';
-
-// ─── Flag partagé avec useAuth via window ─────────────────────────────────────
-function isLoggingIn() {
-  return window.__nfbo_logging_in === true;
-}
+const API_BASE = '/api';
 
 class ApiService {
 
-  // ─── Requête de base ────────────────────────────────────────────────────────
+  // ─── Token Supabase ──────────────────────────────────────────────────────────
+  async getToken() {
+    const { supabase } = await import('../lib/supabase');
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  }
+
+  // ─── Requête de base ─────────────────────────────────────────────────────────
   async request(endpoint, options = {}) {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = await this.getToken();
 
     try {
       const response = await fetch(`${API_BASE}${endpoint}`, {
@@ -30,10 +28,9 @@ class ApiService {
       });
 
       if (response.status === 401) {
-        if (!isLoggingIn()) {
-          localStorage.removeItem(TOKEN_KEY);
-          window.dispatchEvent(new Event('auth:expired'));
-        }
+        const { supabase } = await import('../lib/supabase');
+        await supabase.auth.signOut();
+        window.dispatchEvent(new Event('auth:expired'));
         throw new Error('Session expirée. Veuillez vous reconnecter.');
       }
 
@@ -53,55 +50,11 @@ class ApiService {
     }
   }
 
-  // ─── Vérification de rôle côté client (pré-filtre UX) ───────────────────────
-  checkRole(allowedRoles) {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) throw new Error('Non authentifié');
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      if (!allowedRoles.includes(payload.role)) {
-        throw new Error(`Action réservée aux rôles : ${allowedRoles.join(', ')}`);
-      }
-      return payload;
-    } catch {
-      throw new Error('Token invalide ou rôle non vérifié');
-    }
-  }
-
-  // ─── Décoder le token sans vérification serveur ───────────────────────────
-  decodeToken() {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (!token) return null;
-    try {
-      return JSON.parse(atob(token.split('.')[1]));
-    } catch {
-      return null;
-    }
-  }
-
   // ========== AUTH ==========
 
-  async login(credentials) {
-    const response = await fetch(`${API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(credentials),
-    });
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      throw new Error(err.message || 'Identifiants incorrects');
-    }
-    const data = await response.json();
-    if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
-    return data;
-  }
-
   async logout() {
-    try {
-      await this.request('/auth/logout', { method: 'POST' });
-    } finally {
-      localStorage.removeItem(TOKEN_KEY);
-    }
+    const { supabase } = await import('../lib/supabase');
+    await supabase.auth.signOut();
   }
 
   async getCurrentUser() {
@@ -119,33 +72,29 @@ class ApiService {
   }
 
   async createLot(data) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request('/lots', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateLot(id, data) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request(`/lots?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteLot(id) {
-    this.checkRole(['superadmin']);
     return this.request(`/lots?id=${id}`, { method: 'DELETE' });
   }
 
   // ========== ADMISSIONS ==========
 
-  async getAdmissions() {
-    return this.request('/admissions');
+  async getAdmissions(magasinId = null) {
+    const query = magasinId ? `?magasin_id=${magasinId}` : '';
+    return this.request(`/admissions${query}`);
   }
 
   async createAdmission(data) {
-    this.checkRole(['superadmin', 'admin', 'stock']);
     return this.request('/admissions', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async deleteAdmission(id) {
-    this.checkRole(['superadmin']);
     return this.request(`/admissions?id=${id}`, { method: 'DELETE' });
   }
 
@@ -160,12 +109,10 @@ class ApiService {
   }
 
   async createRetrait(data) {
-    this.checkRole(['superadmin', 'admin', 'stock']);
     return this.request('/retraits', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async deleteRetrait(id) {
-    this.checkRole(['superadmin']);
     return this.request(`/retraits?id=${id}`, { method: 'DELETE' });
   }
 
@@ -186,7 +133,6 @@ class ApiService {
   }
 
   async createTransfert(data) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request('/transferts', { method: 'POST', body: JSON.stringify(data) });
   }
 
@@ -201,17 +147,14 @@ class ApiService {
   }
 
   async createProducteur(data) {
-    this.checkRole(['superadmin', 'admin', 'stock']);
     return this.request('/producteurs', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateProducteur(id, data) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request(`/producteurs?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteProducteur(id) {
-    this.checkRole(['superadmin']);
     return this.request(`/producteurs?id=${id}`, { method: 'DELETE' });
   }
 
@@ -222,17 +165,14 @@ class ApiService {
   }
 
   async createMagasin(data) {
-    this.checkRole(['superadmin']);
     return this.request('/magasins', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateMagasin(id, data) {
-    this.checkRole(['superadmin']);
     return this.request(`/magasins?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteMagasin(id) {
-    this.checkRole(['superadmin']);
     return this.request(`/magasins?id=${id}`, { method: 'DELETE' });
   }
 
@@ -249,40 +189,33 @@ class ApiService {
   }
 
   async createEmployer(data) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request('/employers', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateEmployer(id, data) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request(`/employers?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteEmployer(id) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request(`/employers?id=${id}`, { method: 'DELETE' });
   }
 
   // ========== USERS ==========
 
   async getUsers(magasinId = null) {
-    this.checkRole(['superadmin', 'admin']);
     const query = magasinId ? `?magasin_id=${magasinId}` : '';
     return this.request(`/users${query}`);
   }
 
   async createUser(data) {
-    this.checkRole(['superadmin']);
     return this.request('/users', { method: 'POST', body: JSON.stringify(data) });
   }
 
   async updateUser(id, data) {
-    this.checkRole(['superadmin', 'admin']);
     return this.request(`/users?id=${id}`, { method: 'PUT', body: JSON.stringify(data) });
   }
 
   async deleteUser(id) {
-    this.checkRole(['superadmin']);
     return this.request(`/users?id=${id}`, { method: 'DELETE' });
   }
 
@@ -305,31 +238,28 @@ class ApiService {
   // ========== AUDIT ==========
 
   async getAuditPerformance() {
-    this.checkRole(['superadmin', 'auditeur']);
     return this.request('/audit?action=performance-by-store');
   }
 
   async getAuditRecentLogs() {
-    this.checkRole(['superadmin', 'auditeur']);
     return this.request('/audit?action=recent-logs');
   }
 
   async getAuditGlobalStats() {
-    this.checkRole(['superadmin', 'auditeur']);
     return this.request('/audit?action=global-stats');
   }
-async getAuditPending() {
-  this.checkRole(['superadmin', 'admin', 'auditeur']);
-  return this.request('/audit?action=pending-transfers');
-}
 
-async validateTransfert(id, data) {
-  this.checkRole(['superadmin', 'admin', 'auditeur']);
-  return this.request(`/transferts?id=${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
+  async getAuditPending() {
+    return this.request('/audit?action=pending-transfers');
+  }
+
+  async validateTransfert(id, data) {
+    return this.request(`/transferts?id=${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
   // ========== MESSAGES ==========
 
   async getMessages() {
@@ -349,26 +279,20 @@ async validateTransfert(id, data) {
     return this.request(`/messages?action=destinataires&role=${role}${query}`);
   }
 
+  async getUnreadCount() {
+    return this.request('/messages?action=unread-count');
+  }
+
   // ========== CAISSE ==========
 
   async getOperationsCaisse(params = {}) {
-    this.checkRole(['superadmin', 'admin', 'caisse']);
     const query = new URLSearchParams(params).toString();
     return this.request(`/operations_caisse${query ? '?' + query : ''}`);
   }
 
   async createOperationCaisse(data) {
-    this.checkRole(['superadmin', 'admin', 'caisse']);
     return this.request('/operations_caisse', { method: 'POST', body: JSON.stringify(data) });
   }
 }
 
 export default new ApiService();
-
-  
-
-
-
-
-
-
