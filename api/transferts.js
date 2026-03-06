@@ -24,10 +24,10 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
     // Vérifier stock disponible avec verrou
     const checkStock = await client.query(
-      `SELECT stock_actuel FROM stocks
-       WHERE lot_id=$1 AND magasin_id=$2 FOR UPDATE`,
-      [lot_id, magasin_id]
-    );
+  `SELECT stock_actuel FROM stocks
+   WHERE lot_id=$1 AND magasin_id=$2 LIMIT 1 FOR UPDATE`,
+  [lot_id, magasin_id]
+);
 
     if (checkStock.rows.length === 0) {
       throw new Error("Ce lot n'existe pas dans le magasin source.");
