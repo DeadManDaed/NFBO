@@ -6,7 +6,7 @@ const { requireAuth } = require('../_lib/auth');
 module.exports = withCors(requireAuth(async (req, res) => {
   const { id, action, role, magasin_id } = req.query;
   const userId = String(req.user.id); // toujours string pour comparaison avec users.id (varchar)
-console.log('[auth] getUser result:', { userId: user?.id, error: error?.message });
+
   // ── GET ?action=unread-count ───────────────────────────────────────────────
   if (req.method === 'GET' && action === 'unread-count') {
     try {
