@@ -15,6 +15,7 @@ function b64decode(str) {
 }
 
 // ─── Vérifier token Supabase (HS256) ─────────────────────────────────────────
+// ─── Vérifier token Supabase (HS256) ─────────────────────────────────────────
 function verifySupabaseToken(token) {
   if (!token) throw new Error('Token manquant');
 
@@ -23,9 +24,11 @@ function verifySupabaseToken(token) {
 
   const [header, body, sig] = parts;
 
-  // Vérifier la signature
+  // Le secret Supabase est en base64 — il faut le décoder en Buffer
+  const secretBuffer = Buffer.from(SUPABASE_JWT_SECRET, 'base64');
+
   const expectedSig = crypto
-    .createHmac('sha256', SUPABASE_JWT_SECRET)
+    .createHmac('sha256', secretBuffer)
     .update(`${header}.${body}`)
     .digest('base64')
     .replace(/=/g, '')
@@ -45,9 +48,8 @@ function verifySupabaseToken(token) {
     throw new Error('Token expiré');
   }
 
-  return payload; // contient sub = auth_id (uuid Supabase)
+  return payload;
 }
-
 // ─── Middleware requireAuth ───────────────────────────────────────────────────
 // Vérifie le token Supabase, charge le profil depuis public.users,
 // et injecte req.user = { id, auth_id, username, role, magasin_id, ... }
