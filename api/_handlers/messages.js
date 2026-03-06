@@ -1,7 +1,7 @@
 // api/messages.js
-const pool            = require('./_lib/db');
-const { withCors }    = require('./_lib/cors');
-const { requireAuth } = require('./_lib/auth');
+const pool            = require('../_lib/db');
+const { withCors }    = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
 
 module.exports = withCors(requireAuth(async (req, res) => {
   const { id, action, role, magasin_id } = req.query;

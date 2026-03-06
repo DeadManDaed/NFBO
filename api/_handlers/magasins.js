@@ -1,7 +1,7 @@
 // api/magasins.js  →  /api/magasins et /api/magasins?id=X
-const pool = require('./_lib/db');
-const { withCors } = require('./_lib/cors');
-const { requireAuth } = require('./_lib/auth');
+const pool = require('../_lib/db');
+const { withCors } = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
 
 module.exports = withCors(requireAuth(async (req, res) => {
   const { id } = req.query;

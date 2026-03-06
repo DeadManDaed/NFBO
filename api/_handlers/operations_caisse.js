@@ -1,7 +1,7 @@
 // api/operations_caisse.js
-const pool = require('./_lib/db');
-const { withCors } = require('./_lib/cors');
-const { requireAuth } = require('./_lib/auth');
+const pool = require('../_lib/db');
+const { withCors } = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
 
 module.exports = withCors(requireAuth(async (req, res) => {
   const { type, limit = 50, producteur_id } = req.query;

@@ -1,7 +1,7 @@
 // api/transferts.js  →  POST /api/transferts
-const pool = require('./_lib/db');
-const { withCors } = require('./_lib/cors');
-const { requireAuth } = require('./_lib/auth');
+const pool = require('../_lib/db');
+const { withCors } = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
 
 module.exports = withCors(requireAuth(async (req, res) => {
   if (req.method !== 'POST') return res.status(405).end();

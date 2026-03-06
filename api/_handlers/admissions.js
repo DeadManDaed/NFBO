@@ -1,7 +1,7 @@
 // api/admissions.js  →  /api/admissions et /api/admissions?id=X
-const { withCors } = require('./_lib/cors');
-const { requireAuth } = require('./_lib/auth');
-const pool = require('./_lib/db');
+const { withCors } = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
+const pool = require('../_lib/db');
 
 module.exports = withCors(requireAuth(async (req, res) => {
   const { id } = req.query;

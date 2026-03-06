@@ -1,8 +1,8 @@
 // api/geo.js  →  /api/geo?type=regions|departements|arrondissements
 // On unifie les 3 endpoints géo dans un seul fichier
 /*
-const pool = require('./_lib/db');
-const { withCors } = require('./_lib/cors');
+const pool = require('../_lib/db');
+const { withCors } = require('../_lib/cors');
 
 module.exports = withCors(async (req, res) => {
   if (req.method !== 'GET') return res.status(405).end();
@@ -50,9 +50,9 @@ module.exports = withCors(async (req, res) => {
 
 */
 
-const pool = require('./_lib/db');
-const { withCors } = require('./_lib/cors');
-const { requireAuth } = require('./_lib/auth');
+const pool = require('../_lib/db');
+const { withCors } = require('../_lib/cors');
+const { requireAuth } = require('../_lib/auth');
 
 // Utilisation de requireAuth pour protéger les données géographiques
 module.exports = withCors(requireAuth(async (req, res) => {
