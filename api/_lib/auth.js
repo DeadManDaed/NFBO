@@ -62,34 +62,27 @@ function requireAuth(handler, { roles } = {}) {
         ? authHeader.slice(7)
         : null;
 
+      // DEBUG TEMPORAIRE
+      if (!token) {
+        return res.status(401).json({ message: 'Token manquant', debug: 'no_token' });
+      }
+      
+      const parts = token.split('.');
+      const headerDecoded = JSON.parse(Buffer.from(parts[0], 'base64').toString());
+      const payloadDecoded = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+      
+      return res.status(401).json({ 
+        debug: true,
+        alg: headerDecoded.alg,
+        exp: new Date(payloadDecoded.exp * 1000),
+        sub: payloadDecoded.sub,
+        secret_length: SUPABASE_JWT_SECRET?.length,
+        secret_start: SUPABASE_JWT_SECRET?.substring(0, 10),
+      });
+      // FIN DEBUG
+
       const payload = verifySupabaseToken(token);
-      const authId  = payload.sub; // UUID Supabase
-
-      // Charger le profil métier depuis public.users
-      const result = await pool.query(
-        `SELECT id, auth_id, username, role, magasin_id, prenom, nom, email, statut
-         FROM public.users
-         WHERE auth_id = $1 AND statut = 'actif'`,
-        [authId]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(401).json({ message: 'Utilisateur introuvable ou inactif' });
-      }
-
-      req.user = result.rows[0];
-
-      if (roles && !roles.includes(req.user.role)) {
-        return res.status(403).json({ message: 'Accès refusé : rôle insuffisant' });
-      }
-
-      return handler(req, res);
-    } catch (err) {
-      return res.status(401).json({ message: `Non autorisé : ${err.message}` });
-    }
-  };
-}
-
+      
 // Compatibilité — ces fonctions ne sont plus utilisées mais
 // évitent de casser les imports existants
 function createToken() { throw new Error('createToken: utiliser Supabase Auth'); }
