@@ -4,13 +4,17 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { supabase } from '../lib/supabase';
+
 
 const API_BASE  = '/api';
 const TOKEN_KEY = 'nfbo_token';
 
 // ─── Fetch authentifié local ──────────────────────────────────────────────────
 async function mFetch(url, options = {}) {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+
   const res = await fetch(url, {
     ...options,
     headers: {
