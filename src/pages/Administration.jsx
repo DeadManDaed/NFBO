@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import PageLayout, { StateLoading, StateEmpty, StateError } from '../components/PageLayout';
 import { useAuth } from '../hooks/useAuth';
+import apiService from '../services/api';
 
 // ─── CONSTANTES ────────────────────────────────────────────────────────────────
 
@@ -111,17 +112,15 @@ function formatCellValue(value, type) {
   return String(value);
 }
 
-async function apiFetch(url, options = {}) {
-  const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: `Erreur HTTP ${res.status}` }));
-    throw new Error(err.message || `Erreur HTTP ${res.status}`);
-  }
-  return res.json();
-}
+
+
+const apiFetch = (url, options = {}) => {
+  const endpoint = url.replace('/api', '');
+  if (options.method === 'POST')   return apiService.request(endpoint, { ...options, method: 'POST' });
+  if (options.method === 'PUT')    return apiService.request(endpoint, { ...options, method: 'PUT' });
+  if (options.method === 'DELETE') return apiService.request(endpoint, { ...options, method: 'DELETE' });
+  return apiService.request(endpoint, options);
+};
 
 // ─── BOUTON DE NAVIGATION SIDEBAR ─────────────────────────────────────────────
 
@@ -300,7 +299,7 @@ function FormMagasin({ onCancel, onSuccess }) {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
-    apiFetch("/api/geo?type=regions").then(r => r.json()).then(setRegions).catch(() => {});
+    apiFetch("/api/geo?type=regions").then(setRegions).catch(() => {});
   }, []);
 
   const handleSubmit = async e => {
@@ -420,7 +419,7 @@ function FormProducteur({ onCancel, onSuccess }) {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
-    apiFetch("/api/geo?type=regions").then(r => r.json()).then(setRegions).catch(() => {});
+     apiFetch("/api/geo?type=regions").then(setRegions).catch(() => {});
   }, []);
 
   const onRegionChange = async e => {
@@ -428,7 +427,7 @@ function FormProducteur({ onCancel, onSuccess }) {
     setForm(f => ({ ...f, region_id: id, departement_id: "", arrondissement_id: "" }));
     setDepartements([]); setArrondissements([]);
     if (id) {
-      const data = await apiFetch(`/api/geo?type=departements&region_id=${id}`).then(r => r.json()).catch(() => []);
+      const data = apiFetch(`/api/geo?type=departements&region_id=${id}`).catch(() => []);
       setDepartements(data);
     }
   };
@@ -438,7 +437,7 @@ function FormProducteur({ onCancel, onSuccess }) {
     setForm(f => ({ ...f, departement_id: id, arrondissement_id: "" }));
     setArrondissements([]);
     if (id) {
-      const data = await apiFetch(`/api/geo?type=arrondissements&departement_id=${id}`).then(r => r.json()).catch(() => []);
+      const data = await apiFetch(`/api/geo?type=arrondissements&departement_id=${id}`).catch(() => []);
       setArrondissements(data);
     }
   };
