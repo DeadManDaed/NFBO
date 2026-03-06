@@ -202,7 +202,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       await pool.query(
         `UPDATE messages SET lu = $1, updated_at = NOW()
-         WHERE id = $2 AND destinataire_id::text = $3`,
+         WHERE id = $2 AND destinataire_id = $3`,
         [lu !== false, id, userId]
       );
       return res.json({ success: true });
@@ -216,7 +216,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       await pool.query(
         `DELETE FROM messages WHERE id = $1
-         AND (expediteur_id::text = $2 OR destinataire_id::text = $2)`,
+         AND (expediteur_id = $2 OR destinataire_id::text = $2)`,
         [id, userId]
       );
       return res.json({ success: true });
