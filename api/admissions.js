@@ -11,8 +11,7 @@ if (req.method === 'GET') {
   try {
     const { magasin_id, limit = 100 } = req.query;
     let query = `
-      SELECT a.*, l.description AS lot_description, l.unite,
-             p.nom_producteur, m.nom AS magasin_nom
+  SELECT a.*, l.description AS lot_description, l.unites_admises AS unite, p.nom_producteur, m.nom AS magasin_nom
       FROM admissions a
       LEFT JOIN lots l ON l.id = a.lot_id
       LEFT JOIN producteurs p ON p.id = a.producteur_id
