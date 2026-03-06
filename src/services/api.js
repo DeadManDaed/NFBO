@@ -7,12 +7,19 @@ const API_BASE = '/api';
 class ApiService {
 
   // ─── Token Supabase ──────────────────────────────────────────────────────────
-  async getToken() {
+  // ─── Token Supabase ──────────────────────────────────────────────────────────
+async getToken() {
+  try {
     const { supabase } = await import('../lib/supabase');
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
+    const { data } = await supabase.auth.getSession();
+    const token = data?.session?.access_token;
+    console.log('[api] token présent:', !!token, token?.substring(0, 20));
+    return token || null;
+  } catch (e) {
+    console.error('[api] getToken error:', e.message);
+    return null;
   }
-
+}
   // ─── Requête de base ─────────────────────────────────────────────────────────
   async request(endpoint, options = {}) {
     const token = await this.getToken();
