@@ -48,8 +48,26 @@ module.exports = withCors(requireAuth(async (req, res) => {
       return res.json(result.rows[0]);
     }
 
-    return res.status(400).json({ error: 'action requise : performance-by-store | recent-logs | global-stats' });
+    if (action === 'pending-transfers') {
+      const result = await pool.query(`
+        SELECT t.*, 
+          ls.description AS lot_description,
+          md.nom AS magasin_depart_nom,
+          ma.nom AS magasin_destination_nom,
+          e.nom AS chauffeur_nom
+        FROM transferts t
+        LEFT JOIN lots ls ON ls.id = t.lot_id
+        LEFT JOIN magasins md ON md.id = t.magasin_depart
+        LEFT JOIN magasins ma ON ma.id = t.magasin_destination
+        LEFT JOIN employers e ON e.id = t.chauffeur_id
+        WHERE t.statut = 'en_transit'
+        ORDER BY t.created_at DESC
+        LIMIT 50
+      `);
+      return res.json(result.rows);
+    }
 
+    return res.status(400).json({ error: 'action requise : performance-by-store | recent-logs | global-stats | pending-transfers' });
   } catch (err) {
     console.error('Erreur audit:', err.message);
     return res.status(500).json({ error: 'Erreur serveur', details: err.message });
