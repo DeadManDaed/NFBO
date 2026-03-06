@@ -8,14 +8,11 @@ const pool   = require('./db');
 
 const SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 
-// ─── Décoder base64url ────────────────────────────────────────────────────────
 function b64decode(str) {
   const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   return Buffer.from(base64, 'base64').toString('utf8');
 }
 
-// ─── Vérifier token Supabase (HS256) ─────────────────────────────────────────
-// ─── Vérifier token Supabase (HS256) ─────────────────────────────────────────
 function verifySupabaseToken(token) {
   if (!token) throw new Error('Token manquant');
 
@@ -24,7 +21,6 @@ function verifySupabaseToken(token) {
 
   const [header, body, sig] = parts;
 
-  // Le secret Supabase est en base64 — il faut le décoder en Buffer
   const secretBuffer = Buffer.from(SUPABASE_JWT_SECRET, 'base64');
 
   const expectedSig = crypto
@@ -50,9 +46,6 @@ function verifySupabaseToken(token) {
 
   return payload;
 }
-// ─── Middleware requireAuth ───────────────────────────────────────────────────
-// Vérifie le token Supabase, charge le profil depuis public.users,
-// et injecte req.user = { id, auth_id, username, role, magasin_id, ... }
 
 function requireAuth(handler, { roles } = {}) {
   return async (req, res) => {
@@ -62,29 +55,33 @@ function requireAuth(handler, { roles } = {}) {
         ? authHeader.slice(7)
         : null;
 
-      // DEBUG TEMPORAIRE
-      if (!token) {
-        return res.status(401).json({ message: 'Token manquant', debug: 'no_token' });
-      }
-      
-      const parts = token.split('.');
-      const headerDecoded = JSON.parse(Buffer.from(parts[0], 'base64').toString());
-      const payloadDecoded = JSON.parse(Buffer.from(parts[1], 'base64').toString());
-      
-      return res.status(401).json({ 
-        debug: true,
-        alg: headerDecoded.alg,
-        exp: new Date(payloadDecoded.exp * 1000),
-        sub: payloadDecoded.sub,
-        secret_length: SUPABASE_JWT_SECRET?.length,
-        secret_start: SUPABASE_JWT_SECRET?.substring(0, 10),
-      });
-      // FIN DEBUG
-
       const payload = verifySupabaseToken(token);
-      
-// Compatibilité — ces fonctions ne sont plus utilisées mais
-// évitent de casser les imports existants
+      const authId  = payload.sub;
+
+      const result = await pool.query(
+        `SELECT id, auth_id, username, role, magasin_id, prenom, nom, email, statut
+         FROM public.users
+         WHERE auth_id = $1 AND statut = 'actif'`,
+        [authId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.status(401).json({ message: 'Utilisateur introuvable ou inactif' });
+      }
+
+      req.user = result.rows[0];
+
+      if (roles && !roles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Accès refusé : rôle insuffisant' });
+      }
+
+      return handler(req, res);
+    } catch (err) {
+      return res.status(401).json({ message: `Non autorisé : ${err.message}` });
+    }
+  };
+}
+
 function createToken() { throw new Error('createToken: utiliser Supabase Auth'); }
 function verifyToken()  { throw new Error('verifyToken: utiliser Supabase Auth'); }
 
