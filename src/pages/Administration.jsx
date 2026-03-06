@@ -753,7 +753,7 @@ const { user } = useAuth();
 
           <div className="form-group">
             <label className="form-label">Montant à verser</label>
-            <input className="form-control" required type="number" min="1" step="50" value={montant} onChange={e => setMontant(e.target.value)} />
+            <input className="form-control" required type="number" min="1" step="1" value={montant} onChange={e => setMontant(e.target.value)} />
           </div>
 
           <div className="form-group">
