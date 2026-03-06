@@ -47,7 +47,7 @@ function requireAuth(handler, { roles } = {}) {
   };
 }
 
-const { createClient } = require('@supabase/supabase-js');
+
 console.log('[auth] supabase client créé:', !!createClient);
 console.log('[auth] SUPABASE_URL:', !!process.env.VITE_SUPABASE_URL);
 console.log('[auth] SERVICE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
