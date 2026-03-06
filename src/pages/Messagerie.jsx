@@ -8,7 +8,6 @@ import { supabase } from '../lib/supabase';
 
 
 const API_BASE  = '/api';
-const TOKEN_KEY = 'nfbo_token';
 
 // ─── Fetch authentifié local ──────────────────────────────────────────────────
 async function mFetch(url, options = {}) {
