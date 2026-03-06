@@ -47,6 +47,10 @@ function requireAuth(handler, { roles } = {}) {
   };
 }
 
+const { createClient } = require('@supabase/supabase-js');
+console.log('[auth] supabase client créé:', !!createClient);
+console.log('[auth] SUPABASE_URL:', !!process.env.VITE_SUPABASE_URL);
+console.log('[auth] SERVICE_KEY:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
 function createToken() { throw new Error('createToken: utiliser Supabase Auth'); }
 function verifyToken()  { throw new Error('verifyToken: utiliser Supabase Auth'); }
 
