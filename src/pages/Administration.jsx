@@ -427,7 +427,7 @@ function FormProducteur({ onCancel, onSuccess }) {
     setForm(f => ({ ...f, region_id: id, departement_id: "", arrondissement_id: "" }));
     setDepartements([]); setArrondissements([]);
     if (id) {
-      const data = apiFetch(`/api/geo?type=departements&region_id=${id}`).catch(() => []);
+      const data = await apiFetch(`/api/geo?type=departements&region_id=${id}`).catch(() => []);
       setDepartements(data);
     }
   };
