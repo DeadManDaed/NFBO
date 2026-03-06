@@ -1,4 +1,4 @@
-// api/messages.js
+// api/_handlers/messages.js
 const pool            = require('../_lib/db');
 const { withCors }    = require('../_lib/cors');
 const { requireAuth } = require('../_lib/auth');
@@ -12,7 +12,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       const r = await pool.query(
         `SELECT COUNT(*) AS count FROM messages
-         WHERE destinataire_id::text = $1 AND lu = false`,
+         WHERE destinataire_id = $1 AND lu = false`,
         [userId]
       );
       return res.json({ count: parseInt(r.rows[0].count, 10) });
@@ -97,7 +97,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
          FROM messages m
          LEFT JOIN users u ON u.id = m.expediteur_id::text
          WHERE m.id = $1
-           AND (m.destinataire_id::text = $2 OR m.expediteur_id::text = $2)`,
+           AND (m.destinataire_id = $2 OR m.expediteur_id::text = $2)`,
         [id, userId]
       );
       if (!r.rows[0]) return res.status(404).json({ error: 'Message introuvable' });
@@ -125,7 +125,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
                 u.username AS exp_username, u.role AS exp_role
          FROM messages m
          LEFT JOIN users u ON u.id = m.expediteur_id::text
-         WHERE m.destinataire_id::text = $1
+         WHERE m.destinataire_id = $1
          ORDER BY m.inserted_at DESC
          LIMIT 100`,
         [userId]
