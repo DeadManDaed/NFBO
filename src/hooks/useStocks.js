@@ -25,10 +25,8 @@ export function useStocks(magasinId = null) {
   };
 
   useEffect(() => {
-    if (magasinId) {
-      fetchStocks();
-    }
-  }, [magasinId]);
+  fetchStocks();
+}, [magasinId]);
 
   return { 
     stocks, 
