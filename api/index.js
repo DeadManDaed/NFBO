@@ -17,3 +17,15 @@ const routes = {
   '/api/transferts':        () => require('./transferts'),
   '/api/auth':              () => require('./auth/index'),
 };
+module.exports = withCors(async (req, res) => {
+  const path = req.url.split('?')[0];
+
+  // Trouver la route correspondante
+  const matchKey = Object.keys(routes).find(k => path.startsWith(k));
+  if (!matchKey) {
+    return res.status(404).json({ error: `Route introuvable : ${path}` });
+  }
+
+  const handler = routes[matchKey]();
+  return handler(req, res);
+});
