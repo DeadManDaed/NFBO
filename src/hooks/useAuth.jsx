@@ -43,16 +43,24 @@ export function getToken() {
 }
 
 // ─── Charger les données métier depuis public.users ───────────────────────────
-async function loadUserProfile(authId) {
-  const { data, error } = await supabase
-    .from('users')
-    .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
-    .eq('auth_id', authId)
-    .single();
-
-  if (error || !data) return null;
-  if (data.statut !== 'actif') return null;
-  return data;
+async function loadUserProfile(authId, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
+        .eq('auth_id', authId)
+        .single();
+      if (error || !data) return null;
+      if (data.statut !== 'actif') return null;
+      return data;
+    } catch (err) {
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+      }
+    }
+  }
+  return null;
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────
@@ -61,45 +69,39 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-    let mounted = true;
+  let mounted = true;
 
-    // Supabase v2 recommande de tout gérer uniquement via l'écouteur.
-    // Il va déclencher INITIAL_SESSION au démarrage, puis SIGNED_IN, SIGNED_OUT ou TOKEN_REFRESHED.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-  async (event, session) => {
-    console.log('[auth] event:', event, 'user:', session?.user?.id);
-    if (!mounted) return;
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      console.log('[auth] event:', event, 'user:', session?.user?.id);
+      if (!mounted) return;
 
-    // INITIAL_SESSION sans user = pas connecté
-    if (event === 'INITIAL_SESSION' && !session?.user) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-
-    if (session?.user) {
-      try {
-        const profile = await loadUserProfile(session.user.id);
-        if (mounted) { setUser(profile); setLoading(false); }
-      } catch {
-        if (mounted) setLoading(false);
+      if (event === 'INITIAL_SESSION' && !session?.user) {
+        setUser(null);
+        setLoading(false);
+        return;
       }
-    } else {
-      if (mounted) { setUser(null); setLoading(false); }
-    }
-  }
-);
-  }, []);
 
-
-  useEffect(() => {
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'hidden') {
-      supabase.auth.signOut();
+      if (session?.user) {
+        if (event === 'SIGNED_IN') {
+          await new Promise(r => setTimeout(r, 500));
+        }
+        try {
+          const profile = await loadUserProfile(session.user.id);
+          if (mounted) { setUser(profile); setLoading(false); }
+        } catch {
+          if (mounted) setLoading(false);
+        }
+      } else {
+        if (mounted) { setUser(null); setLoading(false); }
+      }
     }
+  );
+
+  return () => {
+    mounted = false;
+    subscription.unsubscribe(); // ← manquait
   };
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
 }, []);
 
 
