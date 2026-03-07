@@ -63,37 +63,38 @@ export function AuthProvider({ children }) {
   useEffect(() => {
   let mounted = true;
 
-  // onAuthStateChange est suffisant — il se déclenche aussi au démarrage
+  // Filet de sécurité — getSession() pour le refresh initial
+  const initSession = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!mounted) return;
+      if (session?.user) {
+        const profile = await loadUserProfile(session.user.id);
+        if (mounted) { setUser(profile); setLoading(false); }
+      } else {
+        if (mounted) setLoading(false);
+      }
+    } catch {
+      if (mounted) setLoading(false);
+    }
+  };
+
+  initSession();
+
   const { data: { subscription } } = supabase.auth.onAuthStateChange(
     async (event, session) => {
       if (!mounted) return;
-
+      if (event === 'INITIAL_SESSION') return; // déjà géré par initSession
       if (session?.user) {
-  try {
-    const profile = await Promise.race([
-      loadUserProfile(session.user.id),
-      new Promise(resolve => setTimeout(() => resolve(null), 5000))
-    ]);
-    if (mounted) {
-      setUser(profile);
-      setLoading(false);
-    }
-  } catch {
-    if (mounted) setLoading(false);
-  }
-} else {
-  if (mounted) {
-    setUser(null);
-    setLoading(false);
-  }
-}
+        const profile = await loadUserProfile(session.user.id);
+        if (mounted) { setUser(profile); setLoading(false); }
+      } else {
+        if (mounted) { setUser(null); setLoading(false); }
+      }
     }
   );
 
-  return () => {
-    mounted = false;
-    subscription.unsubscribe();
-  };
+  return () => { mounted = false; subscription.unsubscribe(); };
 }, []);
 
   const login = async ({ username, password }) => {
