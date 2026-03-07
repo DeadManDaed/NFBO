@@ -81,7 +81,34 @@ ORDER BY t.date_creation DESC
       `);
       return res.json(result.rows);
     }
-
+if (action === 'logs-by-store') {
+  const { magasin_id } = req.query;
+  if (!magasin_id) return res.status(400).json({ error: 'magasin_id requis' });
+  const result = await pool.query(`
+    SELECT 
+      a.id, a.date_reception AS date, a.utilisateur,
+      l.description AS produit, a.quantite, a.unite,
+      a.prix_ref, a.quantite * a.prix_ref AS montant,
+      'admission' AS action
+    FROM admissions a
+    LEFT JOIN lots l ON l.id = a.lot_id
+    WHERE a.magasin_id = $1
+      AND a.date_reception >= CURRENT_DATE - INTERVAL '30 days'
+    UNION ALL
+    SELECT
+      r.id, r.date_retrait AS date, r.utilisateur,
+      l.description AS produit, r.quantite, r.unite,
+      r.prix_ref, r.quantite * r.prix_ref AS montant,
+      r.type_retrait AS action
+    FROM retraits r
+    LEFT JOIN lots l ON l.id = r.lot_id
+    WHERE r.magasin_id = $1
+      AND r.date_retrait >= CURRENT_DATE - INTERVAL '30 days'
+    ORDER BY date DESC
+    LIMIT 50
+  `, [magasin_id]);
+  return res.json(result.rows);
+}
     return res.status(400).json({ error: 'action requise : performance-by-store | recent-logs | global-stats | pending-transfers' });
   } catch (err) {
     console.error('Erreur audit:', err.message);
