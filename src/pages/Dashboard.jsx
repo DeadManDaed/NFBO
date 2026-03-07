@@ -4,6 +4,8 @@ import { useStocks } from '../hooks/useStocks';
 import api from '../services/api';
 
 // ─── Imports des modules — tous présents dans src/pages/ ─────────────────────
+import { useDashboardData } from '../hooks/useDashboardData';
+
 import Administration  from './Administration';
 import Admissions      from './Admissions';
 import Retraits        from './Retraits';
