@@ -69,17 +69,24 @@ export function AuthProvider({ children }) {
       if (!mounted) return;
 
       if (session?.user) {
-        const profile = await loadUserProfile(session.user.id);
-        if (mounted) {
-          setUser(profile);
-          setLoading(false);
-        }
-      } else {
-        if (mounted) {
-          setUser(null);
-          setLoading(false);
-        }
-      }
+  try {
+    const profile = await Promise.race([
+      loadUserProfile(session.user.id),
+      new Promise(resolve => setTimeout(() => resolve(null), 5000))
+    ]);
+    if (mounted) {
+      setUser(profile);
+      setLoading(false);
+    }
+  } catch {
+    if (mounted) setLoading(false);
+  }
+} else {
+  if (mounted) {
+    setUser(null);
+    setLoading(false);
+  }
+}
     }
   );
 
