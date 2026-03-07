@@ -261,6 +261,7 @@ const GLOBAL_CSS = `
 
   useEffect(() => { load(); }, [load]);
   return { data, loading, reload: load };
+}
 
 // ─── Composants UI atomiques ──────────────────────────────────────────────────
 
