@@ -222,9 +222,12 @@ const GLOBAL_CSS = `
 `;
 
 // ─── Hook données dashboard ───────────────────────────────────────────────────
-function useDashboardData(magasinId, stocks) {
+ function useDashboardData(magasinId, stocks) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const stocksRef = useRef(stocks);
+  useEffect(() => { stocksRef.current = stocks; }, [stocks]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -235,8 +238,9 @@ function useDashboardData(magasinId, stocks) {
       ]);
       const adm = magasinId ? admissions.filter(a => a.magasin_id === magasinId) : admissions;
       const ret = magasinId ? retraits.filter(r => r.magasin_id === magasinId) : retraits;
-      const valeurStock = (stocks || []).reduce((s, x) => s + x.stock_actuel * x.prix_ref, 0);
-      const alertes = (stocks || []).filter(s => s.stock_actuel < 10);
+      const s = stocksRef.current || [];
+      const valeurStock = s.reduce((acc, x) => acc + x.stock_actuel * x.prix_ref, 0);
+      const alertes = s.filter(s => s.stock_actuel < 10);
 
       setData({
         totalAdmissions: adm.length,
@@ -246,18 +250,17 @@ function useDashboardData(magasinId, stocks) {
         admissionsRecentes: adm.slice(0, 8),
         retraitsRecents: ret.slice(0, 8),
         alertes,
-        topStocks: (stocks || []).sort((a, b) => b.stock_actuel * b.prix_ref - a.stock_actuel * a.prix_ref).slice(0, 8),
+        topStocks: s.sort((a, b) => b.stock_actuel * b.prix_ref - a.stock_actuel * a.prix_ref).slice(0, 8),
       });
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
     }
-  }, [magasinId, stocks]);
+  }, [magasinId]); // stocks retiré
 
   useEffect(() => { load(); }, [load]);
   return { data, loading, reload: load };
-}
 
 // ─── Composants UI atomiques ──────────────────────────────────────────────────
 
