@@ -76,8 +76,7 @@ export default function Retraits() {
     };
     if (formData.type_retrait === 'producteur' && formData.destination_producteur_id)
       retrait.destination_producteur_id = parseInt(formData.destination_producteur_id);
-    if (formData.type_retrait === 'magasin' && formData.destination_magasin_id)
-      retrait.destination_magasin_id = parseInt(formData.destination_magasin_id);
+    
     if (formData.type_retrait === 'destruction' && formData.motif)
       retrait.motif = formData.motif;
 
