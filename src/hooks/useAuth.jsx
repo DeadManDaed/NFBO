@@ -92,7 +92,16 @@ export function AuthProvider({ children }) {
   }, []);
 
 
-  
+  useEffect(() => {
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      supabase.auth.signOut();
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+}, []);
+
 
   const login = async ({ username, password }) => {
     // Supabase Auth exige un email — username peut être un email
