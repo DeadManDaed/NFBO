@@ -60,8 +60,8 @@ module.exports = withCors(requireAuth(async (req, res) => {
         LEFT JOIN magasins md ON md.id = t.magasin_depart
         LEFT JOIN magasins ma ON ma.id = t.magasin_destination
         LEFT JOIN employers e ON e.id = t.chauffeur_id
-        WHERE t.statut = 'en_transit'
-        ORDER BY t.created_at DESC
+WHERE t.statut = 'en_transit'
+ORDER BY t.date_creation DESC
         LIMIT 50
       `);
       return res.json(result.rows);
