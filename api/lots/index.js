@@ -22,8 +22,15 @@ module.exports = withCors(requireAuth(async (req, res) => {
   // ─── GET /api/lots/stock?magasinId=X  (ex-stocks.js) ─────────────────────────
   if (isStockRoute && req.method === 'GET') {
     if (!magasinId) {
-      return res.status(400).json({ error: 'magasinId requis' });
-    }
+  // Retourner tous les stocks toutes magasins confondus
+  const result = await pool.query(
+    `SELECT lot_id, magasin_id, description, unite, prix_ref, 
+            unites_admises, categorie, stock_actuel, derniere_reception
+     FROM stocks
+     ORDER BY description`
+  );
+  return res.json(result.rows);
+}
     try {
       const result = await pool.query(
         `WITH adm AS (
