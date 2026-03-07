@@ -67,6 +67,8 @@ export function AuthProvider({ children }) {
     // Il va déclencher INITIAL_SESSION au démarrage, puis SIGNED_IN, SIGNED_OUT ou TOKEN_REFRESHED.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+console.log('[auth] event:', event, 'user:', session?.user?.id);
+    
         if (!mounted) return;
 
         if (session?.user) {
