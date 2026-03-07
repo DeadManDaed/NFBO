@@ -36,8 +36,8 @@ export function useDashboardData(magasinId, stocks) {
       const ret = magasinId ? retraits.filter(r => r.magasin_id === magasinId) : retraits;
       const s = stocksRef.current || [];
       
-      const valeurStock = s.reduce((acc, x) => acc + (x.stock_actuel * x.prix_ref), 0);
-      const alertes = s.filter(s => s.stock_actuel < 10);
+      const valeurStock = s.reduce((acc, x) => acc + (parseFloat(x.stock_actuel)||0) * (parseFloat(x.prix_ref)||0), 0);
+const alertes = s.filter(x => (parseFloat(x.stock_actuel)||0) < 10);
 
       setData({
         totalAdmissions: adm.length,
@@ -48,7 +48,10 @@ export function useDashboardData(magasinId, stocks) {
         retraitsRecents: ret.slice(0, 8),
         alertes,
         // CORRECTION : On trie une copie pour éviter de muter les props
-        topStocks: [...s].sort((a, b) => (b.stock_actuel * b.prix_ref) - (a.stock_actuel * a.prix_ref)).slice(0, 8),
+        topStocks: [...s].sort((a, b) => 
+  (parseFloat(b.stock_actuel)||0) * (parseFloat(b.prix_ref)||0) - 
+  (parseFloat(a.stock_actuel)||0) * (parseFloat(a.prix_ref)||0)
+).slice(0, 8),
       });
     } catch (e) {
       console.error("Erreur lors du chargement du Dashboard:", e);
