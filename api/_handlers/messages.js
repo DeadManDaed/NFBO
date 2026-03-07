@@ -32,7 +32,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
         usersRes = await pool.query(
           `SELECT id, username, nom, prenom, role, magasin_id
            FROM users
-           WHERE statut = 'actif' AND id::text != $1
+           WHERE statut = 'actif' AND id != $1
            ORDER BY nom`,
           [userId]
         );
@@ -41,7 +41,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
           `SELECT id, username, nom, prenom, role, magasin_id
            FROM users
            WHERE statut = 'actif'
-             AND id::text != $1
+             AND id != $1
              AND (magasin_id = $2 OR role IN ('superadmin', 'admin', 'auditeur'))
            ORDER BY nom`,
           [userId, targetMagasin]
@@ -75,8 +75,8 @@ module.exports = withCors(requireAuth(async (req, res) => {
                 u.nom AS destinataire_nom, u.prenom AS destinataire_prenom,
                 u.username AS destinataire_username
          FROM messages m
-         LEFT JOIN users u ON u.id = m.destinataire_id::text
-         WHERE m.expediteur_id::text = $1
+         LEFT JOIN users u ON u.id = m.destinataire_id
+         WHERE m.expediteur_id = $1
          ORDER BY m.inserted_at DESC
          LIMIT 100`,
         [userId]
@@ -95,9 +95,9 @@ module.exports = withCors(requireAuth(async (req, res) => {
                 u.nom AS exp_nom, u.prenom AS exp_prenom,
                 u.username AS exp_username, u.role AS exp_role
          FROM messages m
-         LEFT JOIN users u ON u.id = m.expediteur_id::text
+         LEFT JOIN users u ON u.id = m.expediteur_id
          WHERE m.id = $1
-           AND (m.destinataire_id = $2 OR m.expediteur_id::text = $2)`,
+           AND (m.destinataire_id = $2 OR m.expediteur_id = $2)`,
         [id, userId]
       );
       if (!r.rows[0]) return res.status(404).json({ error: 'Message introuvable' });
@@ -124,7 +124,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
                 u.nom AS exp_nom, u.prenom AS exp_prenom,
                 u.username AS exp_username, u.role AS exp_role
          FROM messages m
-         LEFT JOIN users u ON u.id = m.expediteur_id::text
+         LEFT JOIN users u ON u.id = m.expediteur_id
          WHERE m.destinataire_id = $1
          ORDER BY m.inserted_at DESC
          LIMIT 100`,
@@ -157,7 +157,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
     try {
       const userRes = await pool.query(
-        'SELECT nom, prenom, username FROM users WHERE id::text = $1',
+        'SELECT nom, prenom, username FROM users WHERE id = $1',
         [userId]
       );
       const u      = userRes.rows[0] || {};
@@ -216,7 +216,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       await pool.query(
         `DELETE FROM messages WHERE id = $1
-         AND (expediteur_id = $2 OR destinataire_id::text = $2)`,
+         AND (expediteur_id = $2 OR destinataire_id = $2)`,
         [id, userId]
       );
       return res.json({ success: true });
