@@ -60,42 +60,46 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-  let mounted = true;
+    useEffect(() => {
+    let mounted = true;
 
-  // Filet de sécurité — getSession() pour le refresh initial
-  const initSession = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!mounted) return;
-      if (session?.user) {
-        const profile = await loadUserProfile(session.user.id);
-        if (mounted) { setUser(profile); setLoading(false); }
-      } else {
-        if (mounted) setLoading(false);
+    // Supabase v2 recommande de tout gérer uniquement via l'écouteur.
+    // Il va déclencher INITIAL_SESSION au démarrage, puis SIGNED_IN, SIGNED_OUT ou TOKEN_REFRESHED.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        if (session?.user) {
+          try {
+            // On charge le profil. Si le réseau mobile bloque au retour de veille,
+            // loadUserProfile peut échouer, mais on garantit l'arrêt du chargement.
+            const profile = await loadUserProfile(session.user.id);
+            if (mounted) {
+              setUser(profile);
+              setLoading(false);
+            }
+          } catch (err) {
+            if (mounted) {
+              setLoading(false); // Empêche l'écran de chargement infini en cas de crash
+            }
+          }
+        } else {
+          if (mounted) {
+            setUser(null);
+            setLoading(false);
+          }
+        }
       }
-    } catch {
-      if (mounted) setLoading(false);
-    }
-  };
+    );
 
-  initSession();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      if (!mounted) return;
-      if (event === 'INITIAL_SESSION') return; // déjà géré par initSession
-      if (session?.user) {
-        const profile = await loadUserProfile(session.user.id);
-        if (mounted) { setUser(profile); setLoading(false); }
-      } else {
-        if (mounted) { setUser(null); setLoading(false); }
-      }
-    }
-  );
 
-  return () => { mounted = false; subscription.unsubscribe(); };
-}, []);
+  
 
   const login = async ({ username, password }) => {
     // Supabase Auth exige un email — username peut être un email
