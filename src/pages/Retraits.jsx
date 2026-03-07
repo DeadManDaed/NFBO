@@ -137,8 +137,7 @@ export default function Retraits() {
                 <label className="form-label">Type de retrait *</label>
                 <select className="form-control" required value={formData.type_retrait} onChange={e => handleTypeRetraitChange(e.target.value)}>
                   <option value="vente">🛒 Vente client</option>
-                  <option value="producteur">👨‍🌾 Retour producteur</option>
-                  <option value="magasin">🏪 Transfert magasin</option>
+                  <option value="producteur">👨‍🌾 Retour producteur</option>                 
                   <option value="destruction">🗑️ Destruction</option>
                 </select>
               </div>
