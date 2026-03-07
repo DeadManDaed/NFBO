@@ -1,4 +1,4 @@
-// api/transferts.js  →  POST /api/transferts
+// api/_handlers/transferts.js
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
 const { requireAuth } = require('../_lib/auth');
@@ -22,35 +22,41 @@ module.exports = withCors(requireAuth(async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Vérifier stock disponible avec verrou
+    // Vérifier stock disponible — via admissions/retraits directement (stocks est une vue)
     const checkStock = await client.query(
-  `SELECT stock_actuel FROM stocks
-   WHERE lot_id=$1 AND magasin_id=$2 LIMIT 1 FOR UPDATE`,
-  [lot_id, magasin_id]
-);
+      `SELECT
+         COALESCE(SUM(a.quantite), 0) - COALESCE((
+           SELECT SUM(r.quantite) FROM retraits r
+           WHERE r.lot_id = $1 AND r.magasin_id = $2
+         ), 0) AS stock_actuel
+       FROM admissions a
+       WHERE a.lot_id = $1 AND a.magasin_id = $2`,
+      [lot_id, magasin_id]
+    );
 
-    if (checkStock.rows.length === 0) {
+    const stockDispo = parseFloat(checkStock.rows[0]?.stock_actuel || 0);
+    if (stockDispo <= 0) {
       throw new Error("Ce lot n'existe pas dans le magasin source.");
     }
-
-    const stockDispo = parseFloat(checkStock.rows[0].stock_actuel);
     if (stockDispo < parseFloat(quantite)) {
       throw new Error(`Stock insuffisant. Disponible: ${stockDispo}, Demandé: ${quantite}`);
     }
 
-    // Débiter le magasin source
+    // Créer le retrait source (débite le stock via la table retraits)
     await client.query(
-      `UPDATE stocks SET stock_actuel = stock_actuel - $1 WHERE lot_id=$2 AND magasin_id=$3`,
-      [quantite, lot_id, magasin_id]
+      `INSERT INTO retraits
+         (lot_id, magasin_id, quantite, unite, type_retrait, prix_ref, utilisateur, observations)
+       VALUES ($1, $2, $3, $4, 'magasin', $5, $6, $7)`,
+      [lot_id, magasin_id, quantite, unite, prix_ref, utilisateur || req.user.username, motif || null]
     );
 
     // Créer le transfert en transit
     const result = await client.query(
       `INSERT INTO transferts
-       (lot_id, magasin_depart, magasin_destination, chauffeur_id, quantite, unite, prix_ref, utilisateur, motif, statut)
+         (lot_id, magasin_depart, magasin_destination, chauffeur_id, quantite, unite, prix_ref, utilisateur, motif, statut)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'en_transit')
        RETURNING id`,
-     [lot_id, magasin_id, destination_magasin_id, chauffeur_id || null, quantite, unite, prix_ref, utilisateur || req.user.username, motif]
+      [lot_id, magasin_id, destination_magasin_id, chauffeur_id || null, quantite, unite, prix_ref, utilisateur || req.user.username, motif]
     );
 
     await client.query('COMMIT');
