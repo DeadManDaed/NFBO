@@ -76,9 +76,7 @@ export function AuthProvider({ children }) {
         if (event === 'SIGNED_IN' && session?.user) {
           const profile = await loadUserProfile(session.user.id);
           setUser(profile);
-        } else if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !session) {
-          setUser(null);
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        } else if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
           // Refresh silencieux — garder le profil existant
         }
 setLoading(false); // retirer le statut "chargement", car l'utilisateur est déjà authentifié 
