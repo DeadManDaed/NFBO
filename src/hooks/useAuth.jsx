@@ -81,6 +81,7 @@ export function AuthProvider({ children }) {
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
           // Refresh silencieux — garder le profil existant
         }
+setLoading(false); // retirer le statut "chargement", car l'utilisateur est déjà authentifié 
       }
     );
 
