@@ -66,38 +66,29 @@ export function AuthProvider({ children }) {
     // Supabase v2 recommande de tout gérer uniquement via l'écouteur.
     // Il va déclencher INITIAL_SESSION au démarrage, puis SIGNED_IN, SIGNED_OUT ou TOKEN_REFRESHED.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-console.log('[auth] event:', event, 'user:', session?.user?.id);
-    
-        if (!mounted) return;
+  async (event, session) => {
+    console.log('[auth] event:', event, 'user:', session?.user?.id);
+    if (!mounted) return;
 
-        if (session?.user) {
-          try {
-            // On charge le profil. Si le réseau mobile bloque au retour de veille,
-            // loadUserProfile peut échouer, mais on garantit l'arrêt du chargement.
-            const profile = await loadUserProfile(session.user.id);
-            if (mounted) {
-              setUser(profile);
-              setLoading(false);
-            }
-          } catch (err) {
-            if (mounted) {
-              setLoading(false); // Empêche l'écran de chargement infini en cas de crash
-            }
-          }
-        } else {
-          if (mounted) {
-            setUser(null);
-            setLoading(false);
-          }
-        }
+    // INITIAL_SESSION sans user = pas connecté
+    if (event === 'INITIAL_SESSION' && !session?.user) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+
+    if (session?.user) {
+      try {
+        const profile = await loadUserProfile(session.user.id);
+        if (mounted) { setUser(profile); setLoading(false); }
+      } catch {
+        if (mounted) setLoading(false);
       }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    } else {
+      if (mounted) { setUser(null); setLoading(false); }
+    }
+  }
+);
   }, []);
 
 
