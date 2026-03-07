@@ -47,7 +47,22 @@ module.exports = withCors(requireAuth(async (req, res) => {
       `);
       return res.json(result.rows[0]);
     }
-
+if (action === 'validated-transfers') {
+  const result = await pool.query(`
+    SELECT t.*,
+      l.description AS lot_description,
+      md.nom AS magasin_depart_nom,
+      ma.nom AS magasin_destination_nom
+    FROM transferts t
+    LEFT JOIN lots l ON l.id = t.lot_id
+    LEFT JOIN magasins md ON md.id = t.magasin_depart
+    LEFT JOIN magasins ma ON ma.id = t.magasin_destination
+    WHERE t.statut = 'livré'
+    ORDER BY t.date_reception DESC
+    LIMIT 20
+  `);
+  return res.json(result.rows);
+}
     if (action === 'pending-transfers') {
       const result = await pool.query(`
         SELECT t.*, 
