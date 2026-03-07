@@ -61,30 +61,33 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Charger la session existante au démarrage
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+  let mounted = true;
+
+  // onAuthStateChange est suffisant — il se déclenche aussi au démarrage
+  const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    async (event, session) => {
+      if (!mounted) return;
+
       if (session?.user) {
         const profile = await loadUserProfile(session.user.id);
-        setUser(profile);
-      }
-      setLoading(false);
-    });
-
-    // Écouter les changements de session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
-          const profile = await loadUserProfile(session.user.id);
+        if (mounted) {
           setUser(profile);
-        } else if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
-          // Refresh silencieux — garder le profil existant
+          setLoading(false);
         }
-setLoading(false); // retirer le statut "chargement", car l'utilisateur est déjà authentifié 
+      } else {
+        if (mounted) {
+          setUser(null);
+          setLoading(false);
+        }
       }
-    );
+    }
+  );
 
-    return () => subscription.unsubscribe();
-  }, []);
+  return () => {
+    mounted = false;
+    subscription.unsubscribe();
+  };
+}, []);
 
   const login = async ({ username, password }) => {
     // Supabase Auth exige un email — username peut être un email
