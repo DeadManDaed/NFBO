@@ -13,7 +13,7 @@ export function useStocks(magasinId = null) {
       setLoading(true);
       const data = magasinId 
         ? await api.getStockDisponible(magasinId)
-        : await api.getStocks();
+        : await api.request('/stocks');;
       setStocks(data);
       setError(null);
     } catch (err) {
