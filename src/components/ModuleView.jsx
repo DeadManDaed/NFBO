@@ -1,3 +1,4 @@
+//src/components/ModuleView.jsx
 import React from 'react';
 
 import Administration  from '../pages/Administration';
