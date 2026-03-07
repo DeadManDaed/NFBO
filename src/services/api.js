@@ -259,7 +259,9 @@ async getToken() {
   async getAuditPending() {
     return this.request('/audit?action=pending-transfers');
   }
-
+async getAuditLogsByStore(magasinId) {
+  return this.request(`/audit?action=logs-by-store&magasin_id=${magasinId}`);
+}
   async validateTransfert(id, data) {
     return this.request(`/transferts?id=${id}`, {
       method: 'PUT',
