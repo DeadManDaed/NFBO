@@ -28,10 +28,7 @@ export default function Audit() {
     setLoading(true);
     try {
       const pending       = await api.getAuditPending();
-      const allTransferts = await api.getRetraits();
-      const validated     = allTransferts
-        .filter(t => t.type_retrait === 'magasin' && t.statut_audit === 'valide')
-        .slice(0, 10);
+      const validated = await api.request('/audit?action=validated-transfers');
       setTransfertsPending(pending);
       setTransfertsValidated(validated);
     } catch (err) {
