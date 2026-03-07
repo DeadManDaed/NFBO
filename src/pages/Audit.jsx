@@ -271,13 +271,13 @@ export default function Audit() {
                 <div>
                   <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Source</p>
                   <code style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
-                    {selectedTransfert.magasin_source_code || 'N/A'}
+                    {selectedTransfert.magasin_depart_nom || 'N/A'}
                   </code>
                 </div>
                 <div>
                   <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Destination</p>
                   <code style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', padding: '2px 8px', borderRadius: 4, fontSize: 13 }}>
-                    {selectedTransfert.magasin_dest_code || 'N/A'}
+                    {selectedTransfert.magasin_destination_nom || 'N/A'}
                   </code>
                 </div>
               </div>
