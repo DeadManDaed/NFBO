@@ -57,10 +57,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     }
     if (type_retrait === 'producteur' && !destination_producteur_id) {
       return res.status(400).json({ error: 'destination_producteur_id requis pour type_retrait=producteur' });
-    }
-    if (type_retrait === 'magasin' && !destination_magasin_id) {
-      return res.status(400).json({ error: 'destination_magasin_id requis pour type_retrait=magasin' });
-    }
+    
 
     const client = await pool.connect();
     try {
