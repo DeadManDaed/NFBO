@@ -56,8 +56,8 @@ export function ActivityRow({ icon, title, sub, right, rightSub, accent }) {
 }
 
 export function StockRow({ stock, rank }) {
-  const val = stock.stock_actuel * stock.prix_ref;
-  const maxVal = 1_000_000;
+  const val = (parseFloat(stock.stock_actuel)||0) * (parseFloat(stock.prix_ref)||0); 
+ const maxVal = 1_000_000;
   const pct = Math.min(100, (val / maxVal) * 100);
   const isLow = stock.stock_actuel < 10;
 
