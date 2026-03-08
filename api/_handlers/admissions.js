@@ -7,7 +7,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
   const { id } = req.query;
 
   // GET /api/admissions
-/*
+
 if (req.method === 'GET') {
   try {
     const { magasin_id, limit = 100 } = req.query;
