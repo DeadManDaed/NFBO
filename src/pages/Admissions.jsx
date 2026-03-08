@@ -245,12 +245,29 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
   const gradeTextColors = { A: '#1b5e20', B: '#f57f17', C: '#e65100', D: '#b71c1c' };
   const g = admission.grade_qualite;
 
-  return (
+    return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}
-      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-        padding: '20px', background: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
-      <div className="modal" style={{ maxWidth: 560, width: '95%', overflowY: 'auto', marginTop: 'auto', marginBottom: 'auto' }}>
+      style={{ 
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+        background: 'rgba(0,0,0,0.5)', 
+        overflowY: 'auto', /* L'overlay gère le défilement */
+        WebkitOverflowScrolling: 'touch', /* Défilement fluide sur iOS */
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'flex-start', /* Aligne au début pour pouvoir scroller vers le bas */
+        padding: 0 /* Zéro padding pour coller aux bords sur mobile */
+      }}>
+      <div className="modal" 
+        style={{ 
+          width: '100%', 
+          maxWidth: 560, 
+          minHeight: '100vh', /* Force la modale à faire au moins la taille de l'écran */
+          margin: '0 auto', /* Centre sur grand écran, retire le marginTop auto problématique */
+          padding: '20px', 
+          background: 'var(--color-surface, #1e1e2d)', /* Assure-toi que la couleur de fond de ton thème est appliquée */
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
 
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -328,14 +345,15 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
           <p style={{ fontWeight: 600, fontSize: 13 }}>{admission.utilisateur || '—'}</p>
         </div>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        {/* Actions (Poussées vers le bas si l'écran est plus grand) */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 'auto', paddingBottom: 20 }}>
           <button onClick={exportPDF} className="btn btn-primary">📄 Exporter PDF</button>
           <button onClick={onClose} className="btn btn-ghost">Fermer</button>
         </div>
       </div>
     </div>
   );
+
 }
 
 
