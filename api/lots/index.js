@@ -21,52 +21,21 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
   // ─── GET /api/lots/stock?magasinId=X  (ex-stocks.js) ─────────────────────────
   if (isStockRoute && req.method === 'GET') {
-    if (!magasinId || parseInt(magasinId) === 21) {
-  // Retourner tous les stocks toutes magasins confondus
-  const result = await pool.query(
-    `SELECT lot_id, magasin_id, description, unite, prix_ref, 
-            unites_admises, categorie, stock_actuel, derniere_reception
-     FROM stocks
-     ORDER BY description`
-  );
-  return res.json(result.rows);
-}
-    try {
-      const result = await pool.query(
-        `WITH adm AS (
-          SELECT lot_id, magasin_id, SUM(quantite) AS total_adm, MAX(unite) AS unite
-          FROM admissions
-          WHERE magasin_id = $1
-          GROUP BY lot_id, magasin_id
-        ),
-        ret AS (
-          SELECT lot_id, magasin_id, SUM(quantite) AS total_ret
-          FROM retraits
-          WHERE magasin_id = $1
-          GROUP BY lot_id, magasin_id
-        )
-        SELECT
-          a.lot_id,
-          l.description,
-          COALESCE(a.unite, '') AS unite,
-          l.prix_ref,
-          l.unites_admises,
-          l.categorie,
-          (COALESCE(a.total_adm, 0) - COALESCE(r.total_ret, 0))::numeric AS stock_actuel
-        FROM adm a
-        LEFT JOIN ret r ON r.lot_id = a.lot_id AND r.magasin_id = a.magasin_id
-        LEFT JOIN lots l ON l.id = a.lot_id
-        WHERE (COALESCE(a.total_adm, 0) - COALESCE(r.total_ret, 0)) > 0
-        ORDER BY l.description`,
-        [magasinId]
-      );
-      return res.json(result.rows);
-    } catch (err) {
-      console.error('[lots/stock] Erreur SQL:', err.message);
-      return res.status(500).json({ error: 'Erreur serveur lors de la récupération du stock' });
+  try {
+    const params = [];
+    let query = 'SELECT * FROM vue_stocks';
+    if (magasinId && parseInt(magasinId) !== 21) {
+      query += ' WHERE magasin_id = $1';
+      params.push(parseInt(magasinId));
     }
+    query += ' ORDER BY description';
+    const result = await pool.query(query, params);
+    return res.json(result.rows);
+  } catch (err) {
+    console.error('[lots/stock] Erreur SQL:', err.message);
+    return res.status(500).json({ error: 'Erreur serveur lors de la récupération du stock' });
   }
-
+}
   // ─── GET /api/lots  (liste complète) ─────────────────────────────────────────
   if (req.method === 'GET' && !id) {
     try {
