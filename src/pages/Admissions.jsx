@@ -37,7 +37,7 @@ function getGrade(moyenne) {
 // ─── Grille d'audit qualité ────────────────────────────────────────────────────
 function AuditQualite({ categorie, onGradeChange }) {
   const criteres = COOP_CRITERIA[categorie] || [];
-  const [notes, setNotes] = useState(criteres.map(() => 10));
+ const [notes, setNotes] = useState(() => (COOP_CRITERIA[categorie] || []).map(() => 10));
 
   const notifyParent = useCallback((currentNotes) => {
     if (!currentNotes.length) { onGradeChange({ grade: null, coef: 1.0 }); return; }
