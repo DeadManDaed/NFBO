@@ -95,7 +95,7 @@ function PanneauIntelligence({ rapport }) {
             ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>✅ Aucune rupture détectée</p>
             : rapport.rupture.map((p, i) => (
               <div key={i} style={rowStyle}>
-                <span style={{ fontWeight: 600 }}>{p.nom}</span>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{p.nom}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="text-muted text-sm">{p.stock_actuel} {p.unite}</span>
                   <span className={urgBadge[p.urgence] || 'badge badge-neutral'}>{p.status}</span>
@@ -109,7 +109,7 @@ function PanneauIntelligence({ rapport }) {
             ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>✅ Aucun lot proche de la péremption</p>
             : rapport.peremption.map((p, i) => (
               <div key={i} style={rowStyle}>
-                <span style={{ fontWeight: 600 }}>{p.nom}</span>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{p.nom}</span>
                 <span className={urgBadge[p.urgence] || 'badge badge-neutral'}>{p.status}</span>
               </div>
             ))
@@ -120,7 +120,7 @@ function PanneauIntelligence({ rapport }) {
             ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>Aucun produit star identifié</p>
             : rapport.stars.map((p, i) => (
               <div key={i} style={{ ...rowStyle, background: '#fffde7' }}>
-                <span style={{ fontWeight: 600 }}>⭐ {p.nom}</span>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>⭐ {p.nom}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309' }}>{p.performance}</span>
               </div>
             ))
@@ -131,7 +131,7 @@ function PanneauIntelligence({ rapport }) {
             ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>Aucun stock dormant détecté</p>
             : rapport.dormants.map((p, i) => (
               <div key={i} style={{ ...rowStyle, background: 'var(--color-info-bg)' }}>
-                <span style={{ fontWeight: 600 }}>{p.nom}</span>
+                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{p.nom}</span>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-info)' }}>{p.jours_immobilise} jours</div>
                   <div className="text-muted text-xs">{Number(p.value).toLocaleString('fr-FR')} FCFA</div>
