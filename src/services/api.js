@@ -114,6 +114,10 @@ async getToken() {
   async getRetrait(id) {
     return this.request(`/retraits?id=${id}`);
   }
+async getRetraits(magasinId = null) {
+  const query = magasinId ? `?magasin_id=${magasinId}` : '';
+  return this.request(`/retraits${query}`);
+}
 
   async createRetrait(data) {
     return this.request('/retraits', { method: 'POST', body: JSON.stringify(data) });
