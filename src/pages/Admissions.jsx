@@ -151,7 +151,7 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
   );
 }
 
-// ─── Modal détail admission ────────────────────────────────────────────────────
+// ─── Modal détail admission ──────────────────────────────────────────────────
 function ModalDetailAdmission({ admission, magasins, onClose }) {
   if (!admission) return null;
 
@@ -197,8 +197,8 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
             <div class="field"><div class="label">Lot</div><div class="value">${admission.lot_description || `Lot #${admission.lot_id}`}</div></div>
             <div class="field"><div class="label">Date de réception</div><div class="value">${new Date(admission.date_reception).toLocaleDateString('fr-FR')}</div></div>
             <div class="field"><div class="label">Producteur</div><div class="value">${admission.nom_producteur || `#${admission.producteur_id}`}</div></div>
-            <div class="field"><div class="label">Magasin</div><div class="value">${magasins.find(m => m.id === admission.magasin_id)?.nom || `#${admission.magasin_id}`}</div></div>
-            <div class="field"><div class="label">Quantité</div><div class="value">${admission.quantite} ${admission.unite}</div></div>
+            <div class="field"><div class="label">Magasin</div><div class="value">${admission.magasin_nom || `#${admission.magasin_id}`}</div></div>
+            <div class="field"><div class="label">Quantité</div><div class="value">${admission.quantite} ${Array.isArray(admission.unite) ?</div></div>
             <div class="field"><div class="label">Prix unitaire</div><div class="value">${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA</div></div>
             ${admission.date_expiration ? `<div class="field"><div class="label">Date d'expiration</div><div class="value">${new Date(admission.date_expiration).toLocaleDateString('fr-FR')}</div></div>` : ''}
             <div class="field"><div class="label">Mode de paiement</div><div class="value">${admission.mode_paiement || '—'}</div></div>
@@ -263,8 +263,8 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
               ['Lot', admission.lot_description || `Lot #${admission.lot_id}`],
               ['Date', new Date(admission.date_reception).toLocaleDateString('fr-FR')],
               ['Producteur', admission.nom_producteur || `#${admission.producteur_id}`],
-              ['Magasin', magasins.find(m => m.id === admission.magasin_id)?.nom || `#${admission.magasin_id}`],
-              ['Quantité', `${admission.quantite} ${admission.unite}`],
+              ['Magasin', admission.magasin_nom || `#${admission.magasin_id}`],
+              ['Quantité', `${admission.quantite} ${Array.isArray(admission.unite) ? admission.unite[0] : admission.unite}`],
               ['Prix unitaire', `${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA`],
               ['Mode paiement', admission.mode_paiement || '—'],
               ['Expiration', admission.date_expiration ? new Date(admission.date_expiration).toLocaleDateString('fr-FR') : '—'],
@@ -318,6 +318,8 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
     </div>
   );
 }
+
+
 // ─── Page principale ────────────────────────────────────────────────────────────
 export default function Admissions({ onBack }) {
   const { user, magasinId } = useAuth();
