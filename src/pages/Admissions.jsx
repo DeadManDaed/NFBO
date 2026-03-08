@@ -268,22 +268,25 @@ function AdmissionCard({ admission: a }) {
       {open && (
         <div style={{ borderTop: '1px solid var(--color-border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-          {/* Infos */}
-          <div className="grid-2" style={{ gap: 10 }}>
-            {[
-              ['Producteur',     a.nom_producteur || `#${a.producteur_id}`],
-              ['Magasin',        a.magasin_nom || `#${a.magasin_id}`],
-              ['Prix unitaire',  `${Number(a.prix_ref).toLocaleString('fr-FR')} FCFA`],
-              ['Mode paiement',  a.mode_paiement || '—'],
-              ['Expiration',     a.date_expiration ? new Date(a.date_expiration).toLocaleDateString('fr-FR') : '—'],
-              ['Enregistré par', a.utilisateur || '—'],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-muted text-xs" style={{ marginBottom: 2 }}>{label}</p>
-                <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>{value}</p>
-              </div>
-            ))}
-          </div>
+          {/* Infos générales */}
+<div className="grid-2" style={{ gap: 10 }}>
+  {[
+    ['Lot',            a.lot_description || `Lot #${a.lot_id}`],
+    ['Date réception', new Date(a.date_reception).toLocaleDateString('fr-FR')],
+    ['Producteur',     a.nom_producteur || `#${a.producteur_id}`],
+    ['Magasin',        a.magasin_nom || `#${a.magasin_id}`],
+    ['Quantité',       `${a.quantite} ${unite}`],
+    ['Prix unitaire',  `${Number(a.prix_ref).toLocaleString('fr-FR')} FCFA`],
+    ['Mode paiement',  a.mode_paiement || '—'],
+    ['Expiration',     a.date_expiration ? new Date(a.date_expiration).toLocaleDateString('fr-FR') : '—'],
+    ['Enregistré par', a.utilisateur || '—'],
+  ].map(([label, value]) => (
+    <div key={label} style={{ background: 'var(--color-surface)', borderRadius: 6, padding: '8px 10px' }}>
+      <p style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-muted)', margin: '0 0 3px 0' }}>{label}</p>
+      <p style={{ fontWeight: 600, fontSize: 13, margin: 0, color: 'var(--color-text)' }}>{value}</p>
+    </div>
+  ))}
+</div>
 
           {/* Audit qualité */}
           <div style={{
@@ -293,7 +296,7 @@ function AdmissionCard({ admission: a }) {
           }}>
             {g && <span style={{ fontWeight: 800, fontSize: 15, color: gradeTextColors[g] }}>Grade {g}</span>}
             <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Coef : {a.coef_qualite || '1.00'}</span>
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Commission : {a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) + '%' : '—'}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text)' }}>Commission : {a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) + '%' : '—'}</span>
           </div>
 
           {/* Finances */}
