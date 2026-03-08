@@ -95,7 +95,7 @@ export function QuickAction({ icon, label, accent, onClick, delay }) {
 }
 
 // ─── ÉCRAN HOME (LE CŒUR DU DASHBOARD) ───
-export function HomeScreen({ user, data, onNavigate }) {
+export function HomeScreen({ user, data, onNavigate, reload }) {
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Bonjour';
