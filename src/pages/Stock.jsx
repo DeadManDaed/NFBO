@@ -292,7 +292,7 @@ console.log('totalValeur:', totalValeur);
             <table className="data-table">
               <thead>
                 <tr>
-                  {['Produit', 'Catégorie', 'Stock', 'Prix unit.', 'Valeur', 'Bénéfice', 'Expiration', 'Statut'].map(h => (
+                  {['Produit', 'Catégorie', 'Stock', 'Prix unit.', 'Valeur', 'Bénéfice', 'Expiration', 'Unité', 'Statut'].map(h => (
                     <th key={h}>{h}</th>
                   ))}
                 </tr>
