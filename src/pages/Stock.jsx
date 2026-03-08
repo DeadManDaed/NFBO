@@ -157,14 +157,33 @@ export default function Stock() {
   const [retraits,         setRetraits]          = useState([]);
   const [searchTerm,       setSearchTerm]        = useState('');
   const [filterCategorie,  setFilterCategorie]   = useState('');
-
+const [valeurGlobale,    setValeurGlobale]      = useState(null);
   const { rapport, alertes } = useStockIntelligence(stocks, retraits);
 
   useEffect(() => {
     api.getMagasins().then(setMagasins).catch(console.error);
     api.getRetraits().then(setRetraits).catch(() => setRetraits([]));
   }, []);
+useEffect(() => {
+    api.getMagasins().then(setMagasins).catch(console.error);
+    api.getRetraits().then(setRetraits).catch(() => setRetraits([]));
+  }, []);
 
+  // ← ajouter ici
+  useEffect(() => {
+    if (!selectedMagasin || parseInt(selectedMagasin) === 21) {
+      api.getAuditPerformance()
+        .then(perf => {
+          const total = perf
+            .filter(p => p.magasin_id !== 21)
+            .reduce((acc, p) => acc + parseFloat(p.valeur_totale_admise || 0), 0);
+          setValeurGlobale(total);
+        })
+        .catch(() => setValeurGlobale(null));
+    } else {
+      setValeurGlobale(null);
+    }
+  }, [selectedMagasin]);
   const filteredStocks = stocks.filter(s =>
     (s.description?.toLowerCase().includes(searchTerm.toLowerCase())) &&
     (!filterCategorie || s.categorie === filterCategorie)
@@ -216,7 +235,9 @@ console.log('totalValeur:', totalValeur);
         </div>
         <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
           <p className="stat-card-label">Valeur totale</p>
-          <p className="stat-card-value" style={{ fontSize: 20 }}>{totalValeur.toLocaleString('fr-FR')} FCFA</p>
+          <p className="stat-card-value" style={{ fontSize: 20 }}>
+  {(valeurGlobale !== null ? valeurGlobale : totalValeur).toLocaleString('fr-FR')} FCFA
+</p>
         </div>
         <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg,#a855f7,#7c3aed)' }}>
           <p className="stat-card-label">Catégories</p>
