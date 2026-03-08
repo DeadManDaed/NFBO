@@ -28,12 +28,12 @@ export function useDashboardData(magasinId, stocks) {
     setLoading(true);
     try {
       const [admissions, retraits] = await Promise.all([
-        api.getAdmissions().catch(() => []),
+        api.getAdmissions(magasinId || null).catch(() => []),
         api.getRetraits().catch(() => []),
       ]);
 
-      const adm = magasinId ? admissions.filter(a => a.magasin_id === magasinId) : admissions;
-      const ret = magasinId ? retraits.filter(r => r.magasin_id === magasinId) : retraits;
+      const adm = admissions;
+const ret = retraits
       const s = stocksRef.current || [];
       
       const valeurStock = s.reduce((acc, x) => acc + (parseFloat(x.stock_actuel)||0) * (parseFloat(x.prix_ref)||0), 0);
@@ -62,8 +62,12 @@ const alertes = s.filter(x => (parseFloat(x.stock_actuel)||0) < 10);
 
   // Chargement initial
   useEffect(() => { 
-    load(); 
-  }, [load]);
+  load(); 
+}, [load]);
+
+useEffect(() => {
+  if (stocks && stocks.length > 0) load();
+}, [stocks]);
 
   return { data, loading, reload: load };
 }
