@@ -352,7 +352,7 @@ export default function Admissions({ onBack }) {
   const loadData = async () => {
     try {
       const [admData, prodData, magData] = await Promise.all([
-        api.getAdmissions().catch(() => []),
+        api.getAdmissions(magasinId || null).catch(() => []),
         api.getProducteurs().catch(() => []),
         api.getMagasins().catch(() => []),
       ]);
