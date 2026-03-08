@@ -24,41 +24,71 @@ export function useDashboardData(magasinId, stocks) {
     stocksRef.current = stocks; 
   }, [stocks]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [admissions, retraits] = await Promise.all([
-        api.getAdmissions(magasinId || null).catch(() => []),
-        api.getRetraits().catch(() => []),
+  const MAGASIN_VIRTUEL = 21;
+const isGlobal = !magasinId || magasinId === MAGASIN_VIRTUEL;
+
+const load = useCallback(async () => {
+  setLoading(true);
+  try {
+    const s = stocksRef.current || [];
+
+    if (isGlobal) {
+      // Superadmin / auditeur : données cumulées depuis les vues
+      const [admissions, retraits, performance] = await Promise.all([
+        api.getAdmissions(null).catch(() => []),
+        api.getRetraits(null).catch(() => []),
+        api.getAuditPerformance().catch(() => []),
       ]);
 
-      const adm = admissions;
-const ret = retraits
-      const s = stocksRef.current || [];
-      
-      const valeurStock = s.reduce((acc, x) => acc + (parseFloat(x.stock_actuel)||0) * (parseFloat(x.prix_ref)||0), 0);
-const alertes = s.filter(x => (parseFloat(x.stock_actuel)||0) < 10);
+      const perf = performance.filter(p => p.magasin_id !== MAGASIN_VIRTUEL);
+      const valeurStock = perf.reduce((acc, p) => acc + parseFloat(p.valeur_totale_admise || 0), 0);
+      const totalAdmissions = perf.reduce((acc, p) => acc + parseInt(p.nombre_admissions || 0), 0);
+      const alertes = s.filter(x => (parseFloat(x.stock_actuel) || 0) < 10);
 
       setData({
-        totalAdmissions: adm.length,
-        totalRetraits: ret.length,
-        totalTransferts: ret.filter(r => r.type_retrait === 'magasin').length,
+        totalAdmissions,
+        totalRetraits:    retraits.length,
+        totalTransferts:  retraits.filter(r => r.type_retrait === 'magasin').length,
         valeurStock,
-        admissionsRecentes: adm.slice(0, 8),
-        retraitsRecents: ret.slice(0, 8),
+        admissionsRecentes: admissions.slice(0, 8),
+        retraitsRecents:    retraits.slice(0, 8),
         alertes,
-        // CORRECTION : On trie une copie pour éviter de muter les props
-        topStocks: [...s].sort((a, b) => 
-  (parseFloat(b.stock_actuel)||0) * (parseFloat(b.prix_ref)||0) - 
-  (parseFloat(a.stock_actuel)||0) * (parseFloat(a.prix_ref)||0)
-).slice(0, 8),
+        topStocks: perf.slice(0, 8),
+        performance: perf,
       });
-    } catch (e) {
-      console.error("Erreur lors du chargement du Dashboard:", e);
-    } finally {
-      setLoading(false);
+
+    } else {
+      // Gestionnaire de magasin : données filtrées
+      const [admissions, retraits] = await Promise.all([
+        api.getAdmissions(magasinId).catch(() => []),
+        api.getRetraits(magasinId).catch(() => []),
+      ]);
+
+      const valeurStock = s.reduce((acc, x) => acc + (parseFloat(x.stock_actuel) || 0) * (parseFloat(x.prix_ref) || 0), 0);
+      const alertes = s.filter(x => (parseFloat(x.stock_actuel) || 0) < 10);
+
+      setData({
+        totalAdmissions:  admissions.length,
+        totalRetraits:    retraits.length,
+        totalTransferts:  retraits.filter(r => r.type_retrait === 'magasin').length,
+        valeurStock,
+        admissionsRecentes: admissions.slice(0, 8),
+        retraitsRecents:    retraits.slice(0, 8),
+        alertes,
+        topStocks: [...s].sort((a, b) =>
+          (parseFloat(b.stock_actuel) || 0) * (parseFloat(b.prix_ref) || 0) -
+          (parseFloat(a.stock_actuel) || 0) * (parseFloat(a.prix_ref) || 0)
+        ).slice(0, 8),
+        performance: [],
+      });
     }
-  }, [magasinId]);
+
+  } catch (e) {
+    console.error("Erreur lors du chargement du Dashboard:", e);
+  } finally {
+    setLoading(false);
+  }
+}, [magasinId, isGlobal]);
 
   // Chargement initial
   useEffect(() => { 
