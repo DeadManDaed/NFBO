@@ -195,6 +195,9 @@ useEffect(() => {
     return sum + (parseFloat(s.stock_actuel) || 0) * (parseFloat(s.prix_ref) || 0);
   }, 0
 );
+const totalBenefice = filteredStocks.reduce(
+  (sum, s) => sum + (parseFloat(s.benefice_espere) || 0), 0
+);
 console.log('totalValeur:', totalValeur);
   const categories = [...new Set(stocks.map(s => s.categorie).filter(Boolean))];
 
