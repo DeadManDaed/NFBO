@@ -198,7 +198,7 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
             <div class="field"><div class="label">Date de réception</div><div class="value">${new Date(admission.date_reception).toLocaleDateString('fr-FR')}</div></div>
             <div class="field"><div class="label">Producteur</div><div class="value">${admission.nom_producteur || `#${admission.producteur_id}`}</div></div>
             <div class="field"><div class="label">Magasin</div><div class="value">${admission.magasin_nom || `#${admission.magasin_id}`}</div></div>
-            <div class="field"><div class="label">Quantité</div><div class="value">${admission.quantite} ${Array.isArray(admission.unite) ?</div></div>
+            <div class="field"><div class="label">Quantité</div><div class="value">${admission.quantite} ${Array.isArray(admission.unite) ? admission.unite[0] : admission.unite}</div></div>
             <div class="field"><div class="label">Prix unitaire</div><div class="value">${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA</div></div>
             ${admission.date_expiration ? `<div class="field"><div class="label">Date d'expiration</div><div class="value">${new Date(admission.date_expiration).toLocaleDateString('fr-FR')}</div></div>` : ''}
             <div class="field"><div class="label">Mode de paiement</div><div class="value">${admission.mode_paiement || '—'}</div></div>
