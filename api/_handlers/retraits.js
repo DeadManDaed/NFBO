@@ -9,13 +9,20 @@ module.exports = withCors(requireAuth(async (req, res) => {
   // GET /api/retraits
   if (req.method === 'GET' && !id) {
     try {
-      const result = await pool.query(
-        `SELECT r.*, l.description AS lot_description, p.nom_producteur
-         FROM retraits r
-         LEFT JOIN lots l ON r.lot_id = l.id
-         LEFT JOIN producteurs p ON r.destination_producteur_id = p.id
-         ORDER BY r.id DESC`
-      );
+      const { magasin_id } = req.query;
+      let query = `
+        SELECT r.*, l.description AS lot_description, p.nom_producteur
+        FROM retraits r
+        LEFT JOIN lots l ON r.lot_id = l.id
+        LEFT JOIN producteurs p ON r.destination_producteur_id = p.id
+      `;
+      const params = [];
+      if (magasin_id && parseInt(magasin_id) !== 21) {
+        query += ' WHERE r.magasin_id = $1';
+        params.push(magasin_id);
+      }
+      query += ' ORDER BY r.id DESC';
+      const result = await pool.query(query, params);
       return res.json(result.rows);
     } catch (err) {
       return res.status(500).json({ error: 'Erreur serveur' });
