@@ -1,6 +1,7 @@
 // src/components/audit/LectureSection.jsx
 
 import { useState } from 'react';
+import api from '../../services/api';
 
 // ─── Helpers formatage ─────────────────────────────────────────────────────────
 const fmt = (n) => Number(n || 0).toLocaleString('fr-FR');
@@ -21,10 +22,15 @@ function LectureCard({ item, type, onAjouter, onSignaler }) {
     setDetailsModal(true);
   };
 
-  const handleSignaler = (e) => {
-    e.stopPropagation();
+  const handleSignaler = async (e) => {
+  e.stopPropagation();
+  try {
+    await api.signalerAnomalie({ label: getLabel(), details: null, user: null });
     onSignaler('anomalie', item, `Anomalie signalée sur : ${getLabel()}`);
-  };
+  } catch (err) {
+    console.error('Erreur signalement:', err);
+  }
+};
 
   const confirmerAjout = () => {
     onAjouter(type, item, detailsTexte);
