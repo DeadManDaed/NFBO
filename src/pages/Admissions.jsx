@@ -246,8 +246,11 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
   const g = admission.grade_qualite;
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 560, width: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+        padding: '20px', background: 'rgba(0,0,0,0.5)', overflowY: 'auto' }}>
+      <div className="modal" style={{ maxWidth: 560, width: '95%', overflowY: 'auto', marginTop: 'auto', marginBottom: 'auto' }}>
 
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
@@ -255,19 +258,19 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
           <button onClick={onClose} className="btn btn-ghost btn-sm">✕</button>
         </div>
 
-        {/* Infos générales */}
+        {/* Informations générales */}
         <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
           <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--color-text-muted)', marginBottom: 10 }}>Informations générales</p>
           <div className="grid-2" style={{ gap: 10 }}>
             {[
-              ['Lot', admission.lot_description || `Lot #${admission.lot_id}`],
-              ['Date', new Date(admission.date_reception).toLocaleDateString('fr-FR')],
-              ['Producteur', admission.nom_producteur || `#${admission.producteur_id}`],
-              ['Magasin', admission.magasin_nom || `#${admission.magasin_id}`],
-              ['Quantité', `${admission.quantite} ${Array.isArray(admission.unite) ? admission.unite[0] : admission.unite}`],
-              ['Prix unitaire', `${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA`],
+              ['Lot',          admission.lot_description || `Lot #${admission.lot_id}`],
+              ['Date',         new Date(admission.date_reception).toLocaleDateString('fr-FR')],
+              ['Producteur',   admission.nom_producteur || `#${admission.producteur_id}`],
+              ['Magasin',      admission.magasin_nom || `#${admission.magasin_id}`],
+              ['Quantité',     `${admission.quantite} ${Array.isArray(admission.unite) ? admission.unite[0] : admission.unite}`],
+              ['Prix unitaire',`${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA`],
               ['Mode paiement', admission.mode_paiement || '—'],
-              ['Expiration', admission.date_expiration ? new Date(admission.date_expiration).toLocaleDateString('fr-FR') : '—'],
+              ['Expiration',   admission.date_expiration ? new Date(admission.date_expiration).toLocaleDateString('fr-FR') : '—'],
             ].map(([label, value]) => (
               <div key={label}>
                 <p className="text-muted text-xs" style={{ marginBottom: 2 }}>{label}</p>
@@ -280,14 +283,24 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
         {/* Audit qualité */}
         <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
           <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--color-text-muted)', marginBottom: 10 }}>Audit qualité</p>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            {g && (
-              <span style={{ padding: '6px 16px', borderRadius: 20, fontWeight: 700, fontSize: 15, background: gradeColors[g], color: gradeTextColors[g] }}>
-                Grade {g}
-              </span>
-            )}
-            <span className="text-muted text-sm">Coef : {admission.coef_qualite || '1.00'}</span>
-            <span className="text-muted text-sm">Commission : {admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) + '%' : '—'}</span>
+          <div className="grid-2" style={{ gap: 10 }}>
+            <div>
+              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Grade</p>
+              {g
+                ? <span style={{ padding: '4px 14px', borderRadius: 20, fontWeight: 700, fontSize: 14, background: gradeColors[g], color: gradeTextColors[g] }}>Grade {g}</span>
+                : <span className="text-muted text-sm">—</span>
+              }
+            </div>
+            <div>
+              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Coefficient qualité</p>
+              <p style={{ fontWeight: 600, fontSize: 13 }}>{admission.coef_qualite || '1.00'}</p>
+            </div>
+            <div>
+              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Taux commission</p>
+              <p style={{ fontWeight: 600, fontSize: 13 }}>
+                {admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) + '%' : '—'}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -298,7 +311,7 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
             ['Valeur totale du lot', admission.valeur_totale, '#333'],
             [`Commission (${admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) : 5}%)`, admission.benefice_estime, '#166534'],
           ].map(([label, val, color]) => (
-            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '5px 0', borderBottom: '1px solid #dcfce7' }}>
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid #dcfce7' }}>
               <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
               <span style={{ fontWeight: 600, color }}>{Number(val || 0).toLocaleString('fr-FR')} FCFA</span>
             </div>
@@ -307,6 +320,12 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
             <span>Net versé au producteur</span>
             <span>{Number(admission.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span>
           </div>
+        </div>
+
+        {/* Enregistré par */}
+        <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20 }}>
+          <p className="text-muted text-xs" style={{ marginBottom: 4 }}>Enregistré par</p>
+          <p style={{ fontWeight: 600, fontSize: 13 }}>{admission.utilisateur || '—'}</p>
         </div>
 
         {/* Actions */}
