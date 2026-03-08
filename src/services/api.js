@@ -229,6 +229,27 @@ async getRetraits(magasinId = null) {
   async deleteUser(id) {
     return this.request(`/users?id=${id}`, { method: 'DELETE' });
   }
+async getUsersByRole(role) {
+  return this.request(`/users?role=${role}`);
+}
+
+async signalerAnomalie({ label, details, user }) {
+  // Trouver le(s) superadmin(s)
+  const users = await this.getUsersByRole('superadmin');
+  const superadmins = Array.isArray(users) ? users : [users];
+  if (!superadmins.length) throw new Error('Aucun superadmin trouvé');
+
+  return this.request('/messages', {
+    method: 'POST',
+    body: JSON.stringify({
+      destinataires:    superadmins.map(u => u.id),
+      objet:            `⚠️ Anomalie signalée : ${label}`,
+      contenu:          details || `L'auditeur ${user?.username || '?'} a signalé une anomalie sur : ${label}`,
+      topic:            'anomalie',
+      type_notification:'alerte',
+    }),
+  });
+}
 
   // ========== GEO ==========
 
