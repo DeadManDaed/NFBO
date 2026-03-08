@@ -618,7 +618,7 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
                   </td>
                   <td className="text-muted">{a.mode_paiement || '—'}</td>
 <td>
-  <button onClick={() => setSelectedAdmission(a)} className="btn btn-ghost btn-sm">
+  <button onClick={() => { console.log(a); setSelectedAdmission(a); }} className="btn btn-ghost btn-sm">
     🔍
   </button>
 </td>
