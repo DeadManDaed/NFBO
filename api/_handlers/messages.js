@@ -137,6 +137,33 @@ module.exports = withCors(requireAuth(async (req, res) => {
   }
 
   // ── POST /  (envoyer) ─────────────────────────────────────────────────────
+if (req.method === 'POST' && action === 'signaler') {
+  const { objet, contenu, label } = req.body;
+  try {
+    const admins = await pool.query(
+      `SELECT id FROM users WHERE role = 'superadmin' AND statut = 'actif'`
+    );
+    if (!admins.rows.length) return res.status(404).json({ error: 'Aucun superadmin' });
+
+    const userRes = await pool.query('SELECT nom, prenom, username FROM users WHERE id = $1', [userId]);
+    const u = userRes.rows[0] || {};
+    const nomExp = `${u.prenom || ''} ${u.nom || u.username || 'Auditeur'}`.trim();
+
+    for (const admin of admins.rows) {
+      await pool.query(
+        `INSERT INTO messages
+           (expediteur_id, destinataire_id, expediteur, objet, contenu,
+            topic, type_notification)
+         VALUES ($1,$2,$3,$4,$5,'anomalie','alerte')`,
+        [userId, admin.id, nomExp, objet || `⚠️ Anomalie : ${label}`, contenu || `Anomalie signalée sur : ${label}`]
+      );
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[messages/signaler]', err);
+    return res.status(500).json({ error: err.message });
+  }
+}
   if (req.method === 'POST') {
     const {
       destinataire_id,
