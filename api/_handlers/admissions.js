@@ -12,7 +12,7 @@ if (req.method === 'GET') {
   try {
     const { magasin_id, limit = 100 } = req.query;
     let query = `
-  SELECT a.*, l.description AS lot_description, l.unites_admises AS unite, p.nom_producteur, m.nom AS magasin_nom
+      SELECT a.*, l.description AS lot_description, l.unites_admises AS unite, p.nom_producteur, m.nom AS magasin_nom
       FROM admissions a
       LEFT JOIN lots l ON l.id = a.lot_id
       LEFT JOIN producteurs p ON p.id = a.producteur_id
@@ -20,9 +20,8 @@ if (req.method === 'GET') {
     `;
     const params = [];
     if (magasin_id && parseInt(magasin_id) !== 21) {
-  query += ' WHERE a.magasin_id = $1';
-  params.push(magasin_id);
-}
+      query += ' WHERE a.magasin_id = $1';
+      params.push(magasin_id);
     }
     query += ' ORDER BY a.date_reception DESC LIMIT $' + (params.length + 1);
     params.push(limit);
@@ -32,7 +31,6 @@ if (req.method === 'GET') {
     return res.status(500).json({ error: err.message });
   }
 }
-
   // POST /api/admissions
 if (req.method === 'POST') {
     if (!['superadmin', 'admin', 'stock'].includes(req.user.role)) {
