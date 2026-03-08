@@ -120,7 +120,16 @@ export function HomeScreen({ user, data, onNavigate }) {
               </span>
             </div>
           </div>
-          <div style={{ width:44, height:44, borderRadius:14, background:'linear-gradient(135deg,#16a34a,#065f46)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🌿</div>
+          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+  <button
+    onClick={reload}
+    style={{ width:44, height:44, borderRadius:14, background:'var(--color-surface-alt)', border:'1px solid var(--color-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, cursor:'pointer' }}
+    title="Actualiser"
+  >
+    🔄
+  </button>
+  <div style={{ width:44, height:44, borderRadius:14, background:'linear-gradient(135deg,#16a34a,#065f46)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🌿</div>
+</div>
         </div>
       </div>
 
