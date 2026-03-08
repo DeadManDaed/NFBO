@@ -237,11 +237,12 @@ console.log('totalValeur:', totalValeur);
           <p className="stat-card-value">{filteredStocks.length}</p>
         </div>
         <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg,#22c55e,#16a34a)' }}>
-          <p className="stat-card-label">Valeur totale</p>
-          <p className="stat-card-value" style={{ fontSize: 20 }}>
-  {(valeurGlobale !== null ? valeurGlobale : totalValeur).toLocaleString('fr-FR')} FCFA
-</p>
-        </div>
+  <p className="stat-card-label">Valeur totale</p>
+  <p className="stat-card-value" style={{ fontSize: 20 }}>{(valeurGlobale !== null ? valeurGlobale : totalValeur).toLocaleString('fr-FR')} FCFA</p>
+  <p style={{ fontSize: 11, color: 'rgba(255,255,255,.7)', marginTop: 4 }}>
+    Bénéfice attendu : {totalBenefice.toLocaleString('fr-FR')} FCFA
+  </p>
+</div>
         <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg,#a855f7,#7c3aed)' }}>
           <p className="stat-card-label">Catégories</p>
           <p className="stat-card-value">{categories.length}</p>
@@ -291,7 +292,7 @@ console.log('totalValeur:', totalValeur);
             <table className="data-table">
               <thead>
                 <tr>
-                  {['Produit', 'Catégorie', 'Stock', 'Prix unit.', 'Valeur', 'Unités', 'Statut'].map(h => (
+                  {['Produit', 'Catégorie', 'Stock', 'Prix unit.', 'Valeur', 'Bénéfice', 'Expiration', 'Statut'].map(h => (
                     <th key={h}>{h}</th>
                   ))}
                 </tr>
@@ -317,6 +318,18 @@ console.log('totalValeur:', totalValeur);
                       <td style={{ fontWeight: 700, color: 'var(--color-success)' }}>
                         {valeur.toLocaleString('fr-FR')} FCFA
                       </td>
+<td style={{ color: '#166534', fontWeight: 600 }}>
+  {Number(stock.benefice_espere || 0).toLocaleString('fr-FR')} FCFA
+</td>
+<td style={{ color: stock.date_expiration ? (
+    (new Date(stock.date_expiration) - new Date()) / 86400000 < 7 ? 'var(--color-danger)' :
+    (new Date(stock.date_expiration) - new Date()) / 86400000 < 30 ? 'var(--color-warning)' :
+    'var(--color-text-muted)'
+  ) : 'var(--color-text-muted)', fontSize: 12 }}>
+  {stock.date_expiration
+    ? `J-${Math.ceil((new Date(stock.date_expiration) - new Date()) / 86400000)}`
+    : '—'}
+</td>
                       <td>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {(Array.isArray(stock.unites_admises) ? stock.unites_admises : []).map(u => (
