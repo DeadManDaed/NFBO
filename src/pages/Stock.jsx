@@ -167,8 +167,8 @@ export default function Stock() {
   );
 
   const totalValeur = filteredStocks.reduce(
-    (sum, s) => sum + parseFloat(s.stock_actuel) * parseFloat(s.prix_ref), 0
-  );
+  (sum, s) => sum + (parseFloat(s.stock_actuel) || 0) * (parseFloat(s.prix_ref) || 0), 0
+);
   const categories = [...new Set(stocks.map(s => s.categorie).filter(Boolean))];
 
   const seuilCat = { frais: 20, court: 15, secs: 50, manufactures_alim: 30, manufactures_non_alim: 25, sensibles: 10 };
@@ -274,7 +274,7 @@ export default function Stock() {
 
                   return (
                     <tr key={i}>
-                      <td style={{ fontWeight: 600 }}>{stock.description}</td>
+                      <td style={{ fontWeight: 600 color: 'var(--color-text)'}}>{stock.description}</td>
                       <td>
                         <span className="badge badge-info">{stock.categorie || '—'}</span>
                       </td>
