@@ -151,27 +151,94 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
   );
 }
 
-// ─── Composants Internes de Présentation ──────────────────────────────────────
-const InfoSection = ({ title, children, color = 'var(--color-text-muted)' }) => (
-  <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
-    <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color, marginBottom: 10 }}>{title}</p>
-    <div className="grid-2" style={{ gap: 10 }}>{children}</div>
-  </div>
-);
-
-const DataField = ({ label, value, highlight = false }) => (
-  <div>
-    <p className="text-muted text-xs" style={{ marginBottom: 2 }}>{label}</p>
-    <p style={{ fontWeight: 600, fontSize: 13, color: highlight ? 'var(--color-primary)' : 'inherit' }}>{value}</p>
-  </div>
-);
-
-// ─── Modal principal ──────────────────────────────────────────────────────────
-function ModalDetailAdmission({ admission, onClose }) {
+// ─── Modal détail admission ──────────────────────────────────────────────────
+function ModalDetailAdmission({ admission, magasins, onClose }) {
   if (!admission) return null;
 
   const exportPDF = () => {
-    // ... Garde ton code exportPDF identique ici ...
+    const w = window.open('', '_blank', 'height=800,width=800');
+    w.document.write(`
+      <html><head>
+        <title>Admission #${admission.id} — NFBO</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          .header { border-bottom: 2px solid #166534; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; }
+          .brand { font-size: 20px; font-weight: bold; color: #166534; }
+          .meta { font-size: 11px; color: #666; text-align: right; }
+          .section { margin-bottom: 24px; }
+          .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 12px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          .field { margin-bottom: 8px; }
+          .label { font-size: 11px; color: #888; margin-bottom: 2px; }
+          .value { font-size: 14px; font-weight: 600; }
+          .finance { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; }
+          .finance-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7; font-size: 13px; }
+          .finance-total { display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold; font-size: 15px; color: #166534; }
+          .grade { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
+          .grade-A { background: #c8e6c9; color: #1b5e20; }
+          .grade-B { background: #fff9c4; color: #f57f17; }
+          .grade-C { background: #ffe0b2; color: #e65100; }
+          .grade-D { background: #ffcdd2; color: #b71c1c; }
+          .footer { margin-top: 40px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head><body>
+        <div class="header">
+          <div class="brand">NFBO — Reçu d'Admission</div>
+          <div class="meta">
+            Admission #${admission.id}<br>
+            Imprimé le ${new Date().toLocaleString('fr-FR')}
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Informations générales</div>
+          <div class="grid">
+            <div class="field"><div class="label">Lot</div><div class="value">${admission.lot_description || `Lot #${admission.lot_id}`}</div></div>
+            <div class="field"><div class="label">Date de réception</div><div class="value">${new Date(admission.date_reception).toLocaleDateString('fr-FR')}</div></div>
+            <div class="field"><div class="label">Producteur</div><div class="value">${admission.nom_producteur || `#${admission.producteur_id}`}</div></div>
+            <div class="field"><div class="label">Magasin</div><div class="value">${admission.magasin_nom || `#${admission.magasin_id}`}</div></div>
+            <div class="field"><div class="label">Quantité</div><div class="value">${admission.quantite} ${Array.isArray(admission.unite) ? admission.unite[0] : admission.unite}</div></div>
+            <div class="field"><div class="label">Prix unitaire</div><div class="value">${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA</div></div>
+            ${admission.date_expiration ? `<div class="field"><div class="label">Date d'expiration</div><div class="value">${new Date(admission.date_expiration).toLocaleDateString('fr-FR')}</div></div>` : ''}
+            <div class="field"><div class="label">Mode de paiement</div><div class="value">${admission.mode_paiement || '—'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Audit qualité</div>
+          <div class="grid">
+            <div class="field">
+              <div class="label">Grade</div>
+              <div class="value"><span class="grade grade-${admission.grade_qualite || 'A'}">${admission.grade_qualite || '—'}</span></div>
+            </div>
+            <div class="field"><div class="label">Coefficient qualité</div><div class="value">${admission.coef_qualite || '1.00'}</div></div>
+            <div class="field"><div class="label">Taux commission</div><div class="value">${admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) + '%' : '—'}</div></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Récapitulatif financier</div>
+          <div class="finance">
+            <div class="finance-row"><span>Valeur totale du lot</span><span>${Number(admission.valeur_totale || 0).toLocaleString('fr-FR')} FCFA</span></div>
+            <div class="finance-row"><span>Commission coopérative (${admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) : 5}%)</span><span>${Number(admission.benefice_estime || 0).toLocaleString('fr-FR')} FCFA</span></div>
+            <div class="finance-total"><span>Net versé au producteur</span><span>${Number(admission.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span></div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Enregistré par</div>
+          <div class="field"><div class="value">${admission.utilisateur || '—'}</div></div>
+        </div>
+
+        <div class="footer">
+          Document officiel NFBO — Ne pas diffuser sans autorisation.<br>
+          © ${new Date().getFullYear()} NFBO System
+        </div>
+      </body></html>
+    `);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 500);
   };
 
   const gradeColors = { A: '#c8e6c9', B: '#fff9c4', C: '#ffe0b2', D: '#ffcdd2' };
@@ -179,86 +246,102 @@ function ModalDetailAdmission({ admission, onClose }) {
   const g = admission.grade_qualite;
 
   return (
-    <div 
-      className="modal-overlay" 
-      onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ 
+    <div
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+      style={{
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: '12px', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' 
+        padding: '16px', background: 'rgba(0,0,0,0.5)',
       }}
     >
-      <div 
-        className="modal-content" 
-        style={{ 
-          maxWidth: 500, width: '100%', maxHeight: '90vh', 
-          background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
-          display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)'
-        }}
-      >
-        {/* Header Fixe */}
-        <div style={{ padding: '20px 20px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)' }}>
-          <h3 style={{ margin: 0, fontSize: 18 }}>📥 Admission #{admission.id}</h3>
-          <button onClick={onClose} className="btn btn-ghost btn-sm" style={{ padding: 8 }}>✕</button>
+      <div className="modal" style={{ maxWidth: 560, width: '95%', maxHeight: '85vh', overflowY: 'auto' }}>
+
+        {/* En-tête */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h3 style={{ margin: 0 }}>📥 Admission #{admission.id}</h3>
+          <button onClick={onClose} className="btn btn-ghost btn-sm">✕</button>
         </div>
 
-        {/* Corps défilant */}
-        <div style={{ padding: 20, overflowY: 'auto', flex: 1 }}>
-          
-          <InfoSection title="Informations générales">
-            <DataField label="Lot" value={admission.lot_description || `Lot #${admission.lot_id}`} />
-            <DataField label="Date" value={new Date(admission.date_reception).toLocaleDateString('fr-FR')} />
-            <DataField label="Producteur" value={admission.nom_producteur || `#${admission.producteur_id}`} />
-            <DataField label="Magasin" value={admission.magasin_nom || `#${admission.magasin_id}`} />
-            <DataField label="Quantité" value={`${admission.quantite} ${Array.isArray(admission.unite) ? admission.unite[0] : admission.unite}`} />
-            <DataField label="Prix unitaire" value={`${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA`} />
-            <DataField label="Mode paiement" value={admission.mode_paiement || '—'} />
-            <DataField label="Expiration" value={admission.date_expiration ? new Date(admission.date_expiration).toLocaleDateString('fr-FR') : '—'} />
-          </InfoSection>
+        {/* Informations générales */}
+        <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
+          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--color-text-muted)', marginBottom: 10 }}>Informations générales</p>
+          <div className="grid-2" style={{ gap: 10 }}>
+            {[
+              ['Lot',           admission.lot_description || `Lot #${admission.lot_id}`],
+              ['Date',          new Date(admission.date_reception).toLocaleDateString('fr-FR')],
+              ['Producteur',    admission.nom_producteur || `#${admission.producteur_id}`],
+              ['Magasin',       admission.magasin_nom || `#${admission.magasin_id}`],
+              ['Quantité',      `${admission.quantite} ${Array.isArray(admission.unite) ? admission.unite[0] : admission.unite}`],
+              ['Prix unitaire', `${Number(admission.prix_ref).toLocaleString('fr-FR')} FCFA`],
+              ['Mode paiement', admission.mode_paiement || '—'],
+              ['Expiration',    admission.date_expiration ? new Date(admission.date_expiration).toLocaleDateString('fr-FR') : '—'],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <p className="text-muted text-xs" style={{ marginBottom: 2 }}>{label}</p>
+                <p style={{ fontWeight: 600, fontSize: 13 }}>{value}</p>
+              </div>
+            ))}
+          </div>
+        </div>
 
-          <InfoSection title="Audit qualité">
+        {/* Audit qualité */}
+        <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
+          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--color-text-muted)', marginBottom: 10 }}>Audit qualité</p>
+          <div className="grid-2" style={{ gap: 10 }}>
             <div>
-              <p className="text-muted text-xs" style={{ marginBottom: 4 }}>Grade</p>
-              {g ? (
-                <span style={{ padding: '4px 12px', borderRadius: 20, fontWeight: 700, fontSize: 12, background: gradeColors[g], color: gradeTextColors[g] }}>
-                  Grade {g}
-                </span>
-              ) : <span className="text-muted text-sm">—</span>}
+              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Grade</p>
+              {g
+                ? <span style={{ padding: '4px 14px', borderRadius: 20, fontWeight: 700, fontSize: 14, background: gradeColors[g], color: gradeTextColors[g] }}>Grade {g}</span>
+                : <span className="text-muted text-sm">—</span>
+              }
             </div>
-            <DataField label="Coeff. Qualité" value={admission.coef_qualite || '1.00'} />
-            <DataField label="Commission (%)" value={admission.taux_tax ? `${(parseFloat(admission.taux_tax) * 100).toFixed(1)}%` : '—'} />
-          </InfoSection>
-
-          {/* Récapitulatif Financier (Stylisé) */}
-          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
-            <p style={{ fontSize: 11, textTransform: 'uppercase', fontWeight: 700, color: '#166534', marginBottom: 10 }}>Récapitulatif financier</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
-              <span style={{ color: '#166534' }}>Valeur totale</span>
-              <span style={{ fontWeight: 600 }}>{Number(admission.valeur_totale || 0).toLocaleString('fr-FR')} FCFA</span>
+            <div>
+              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Coefficient qualité</p>
+              <p style={{ fontWeight: 600, fontSize: 13 }}>{admission.coef_qualite || '1.00'}</p>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #dcfce7' }}>
-              <span style={{ color: '#166534' }}>Commission</span>
-              <span style={{ fontWeight: 600 }}>-{Number(admission.benefice_estime || 0).toLocaleString('fr-FR')} FCFA</span>
+            <div>
+              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Taux commission</p>
+              <p style={{ fontWeight: 600, fontSize: 13 }}>
+                {admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) + '%' : '—'}
+              </p>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 800, color: '#166534' }}>
-              <span>NET À VERSER</span>
-              <span>{Number(admission.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span>
-            </div>
-          </div>
-
-          <div className="text-muted" style={{ fontSize: 12, textAlign: 'center', marginTop: 8 }}>
-            Enregistré par : <strong>{admission.utilisateur || '—'}</strong>
           </div>
         </div>
 
-        {/* Footer Fixe */}
-        <div style={{ padding: 16, borderTop: '1px solid var(--color-border)', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button onClick={exportPDF} className="btn btn-primary" style={{ flex: 1 }}>📄 PDF</button>
-          <button onClick={onClose} className="btn btn-ghost" style={{ flex: 1 }}>Fermer</button>
+        {/* Récapitulatif financier */}
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
+          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: '#166534', marginBottom: 10 }}>Récapitulatif financier</p>
+          {[
+            ['Valeur totale du lot', admission.valeur_totale, '#333'],
+            [`Commission (${admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) : 5}%)`, admission.benefice_estime, '#166534'],
+          ].map(([label, val, color]) => (
+            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid #dcfce7' }}>
+              <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
+              <span style={{ fontWeight: 600, color }}>{Number(val || 0).toLocaleString('fr-FR')} FCFA</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, color: '#166534', paddingTop: 10 }}>
+            <span>Net versé au producteur</span>
+            <span>{Number(admission.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span>
+          </div>
         </div>
+
+        {/* Enregistré par */}
+        <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20 }}>
+          <p className="text-muted text-xs" style={{ marginBottom: 4 }}>Enregistré par</p>
+          <p style={{ fontWeight: 600, fontSize: 13 }}>{admission.utilisateur || '—'}</p>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button onClick={exportPDF} className="btn btn-primary">📄 Exporter PDF</button>
+          <button onClick={onClose} className="btn btn-ghost">Fermer</button>
+        </div>
+
       </div>
     </div>
   );
+            
 }
 
 
