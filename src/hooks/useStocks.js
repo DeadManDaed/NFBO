@@ -11,9 +11,10 @@ export function useStocks(magasinId = null) {
   const fetchStocks = async () => {
     try {
       setLoading(true);
-      const data = magasinId 
-        ? await api.getStockDisponible(magasinId)
-        : await api.request('/stocks');;
+      const MAGASIN_VIRTUEL = 21;
+const data = (!magasinId || magasinId === MAGASIN_VIRTUEL)
+  ? await api.request('/stocks')
+  : await api.getStockDisponible(magasinId);
       setStocks(data);
       setError(null);
     } catch (err) {
