@@ -24,7 +24,7 @@ const TABS = [
 export default function Dashboard() {
   const { user, magasinId } = useAuth();
   const { stocks } = useStocks(magasinId);
-  const { data } = useDashboardData(magasinId, stocks);
+  const { data, loading, reload } = useDashboardData(magasinId, stocks);
 
   const [activeTab, setActiveTab]         = useState('home');
   const [unreadMessages, setUnreadMessages] = useState(0);
@@ -38,7 +38,7 @@ export default function Dashboard() {
   return (
     <div className="page-scroll">
       {activeTab === 'home' ? (
-        <HomeScreen user={user} data={data} onNavigate={setActiveTab} />
+        <HomeScreen user={user} data={data} onNavigate={setActiveTab} reload={reload} />
       ) : (
         <ModuleView
           moduleId={activeTab}
