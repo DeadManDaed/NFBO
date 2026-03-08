@@ -245,39 +245,39 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
   const gradeTextColors = { A: '#1b5e20', B: '#f57f17', C: '#e65100', D: '#b71c1c' };
   const g = admission.grade_qualite;
 
-    return (
+      return (
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}
       style={{ 
         position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1000,
         background: 'rgba(0,0,0,0.5)', 
-        overflowY: 'auto', /* L'overlay gère le défilement */
-        WebkitOverflowScrolling: 'touch', /* Défilement fluide sur iOS */
+        overflowY: 'auto', 
+        WebkitOverflowScrolling: 'touch', 
         display: 'flex', 
         justifyContent: 'center', 
-        alignItems: 'flex-start', /* Aligne au début pour pouvoir scroller vers le bas */
-        padding: 0 /* Zéro padding pour coller aux bords sur mobile */
+        alignItems: 'flex-start', 
+        padding: 0 
       }}>
       <div className="modal" 
         style={{ 
           width: '100%', 
           maxWidth: 560, 
-          minHeight: '100vh', /* Force la modale à faire au moins la taille de l'écran */
-          margin: '0 auto', /* Centre sur grand écran, retire le marginTop auto problématique */
+          minHeight: '100vh', 
+          margin: '0 auto', 
           padding: '20px', 
-          background: 'var(--color-surface, #1e1e2d)', /* Assure-toi que la couleur de fond de ton thème est appliquée */
+          backgroundColor: '#ffffff', /* <-- Correction : On force le fond blanc ici */
           display: 'flex',
           flexDirection: 'column'
         }}>
 
         {/* En-tête */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h3 style={{ margin: 0 }}>📥 Admission #{admission.id}</h3>
+          <h3 style={{ margin: 0, color: '#333' }}>📥 Admission #{admission.id}</h3>
           <button onClick={onClose} className="btn btn-ghost btn-sm">✕</button>
         </div>
 
         {/* Informations générales */}
-        <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--color-text-muted)', marginBottom: 10 }}>Informations générales</p>
+        <div style={{ background: '#f9fafb', borderRadius: '8px', padding: 16, marginBottom: 16 }}>
+          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: '#6b7280', marginBottom: 10 }}>Informations générales</p>
           <div className="grid-2" style={{ gap: 10 }}>
             {[
               ['Lot',          admission.lot_description || `Lot #${admission.lot_id}`],
@@ -290,31 +290,31 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
               ['Expiration',   admission.date_expiration ? new Date(admission.date_expiration).toLocaleDateString('fr-FR') : '—'],
             ].map(([label, value]) => (
               <div key={label}>
-                <p className="text-muted text-xs" style={{ marginBottom: 2 }}>{label}</p>
-                <p style={{ fontWeight: 600, fontSize: 13 }}>{value}</p>
+                <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>{label}</p>
+                <p style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{value}</p>
               </div>
             ))}
           </div>
         </div>
 
         {/* Audit qualité */}
-        <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 16 }}>
-          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--color-text-muted)', marginBottom: 10 }}>Audit qualité</p>
+        <div style={{ background: '#f9fafb', borderRadius: '8px', padding: 16, marginBottom: 16 }}>
+          <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: '#6b7280', marginBottom: 10 }}>Audit qualité</p>
           <div className="grid-2" style={{ gap: 10 }}>
             <div>
-              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Grade</p>
+              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>Grade</p>
               {g
                 ? <span style={{ padding: '4px 14px', borderRadius: 20, fontWeight: 700, fontSize: 14, background: gradeColors[g], color: gradeTextColors[g] }}>Grade {g}</span>
-                : <span className="text-muted text-sm">—</span>
+                : <span style={{ fontSize: 14, color: '#9ca3af' }}>—</span>
               }
             </div>
             <div>
-              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Coefficient qualité</p>
-              <p style={{ fontWeight: 600, fontSize: 13 }}>{admission.coef_qualite || '1.00'}</p>
+              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>Coefficient qualité</p>
+              <p style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{admission.coef_qualite || '1.00'}</p>
             </div>
             <div>
-              <p className="text-muted text-xs" style={{ marginBottom: 2 }}>Taux commission</p>
-              <p style={{ fontWeight: 600, fontSize: 13 }}>
+              <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 2 }}>Taux commission</p>
+              <p style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>
                 {admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) + '%' : '—'}
               </p>
             </div>
@@ -322,14 +322,14 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
         </div>
 
         {/* Récapitulatif financier */}
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20 }}>
+        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: 16, marginBottom: 20 }}>
           <p style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: '#166534', marginBottom: 10 }}>Récapitulatif financier</p>
           {[
             ['Valeur totale du lot', admission.valeur_totale, '#333'],
             [`Commission (${admission.taux_tax ? (parseFloat(admission.taux_tax) * 100).toFixed(1) : 5}%)`, admission.benefice_estime, '#166534'],
           ].map(([label, val, color]) => (
             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, padding: '6px 0', borderBottom: '1px solid #dcfce7' }}>
-              <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
+              <span style={{ color: '#4b5563' }}>{label}</span>
               <span style={{ fontWeight: 600, color }}>{Number(val || 0).toLocaleString('fr-FR')} FCFA</span>
             </div>
           ))}
@@ -340,12 +340,12 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
         </div>
 
         {/* Enregistré par */}
-        <div style={{ background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)', padding: 16, marginBottom: 20 }}>
-          <p className="text-muted text-xs" style={{ marginBottom: 4 }}>Enregistré par</p>
-          <p style={{ fontWeight: 600, fontSize: 13 }}>{admission.utilisateur || '—'}</p>
+        <div style={{ background: '#f9fafb', borderRadius: '8px', padding: 16, marginBottom: 20 }}>
+          <p style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Enregistré par</p>
+          <p style={{ fontWeight: 600, fontSize: 13, color: '#111827' }}>{admission.utilisateur || '—'}</p>
         </div>
 
-        {/* Actions (Poussées vers le bas si l'écran est plus grand) */}
+        {/* Actions poussées vers le bas */}
         <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 'auto', paddingBottom: 20 }}>
           <button onClick={exportPDF} className="btn btn-primary">📄 Exporter PDF</button>
           <button onClick={onClose} className="btn btn-ghost">Fermer</button>
@@ -353,6 +353,7 @@ function ModalDetailAdmission({ admission, magasins, onClose }) {
       </div>
     </div>
   );
+
 
 }
 
