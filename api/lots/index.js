@@ -51,6 +51,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
           COALESCE(a.unite, '') AS unite,
           l.prix_ref,
           l.unites_admises,
+          l.categorie,
           (COALESCE(a.total_adm, 0) - COALESCE(r.total_ret, 0))::numeric AS stock_actuel
         FROM adm a
         LEFT JOIN ret r ON r.lot_id = a.lot_id AND r.magasin_id = a.magasin_id
