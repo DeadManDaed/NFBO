@@ -19,34 +19,10 @@ if (req.method === 'GET') {
       LEFT JOIN magasins m ON m.id = a.magasin_id
     `;
     const params = [];
-    if (magasin_id) {
-      query += ' WHERE a.magasin_id = $1';
-      params.push(magasin_id);
-    }
-    query += ' ORDER BY a.date_reception DESC LIMIT $' + (params.length + 1);
-    params.push(limit);
-    const result = await pool.query(query, params);
-    return res.json(result.rows);
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
-  }
-}
-*/
-
-if (req.method === 'GET') {
-  try {
-    const { magasin_id, limit = 100 } = req.query;
-    let query = `
-      SELECT a.*, l.description AS lot_description, l.unites_admises AS lot_unites, p.nom_producteur, m.nom AS magasin_nom
-      FROM admissions a
-      LEFT JOIN lots l ON l.id = a.lot_id
-      LEFT JOIN producteurs p ON p.id = a.producteur_id
-      LEFT JOIN magasins m ON m.id = a.magasin_id
-    `;
-    const params = [];
     if (magasin_id && parseInt(magasin_id) !== 21) {
-      query += ' WHERE a.magasin_id = $1';
-      params.push(magasin_id);
+  query += ' WHERE a.magasin_id = $1';
+  params.push(magasin_id);
+}
     }
     query += ' ORDER BY a.date_reception DESC LIMIT $' + (params.length + 1);
     params.push(limit);
