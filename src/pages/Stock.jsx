@@ -274,7 +274,7 @@ export default function Stock() {
 
                   return (
                     <tr key={i}>
-                      <td style={{ fontWeight: 600 color: 'var(--color-text)'}}>{stock.description}</td>
+                      <td style={{ fontWeight: 600 }}>{stock.description}</td>
                       <td>
                         <span className="badge badge-info">{stock.categorie || '—'}</span>
                       </td>
