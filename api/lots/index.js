@@ -21,7 +21,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
   // ─── GET /api/lots/stock?magasinId=X  (ex-stocks.js) ─────────────────────────
   if (isStockRoute && req.method === 'GET') {
-    if (magasinId===21) {
+    if (!magasinId || parseInt(magasinId) === 21) {
   // Retourner tous les stocks toutes magasins confondus
   const result = await pool.query(
     `SELECT lot_id, magasin_id, description, unite, prix_ref, 
