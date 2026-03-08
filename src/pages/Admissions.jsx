@@ -1,3 +1,4 @@
+
 // src/pages/Admissions.jsx
 // Port complet de admission.js : grille d'audit qualité, sliders, calcul financier temps réel
 
@@ -88,15 +89,13 @@ function AuditQualite({ categorie, onGradeChange }) {
             <span style={{ fontWeight: 700, color: '#2e7d32', fontSize: 13, minWidth: 20, textAlign: 'right' }}>{notes[i]}</span>
           </div>
           <input
-            type="range"
-            min="1" max="10"
+            type="range" min="1" max="10"
             value={notes[i]}
             onChange={(e) => handleSlider(i, e.target.value)}
             style={{ width: '100%', accentColor: '#2e7d32', cursor: 'pointer' }}
           />
         </div>
       ))}
-
       <div style={{
         marginTop: 8, padding: '14px 16px', borderRadius: 10,
         textAlign: 'center', fontWeight: 700,
@@ -130,7 +129,6 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
 
   const montantTaxe   = baseMontant * taxeTaux;
   const netProducteur = baseMontant - montantTaxe;
-
   const rowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 };
 
   return (
@@ -151,7 +149,175 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
   );
 }
 
+// ─── Carte admission fold/unfold ───────────────────────────────────────────────
+function AdmissionCard({ admission: a }) {
+  const [open, setOpen] = useState(false);
 
+  const gradeColors     = { A: '#c8e6c9', B: '#fff9c4', C: '#ffe0b2', D: '#ffcdd2' };
+  const gradeTextColors = { A: '#1b5e20', B: '#f57f17', C: '#e65100', D: '#b71c1c' };
+  const g = a.grade_qualite;
+  const unite = Array.isArray(a.unite) ? a.unite[0] : a.unite;
+
+  const exportPDF = (e) => {
+    e.stopPropagation();
+    const w = window.open('', '_blank', 'height=800,width=800');
+    w.document.write(`
+      <html><head>
+        <title>Admission #${a.id} — NFBO</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          .header { border-bottom: 2px solid #166534; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; }
+          .brand { font-size: 20px; font-weight: bold; color: #166534; }
+          .meta { font-size: 11px; color: #666; text-align: right; }
+          .section { margin-bottom: 24px; }
+          .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 12px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+          .field { margin-bottom: 8px; }
+          .label { font-size: 11px; color: #888; margin-bottom: 2px; }
+          .value { font-size: 14px; font-weight: 600; }
+          .finance { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; }
+          .finance-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7; font-size: 13px; }
+          .finance-total { display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold; font-size: 15px; color: #166534; }
+          .grade { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
+          .grade-A { background: #c8e6c9; color: #1b5e20; }
+          .grade-B { background: #fff9c4; color: #f57f17; }
+          .grade-C { background: #ffe0b2; color: #e65100; }
+          .grade-D { background: #ffcdd2; color: #b71c1c; }
+          .footer { margin-top: 40px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
+          @media print { body { padding: 20px; } }
+        </style>
+      </head><body>
+        <div class="header">
+          <div class="brand">NFBO — Reçu d'Admission</div>
+          <div class="meta">Admission #${a.id}<br>Imprimé le ${new Date().toLocaleString('fr-FR')}</div>
+        </div>
+        <div class="section">
+          <div class="section-title">Informations générales</div>
+          <div class="grid">
+            <div class="field"><div class="label">Lot</div><div class="value">${a.lot_description || `Lot #${a.lot_id}`}</div></div>
+            <div class="field"><div class="label">Date de réception</div><div class="value">${new Date(a.date_reception).toLocaleDateString('fr-FR')}</div></div>
+            <div class="field"><div class="label">Producteur</div><div class="value">${a.nom_producteur || `#${a.producteur_id}`}</div></div>
+            <div class="field"><div class="label">Magasin</div><div class="value">${a.magasin_nom || `#${a.magasin_id}`}</div></div>
+            <div class="field"><div class="label">Quantité</div><div class="value">${a.quantite} ${unite}</div></div>
+            <div class="field"><div class="label">Prix unitaire</div><div class="value">${Number(a.prix_ref).toLocaleString('fr-FR')} FCFA</div></div>
+            ${a.date_expiration ? `<div class="field"><div class="label">Date d'expiration</div><div class="value">${new Date(a.date_expiration).toLocaleDateString('fr-FR')}</div></div>` : ''}
+            <div class="field"><div class="label">Mode de paiement</div><div class="value">${a.mode_paiement || '—'}</div></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Audit qualité</div>
+          <div class="grid">
+            <div class="field"><div class="label">Grade</div><div class="value"><span class="grade grade-${g || 'A'}">${g || '—'}</span></div></div>
+            <div class="field"><div class="label">Coefficient qualité</div><div class="value">${a.coef_qualite || '1.00'}</div></div>
+            <div class="field"><div class="label">Taux commission</div><div class="value">${a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) + '%' : '—'}</div></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Récapitulatif financier</div>
+          <div class="finance">
+            <div class="finance-row"><span>Valeur totale du lot</span><span>${Number(a.valeur_totale || 0).toLocaleString('fr-FR')} FCFA</span></div>
+            <div class="finance-row"><span>Commission (${a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) : 5}%)</span><span>${Number(a.benefice_estime || 0).toLocaleString('fr-FR')} FCFA</span></div>
+            <div class="finance-total"><span>Net versé au producteur</span><span>${Number(a.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span></div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Enregistré par</div>
+          <div class="field"><div class="value">${a.utilisateur || '—'}</div></div>
+        </div>
+        <div class="footer">Document officiel NFBO — Ne pas diffuser sans autorisation.<br>© ${new Date().getFullYear()} NFBO System</div>
+      </body></html>
+    `);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 500);
+  };
+
+  return (
+    <div style={{
+      background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)',
+      border: '1px solid var(--color-border)', overflow: 'hidden',
+    }}>
+      {/* ── Ligne principale ── */}
+      <div
+        onClick={() => setOpen(v => !v)}
+        style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', cursor: 'pointer', gap: 10 }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 11, color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ fontWeight: 700, fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {a.lot_description || `Lot #${a.lot_id}`}
+            </p>
+            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: 0 }}>
+              {new Date(a.date_reception).toLocaleDateString('fr-FR')} · {a.quantite} {unite}
+            </p>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          {g && (
+            <span style={{ padding: '2px 10px', borderRadius: 12, fontWeight: 700, fontSize: 11, background: gradeColors[g], color: gradeTextColors[g] }}>
+              {g}
+            </span>
+          )}
+          <button onClick={exportPDF} className="btn btn-ghost btn-sm" style={{ padding: '4px 8px', fontSize: 14 }} title="Exporter PDF">
+            🖨
+          </button>
+        </div>
+      </div>
+
+      {/* ── Contenu déplié ── */}
+      {open && (
+        <div style={{ borderTop: '1px solid var(--color-border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+          {/* Infos */}
+          <div className="grid-2" style={{ gap: 10 }}>
+            {[
+              ['Producteur',     a.nom_producteur || `#${a.producteur_id}`],
+              ['Magasin',        a.magasin_nom || `#${a.magasin_id}`],
+              ['Prix unitaire',  `${Number(a.prix_ref).toLocaleString('fr-FR')} FCFA`],
+              ['Mode paiement',  a.mode_paiement || '—'],
+              ['Expiration',     a.date_expiration ? new Date(a.date_expiration).toLocaleDateString('fr-FR') : '—'],
+              ['Enregistré par', a.utilisateur || '—'],
+            ].map(([label, value]) => (
+              <div key={label}>
+                <p className="text-muted text-xs" style={{ marginBottom: 2 }}>{label}</p>
+                <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>{value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Audit qualité */}
+          <div style={{
+            display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
+            background: g ? gradeColors[g] : 'var(--color-surface)',
+            borderRadius: 'var(--radius-sm)', padding: '8px 12px',
+          }}>
+            {g && <span style={{ fontWeight: 800, fontSize: 15, color: gradeTextColors[g] }}>Grade {g}</span>}
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Coef : {a.coef_qualite || '1.00'}</span>
+            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Commission : {a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) + '%' : '—'}</span>
+          </div>
+
+          {/* Finances */}
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-sm)', padding: '10px 14px' }}>
+            {[
+              ['Valeur totale', a.valeur_totale, '#333'],
+              ['Commission',    a.benefice_estime, '#166534'],
+            ].map(([label, val, color]) => (
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #dcfce7' }}>
+                <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
+                <span style={{ fontWeight: 600, color }}>{Number(val || 0).toLocaleString('fr-FR')} FCFA</span>
+              </div>
+            ))}
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#166534', paddingTop: 8 }}>
+              <span>Net producteur</span>
+              <span>{Number(a.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span>
+            </div>
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ─── Page principale ────────────────────────────────────────────────────────────
 export default function Admissions({ onBack }) {
@@ -165,7 +331,6 @@ export default function Admissions({ onBack }) {
   const [activeLot,   setActiveLot]   = useState(null);
   const [gradeInfo,   setGradeInfo]   = useState({ grade: null, coef: 1.0 });
   const [submitting,  setSubmitting]  = useState(false);
-const [selectedAdmission, setSelectedAdmission] = useState(null);
 
   const [formData, setFormData] = useState({
     lot_id: '', producteur_id: '', quantite: '', unite: '',
@@ -258,10 +423,6 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
 
   const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
 
-  // Classes Tailwind conservées pour compatibilité avec votre setup existant
-  const inputClass = 'form-control';
-  const labelClass = 'form-label';
-
   const colStyle = {
     display: 'flex', flexDirection: 'column', gap: 16,
     background: 'var(--color-surface-alt)', borderRadius: 12, padding: 16,
@@ -271,11 +432,6 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
     fontWeight: 700, fontSize: 11, textTransform: 'uppercase',
     letterSpacing: '.06em', color: 'var(--color-text-muted)',
     display: 'flex', alignItems: 'center', gap: 6,
-  };
-
-  const gradeColors = {
-    A: 'badge-success', B: 'badge-warning',
-    C: 'badge-warning', D: 'badge-danger',
   };
 
   return (
@@ -296,8 +452,8 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
               <p style={colHeadStyle}><span>🏪</span> Source & Destination</p>
 
               <div className="form-group">
-                <label className={labelClass}>Produit / Lot *</label>
-                <select required value={formData.lot_id} onChange={(e) => handleLotChange(e.target.value)} className={inputClass}>
+                <label className="form-label">Produit / Lot *</label>
+                <select required value={formData.lot_id} onChange={(e) => handleLotChange(e.target.value)} className="form-control">
                   <option value="">-- Sélectionner un lot --</option>
                   {lots.map(l => (
                     <option key={l.id} value={l.id}>{l.description} ({l.prix_ref} FCFA)</option>
@@ -313,28 +469,34 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
               </div>
 
               <div className="form-group">
-                <label className={labelClass}>Producteur / Déposant *</label>
-                <select required value={formData.producteur_id} onChange={set('producteur_id')} className={inputClass}>
+                <label className="form-label">Producteur / Déposant *</label>
+                <select required value={formData.producteur_id} onChange={set('producteur_id')} className="form-control">
                   <option value="">-- Sélectionner --</option>
-                  {producteurs.map(p => (
-                    <option key={p.id} value={p.id}>{p.nom_producteur}</option>
-                  ))}
+                  {producteurs
+                    .filter(p => p.type_producteur !== 'interne')
+                    .map(p => (
+                      <option key={p.id} value={p.id}>{p.nom_producteur}</option>
+                    ))
+                  }
                 </select>
               </div>
 
               {user?.role === 'superadmin' ? (
                 <div className="form-group">
-                  <label className={labelClass}>Magasin de stockage *</label>
-                  <select required value={formData.magasin_id} onChange={set('magasin_id')} className={inputClass}>
+                  <label className="form-label">Magasin de stockage *</label>
+                  <select required value={formData.magasin_id} onChange={set('magasin_id')} className="form-control">
                     <option value="">-- Sélectionner --</option>
-                    {magasins.map(m => (
-                      <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>
-                    ))}
+                    {magasins
+                      .filter(m => m.id !== 21)
+                      .map(m => (
+                        <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>
+                      ))
+                    }
                   </select>
                 </div>
               ) : (
                 <div className="form-group">
-                  <label className={labelClass}>Magasin</label>
+                  <label className="form-label">Magasin</label>
                   <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
                     {magasins.find(m => m.id === parseInt(magasinId))?.nom || `Magasin #${magasinId}`}
                   </p>
@@ -348,13 +510,13 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group">
-                  <label className={labelClass}>Quantité *</label>
+                  <label className="form-label">Quantité *</label>
                   <input type="number" required min="0" step="0.01"
-                    value={formData.quantite} onChange={set('quantite')} className={inputClass} />
+                    value={formData.quantite} onChange={set('quantite')} className="form-control" />
                 </div>
                 <div className="form-group">
-                  <label className={labelClass}>Unité *</label>
-                  <select required value={formData.unite} onChange={set('unite')} className={inputClass} disabled={!unitesDisponibles.length}>
+                  <label className="form-label">Unité *</label>
+                  <select required value={formData.unite} onChange={set('unite')} className="form-control" disabled={!unitesDisponibles.length}>
                     <option value="">--</option>
                     {unitesDisponibles.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
@@ -362,19 +524,19 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
               </div>
 
               <div className="form-group">
-                <label className={labelClass}>Prix unitaire (FCFA) *</label>
+                <label className="form-label">Prix unitaire (FCFA) *</label>
                 <input type="number" required min="0" step="0.01"
-                  value={formData.prix_ref} onChange={set('prix_ref')} className={inputClass} />
+                  value={formData.prix_ref} onChange={set('prix_ref')} className="form-control" />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div className="form-group">
-                  <label className={labelClass}>Expiration</label>
-                  <input type="date" value={formData.date_expiration} onChange={set('date_expiration')} className={inputClass} />
+                  <label className="form-label">Expiration</label>
+                  <input type="date" value={formData.date_expiration} onChange={set('date_expiration')} className="form-control" />
                 </div>
                 <div className="form-group">
-                  <label className={labelClass}>Paiement *</label>
-                  <select required value={formData.mode_paiement} onChange={set('mode_paiement')} className={inputClass}>
+                  <label className="form-label">Paiement *</label>
+                  <select required value={formData.mode_paiement} onChange={set('mode_paiement')} className="form-control">
                     <option value="solde">Crédit compte (5%)</option>
                     <option value="mobile_money">Mobile Money (7%)</option>
                     <option value="especes">Espèces</option>
@@ -390,184 +552,7 @@ const [selectedAdmission, setSelectedAdmission] = useState(null);
                 dateExpiration={formData.date_expiration}
               />
             </div>
-// ─── Carte admission fold/unfold ──────────────────────────────────────────────
-function AdmissionCard({ admission: a }) {
-  const [open, setOpen] = useState(false);
 
-  const gradeColors     = { A: '#c8e6c9', B: '#fff9c4', C: '#ffe0b2', D: '#ffcdd2' };
-  const gradeTextColors = { A: '#1b5e20', B: '#f57f17', C: '#e65100', D: '#b71c1c' };
-  const g = a.grade_qualite;
-  const unite = Array.isArray(a.unite) ? a.unite[0] : a.unite;
-
-  const exportPDF = (e) => {
-    e.stopPropagation();
-    const w = window.open('', '_blank', 'height=800,width=800');
-    w.document.write(`
-      <html><head>
-        <title>Admission #${a.id} — NFBO</title>
-        <style>
-          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-          .header { border-bottom: 2px solid #166534; padding-bottom: 16px; margin-bottom: 24px; display: flex; justify-content: space-between; }
-          .brand { font-size: 20px; font-weight: bold; color: #166534; }
-          .meta { font-size: 11px; color: #666; text-align: right; }
-          .section { margin-bottom: 24px; }
-          .section-title { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 6px; margin-bottom: 12px; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-          .field { margin-bottom: 8px; }
-          .label { font-size: 11px; color: #888; margin-bottom: 2px; }
-          .value { font-size: 14px; font-weight: 600; }
-          .finance { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; }
-          .finance-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #dcfce7; font-size: 13px; }
-          .finance-total { display: flex; justify-content: space-between; padding: 10px 0; font-weight: bold; font-size: 15px; color: #166534; }
-          .grade { display: inline-block; padding: 4px 12px; border-radius: 20px; font-weight: bold; font-size: 13px; }
-          .grade-A { background: #c8e6c9; color: #1b5e20; }
-          .grade-B { background: #fff9c4; color: #f57f17; }
-          .grade-C { background: #ffe0b2; color: #e65100; }
-          .grade-D { background: #ffcdd2; color: #b71c1c; }
-          .footer { margin-top: 40px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
-          @media print { body { padding: 20px; } }
-        </style>
-      </head><body>
-        <div class="header">
-          <div class="brand">NFBO — Reçu d'Admission</div>
-          <div class="meta">Admission #${a.id}<br>Imprimé le ${new Date().toLocaleString('fr-FR')}</div>
-        </div>
-        <div class="section">
-          <div class="section-title">Informations générales</div>
-          <div class="grid">
-            <div class="field"><div class="label">Lot</div><div class="value">${a.lot_description || `Lot #${a.lot_id}`}</div></div>
-            <div class="field"><div class="label">Date de réception</div><div class="value">${new Date(a.date_reception).toLocaleDateString('fr-FR')}</div></div>
-            <div class="field"><div class="label">Producteur</div><div class="value">${a.nom_producteur || `#${a.producteur_id}`}</div></div>
-            <div class="field"><div class="label">Magasin</div><div class="value">${a.magasin_nom || `#${a.magasin_id}`}</div></div>
-            <div class="field"><div class="label">Quantité</div><div class="value">${a.quantite} ${unite}</div></div>
-            <div class="field"><div class="label">Prix unitaire</div><div class="value">${Number(a.prix_ref).toLocaleString('fr-FR')} FCFA</div></div>
-            ${a.date_expiration ? `<div class="field"><div class="label">Date d'expiration</div><div class="value">${new Date(a.date_expiration).toLocaleDateString('fr-FR')}</div></div>` : ''}
-            <div class="field"><div class="label">Mode de paiement</div><div class="value">${a.mode_paiement || '—'}</div></div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">Audit qualité</div>
-          <div class="grid">
-            <div class="field"><div class="label">Grade</div><div class="value"><span class="grade grade-${g || 'A'}">${g || '—'}</span></div></div>
-            <div class="field"><div class="label">Coefficient qualité</div><div class="value">${a.coef_qualite || '1.00'}</div></div>
-            <div class="field"><div class="label">Taux commission</div><div class="value">${a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) + '%' : '—'}</div></div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">Récapitulatif financier</div>
-          <div class="finance">
-            <div class="finance-row"><span>Valeur totale du lot</span><span>${Number(a.valeur_totale || 0).toLocaleString('fr-FR')} FCFA</span></div>
-            <div class="finance-row"><span>Commission (${a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) : 5}%)</span><span>${Number(a.benefice_estime || 0).toLocaleString('fr-FR')} FCFA</span></div>
-            <div class="finance-total"><span>Net versé au producteur</span><span>${Number(a.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span></div>
-          </div>
-        </div>
-        <div class="section">
-          <div class="section-title">Enregistré par</div>
-          <div class="field"><div class="value">${a.utilisateur || '—'}</div></div>
-        </div>
-        <div class="footer">Document officiel NFBO — Ne pas diffuser sans autorisation.<br>© ${new Date().getFullYear()} NFBO System</div>
-      </body></html>
-    `);
-    w.document.close();
-    setTimeout(() => { w.focus(); w.print(); }, 500);
-  };
-
-  return (
-    <div style={{
-      background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)',
-      border: '1px solid var(--color-border)', overflow: 'hidden',
-      transition: 'box-shadow 0.2s',
-    }}>
-      {/* ── Ligne principale ── */}
-      <div
-        onClick={() => setOpen(v => !v)}
-        style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 14px', cursor: 'pointer', gap: 10,
-        }}
-      >
-        {/* Gauche : flèche + date + lot */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 12, color: 'var(--color-text-muted)', transition: 'transform 0.2s', transform: open ? 'rotate(90deg)' : 'rotate(0deg)', display: 'inline-block' }}>▶</span>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontWeight: 700, fontSize: 13, margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {a.lot_description || `Lot #${a.lot_id}`}
-            </p>
-            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: 0 }}>
-              {new Date(a.date_reception).toLocaleDateString('fr-FR')} · {a.quantite} {unite}
-            </p>
-          </div>
-        </div>
-
-        {/* Droite : grade + impression */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {g && (
-            <span style={{ padding: '2px 10px', borderRadius: 12, fontWeight: 700, fontSize: 11, background: gradeColors[g], color: gradeTextColors[g] }}>
-              {g}
-            </span>
-          )}
-          <button
-            onClick={exportPDF}
-            className="btn btn-ghost btn-sm"
-            style={{ padding: '4px 8px', fontSize: 14 }}
-            title="Exporter PDF"
-          >
-            🖨
-          </button>
-        </div>
-      </div>
-
-      {/* ── Contenu déplié ── */}
-      {open && (
-        <div style={{ borderTop: '1px solid var(--color-border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* Infos générales */}
-          <div className="grid-2" style={{ gap: 10 }}>
-            {[
-              ['Producteur',    a.nom_producteur || `#${a.producteur_id}`],
-              ['Magasin',       a.magasin_nom || `#${a.magasin_id}`],
-              ['Prix unitaire', `${Number(a.prix_ref).toLocaleString('fr-FR')} FCFA`],
-              ['Mode paiement', a.mode_paiement || '—'],
-              ['Expiration',    a.date_expiration ? new Date(a.date_expiration).toLocaleDateString('fr-FR') : '—'],
-              ['Enregistré par', a.utilisateur || '—'],
-            ].map(([label, value]) => (
-              <div key={label}>
-                <p className="text-muted text-xs" style={{ marginBottom: 2 }}>{label}</p>
-                <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>{value}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Audit qualité */}
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
-            background: g ? gradeColors[g] : 'var(--color-surface)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}>
-            {g && <span style={{ fontWeight: 800, fontSize: 15, color: gradeTextColors[g] }}>Grade {g}</span>}
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Coef : {a.coef_qualite || '1.00'}</span>
-            <span style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Commission : {a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) + '%' : '—'}</span>
-          </div>
-
-          {/* Finances */}
-          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-sm)', padding: '10px 14px' }}>
-            {[
-              ['Valeur totale', a.valeur_totale, '#333'],
-              [`Commission`, a.benefice_estime, '#166534'],
-            ].map(([label, val, color]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, padding: '4px 0', borderBottom: '1px solid #dcfce7' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>{label}</span>
-                <span style={{ fontWeight: 600, color }}>{Number(val || 0).toLocaleString('fr-FR')} FCFA</span>
-              </div>
-            ))}
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 700, color: '#166534', paddingTop: 8 }}>
-              <span>Net producteur</span>
-              <span>{Number(a.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span>
-            </div>
-          </div>
-
-        </div>
-      )}
-    </div>
-  );
-}
             {/* Colonne 3 : Audit qualité */}
             <div style={colStyle}>
               <p style={colHeadStyle}><span>📋</span> Audit Qualité</p>
@@ -581,35 +566,31 @@ function AdmissionCard({ admission: a }) {
           </div>
 
           <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="btn btn-primary btn-lg"
-            >
+            <button type="submit" disabled={submitting} className="btn btn-primary btn-lg">
               {submitting ? '⏳ Enregistrement...' : "✅ VALIDER L'ADMISSION"}
             </button>
           </div>
         </form>
       </div>
 
-  <div className="card">
-  <div className="card-header">
-    <h3 className="card-title">Admissions récentes</h3>
-    <span className="badge badge-neutral">{admissions.length} total</span>
-  </div>
-
-  {admissions.length === 0 ? (
-    <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-      Aucune admission enregistrée
-    </div>
-  ) : (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px' }}>
-      {admissions.slice(0, 15).map(a => (
-        <AdmissionCard key={a.id} admission={a} />
-      ))}
-    </div>
-  )}
-</div>
+      {/* ── Historique ── */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Admissions récentes</h3>
+          <span className="badge badge-neutral">{admissions.length} total</span>
+        </div>
+        {admissions.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)' }}>
+            Aucune admission enregistrée
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '0 4px 4px' }}>
+            {admissions.slice(0, 15).map(a => (
+              <AdmissionCard key={a.id} admission={a} />
+            ))}
+          </div>
+        )}
+      </div>
     </PageLayout>
   );
 }
