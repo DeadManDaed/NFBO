@@ -171,8 +171,12 @@ export default function Stock() {
   );
 
   const totalValeur = filteredStocks.reduce(
-  (sum, s) => sum + (parseFloat(s.stock_actuel) || 0) * (parseFloat(s.prix_ref) || 0), 0
+  (sum, s) => {
+    console.log(s.description, s.stock_actuel, s.prix_ref);
+    return sum + (parseFloat(s.stock_actuel) || 0) * (parseFloat(s.prix_ref) || 0);
+  }, 0
 );
+console.log('totalValeur:', totalValeur);
   const categories = [...new Set(stocks.map(s => s.categorie).filter(Boolean))];
 
   const seuilCat = { frais: 20, court: 15, secs: 50, manufactures_alim: 30, manufactures_non_alim: 25, sensibles: 10 };
