@@ -64,10 +64,14 @@ function PanneauIntelligence({ rapport }) {
   };
 
   const rowStyle = {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '10px 12px', background: 'var(--color-surface-alt)',
-    borderRadius: 'var(--radius-sm)', fontSize: 13,
-  };
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: '10px 12px',
+  background: 'white',
+  borderRadius: 'var(--radius-sm)',
+  fontSize: 13,
+  color: 'darkorange'};
 
   return (
     <div className="card">
@@ -95,7 +99,7 @@ function PanneauIntelligence({ rapport }) {
             ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>✅ Aucune rupture détectée</p>
             : rapport.rupture.map((p, i) => (
               <div key={i} style={rowStyle}>
-                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{p.nom}</span>
+                <span style={{ fontWeight: 600 }}>{p.nom}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span className="text-muted text-sm">{p.stock_actuel} {p.unite}</span>
                   <span className={urgBadge[p.urgence] || 'badge badge-neutral'}>{p.status}</span>
@@ -109,7 +113,7 @@ function PanneauIntelligence({ rapport }) {
             ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>✅ Aucun lot proche de la péremption</p>
             : rapport.peremption.map((p, i) => (
               <div key={i} style={rowStyle}>
-                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>{p.nom}</span>
+                <span style={{ fontWeight: 600 }}>{p.nom}</span>
                 <span className={urgBadge[p.urgence] || 'badge badge-neutral'}>{p.status}</span>
               </div>
             ))
@@ -120,7 +124,7 @@ function PanneauIntelligence({ rapport }) {
             ? <p className="text-muted text-sm text-center" style={{ padding: 16 }}>Aucun produit star identifié</p>
             : rapport.stars.map((p, i) => (
               <div key={i} style={{ ...rowStyle, background: '#fffde7' }}>
-                <span style={{ fontWeight: 600, color: 'var(--color-text)' }}>⭐ {p.nom}</span>
+                <span style={{ fontWeight: 600 }}>⭐ {p.nom}</span>
                 <span style={{ fontSize: 12, fontWeight: 700, color: '#b45309' }}>{p.performance}</span>
               </div>
             ))
