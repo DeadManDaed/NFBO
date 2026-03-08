@@ -12,8 +12,8 @@ export function useStocks(magasinId = null) {
     try {
       setLoading(true);
       const MAGASIN_VIRTUEL = 21;
-const data = (!magasinId || magasinId === MAGASIN_VIRTUEL)
-  ? await api.request('/stocks')
+const data = (!magasinId || parseInt(magasinId) === MAGASIN_VIRTUEL)
+  ? await api.request('/lots/stock?magasinId=21')
   : await api.getStockDisponible(magasinId);
       setStocks(data);
       setError(null);
