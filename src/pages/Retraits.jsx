@@ -6,6 +6,7 @@ import { useStocks } from '../hooks/useStocks';
 import api from '../services/api';
 import Alert from '../components/Alert';
 import PageLayout, { StateEmpty } from '../components/PageLayout';
+import Modal from '../components/Modal';
 
 // Couleur de badge selon le type de retrait
 const typeClass = {
