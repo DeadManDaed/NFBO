@@ -340,6 +340,7 @@ export default function Admissions({ onBack }) {
     prix_ref: '', date_expiration: '',
     magasin_id: magasinId || '', mode_paiement: 'solde',
   });
+const [showForm, setShowForm] = useState(false);
 
   const unitesDisponibles = activeLot
     ? (Array.isArray(activeLot.unites_admises)
@@ -446,8 +447,20 @@ export default function Admissions({ onBack }) {
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
 
       {/* ── Formulaire ── */}
-      <div className="card">
-        <form onSubmit={handleSubmit}>
+<div className="card">
+  <div className="card-header" style={{ marginBottom: showForm ? 16 : 0 }}>
+    <h3 className="card-title">📥 Nouvelle admission</h3>
+    <button
+      onClick={() => setShowForm(v => !v)}
+      className={showForm ? 'btn btn-ghost btn-sm' : 'btn btn-primary btn-sm'}
+    >
+      {showForm ? '✕ Annuler' : '+ Nouveau'}
+    </button>
+  </div>
+
+  {showForm && (
+    <form onSubmit={async (e) => { await handleSubmit(e); setShowForm(false); }}>
+
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
 
             {/* Colonne 1 : Source & Destination */}
@@ -574,6 +587,7 @@ export default function Admissions({ onBack }) {
             </button>
           </div>
         </form>
+)}
       </div>
 
       {/* ── Historique ── */}
