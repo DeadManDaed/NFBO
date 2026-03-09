@@ -334,6 +334,9 @@ getProducteursCaisse()   { return this.request('/caisse?action=producteurs'); }
   emettreChecque(data)     { return this.request('/caisse?action=cheque', { method: 'POST', body: JSON.stringify(data) }); }
   verifierCheque(code)     { return this.request(`/caisse?action=cheque&code=${code}`); }
   scannerCheque(code)      { return this.request('/caisse?action=scanner', { method: 'POST', body: JSON.stringify({ code }) }); }
+getDemandes()                  { return this.request('/auth/demandes'); }
+approuverDemande(data)         { return this.request('/auth/approuver', { method: 'POST', body: JSON.stringify(data) }); }
+rejeterDemande(data)           { return this.request('/auth/rejeter',   { method: 'POST', body: JSON.stringify(data) }); }
 }
 
 export default new ApiService();
