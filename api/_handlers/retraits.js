@@ -162,7 +162,7 @@ if (type_retrait === 'producteur' && destination_producteur_id) {
     }
 
     // ── Points fidélité si vente ───────────────────────────────────────────
-    if (type_retrait === 'vente' && destination_producteur_id) {
+    if (type_retrait === 'producteur' && destination_producteur_id) {
       const lotRes = await client.query(
         'SELECT categorie FROM lots WHERE id = $1', [lot_id]
       );
