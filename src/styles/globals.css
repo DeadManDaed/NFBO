@@ -479,6 +479,34 @@ input[type="radio"] {
   opacity: .75;
 }
 
+/*——------------------Fenêtres modales ----------------------*/
+/* Garantit que toutes les modales sont centrées dans le viewport actuel */
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+}
+
+.modal {
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 560px;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin: auto;
+}
 /* ─── États de chargement ───────────────────────────────────────────────────── */
 .state-loading,
 .state-empty,
