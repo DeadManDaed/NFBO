@@ -92,6 +92,25 @@ module.exports = withCors(requireAuth(async (req, res) => {
       return res.status(500).json({ error: 'Erreur lors de la suppression' });
     }
   }
-
+// PATCH /api/producteurs?id=X — incrément solde
+if (req.method === 'PATCH' && id) {
+  const { solde_increment } = req.body;
+  if (!solde_increment || parseFloat(solde_increment) <= 0) {
+    return res.status(400).json({ error: 'solde_increment requis et positif' });
+  }
+  try {
+    const result = await pool.query(
+      `UPDATE producteurs 
+       SET solde = solde + $1 
+       WHERE id = $2 
+       RETURNING id, nom_producteur, solde`,
+      [parseFloat(solde_increment), id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Producteur introuvable' });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    return res.status(500).json({ error: 'Erreur lors du crédit solde' });
+  }
+}
   res.status(405).end();
 }));
