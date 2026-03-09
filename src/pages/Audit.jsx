@@ -196,6 +196,7 @@ function ModalDetailMagasin({ magasin, logs, onClose }) {
           )}
         </div>
       </div>
+</div>
     </Modal>
   );
 }
