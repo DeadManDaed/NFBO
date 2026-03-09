@@ -9,18 +9,19 @@ import Audit           from '../pages/Audit';
 import Stock           from '../pages/Stock';
 import DefinitionLots  from '../pages/DefinitionLots';
 import Messagerie      from '../pages/Messagerie';
+import Caisse          from '../pages/Caisse';
 
 const MODULE_MAP = {
   admissions:     Admissions,
   retraits:       Retraits,
   transferts:     Transferts,
   stock:          Stock,
+  caisse:         Caisse,
   audit:          Audit,
   messagerie:     Messagerie,
   administration: Administration,
   definitionlots: DefinitionLots,
 };
-
 // J'ai ajouté tabLabel en prop pour éviter d'avoir à réimporter la constante TABS ici
 export default function ModuleView({ moduleId, tabLabel, onBack, onUnreadChange }) {
   const Component = MODULE_MAP[moduleId];
