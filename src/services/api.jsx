@@ -46,10 +46,12 @@ async getToken() {
       }
 
       if (!response.ok) {
-        const errObj = await response.json().catch(() => null);
-        throw new Error(errObj?.message || errObj?.error || `Erreur HTTP ${response.status}`);
-      }
-
+  const errObj = await response.json().catch(() => null);
+  const err = new Error(errObj?.message || errObj?.error || `Erreur HTTP ${response.status}`);
+  // Préserver les champs supplémentaires du corps d'erreur
+  if (errObj) Object.assign(err, errObj);
+  throw err;
+}
       return await response.json();
     } catch (error) {
       console.error(`❌ API [${options.method || 'GET'}] ${endpoint}:`, error.message);
