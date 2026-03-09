@@ -69,3 +69,14 @@ export function AdminIcon({ active }) {
     </svg>
   );
 }
+
+export function CaisseIcon({ active }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="6" width="20" height="14" rx="2"/>
+      <path d="M16 10h.01"/>
+      <path d="M2 10h20"/>
+      <path d="M6 14h4"/>
+    </svg>
+  );
+}
