@@ -9,6 +9,8 @@ import Alert from '../components/Alert';
 import PageLayout, { StateLoading, StateEmpty } from '../components/PageLayout';
 import LectureSection from '../components/audit/LectureSection';
 import RapportPanel from '../components/audit/RapportPanel';
+import Modal from '../components/Modal';
+
 
 // ─── Stats ────────────────────────────────────────────────────────────────────
 function AuditStats({ transfertsPending, transfertsValidated, tauxValid }) {
@@ -126,13 +128,13 @@ function ModalDetailMagasin({ magasin, logs, onClose }) {
   }, {});
 
   return (
-    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="modal" style={{ maxWidth: 700, width: '95%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3 style={{ margin: 0 }}>🏪 {magasin.nom_magasin}</h3>
-          <button onClick={onClose} className="btn btn-ghost btn-sm">✕</button>
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+    <Modal onClose={onClose} maxWidth={700}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <h3 style={{ margin: 0 }}>🏪 {magasin.nom_magasin}</h3>
+      <button onClick={onClose} className="btn btn-ghost btn-sm">✕</button>
+    </div>
+    <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+    
           {[{ key: 'transactions', label: '📄 Transactions' }, { key: 'tendances', label: '📊 Tendances' }].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={tab === t.key ? 'btn btn-primary btn-sm' : 'btn btn-ghost btn-sm'}>
@@ -140,7 +142,8 @@ function ModalDetailMagasin({ magasin, logs, onClose }) {
             </button>
           ))}
         </div>
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+    
           {tab === 'transactions' && (
             logs.length === 0
               ? <StateEmpty message="Aucune transaction sur 30 jours." />
@@ -193,7 +196,7 @@ function ModalDetailMagasin({ magasin, logs, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -207,6 +210,7 @@ function ModalValidation({ transfert, onClose, onValidate, onReject }) {
   const set = f => e => setData(v => ({ ...v, [f]: e.target.value }));
 
   return (
+<Modal onClose={onClose}>
     <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal">
         <h3 style={{ marginTop: 0, marginBottom: 20 }}>🔍 Validation du transfert</h3>
@@ -252,6 +256,7 @@ function ModalValidation({ transfert, onClose, onValidate, onReject }) {
         </div>
       </div>
     </div>
+</Modal>
   );
 }
 
