@@ -388,12 +388,13 @@ input[type="radio"] {
   vertical-align: middle;
 }
 
-.data-table tbody tr {
-  transition: background var(--transition-fast);
-}
-
 .data-table tbody tr:hover {
   background: var(--color-accent);
+  color: var(--color-text) !important;
+}
+
+.data-table tbody tr:hover td {
+  color: var(--color-text) !important;
 }
 
 .data-table tbody tr:last-child td {
@@ -479,7 +480,7 @@ input[type="radio"] {
   opacity: .75;
 }
 
-/*——------------------Fenêtres modales ----------------------*/
+/* ─── Modal ─────────────────────────────────────────────────────────────────── */
 /* Garantit que toutes les modales sont centrées dans le viewport actuel */
 .modal-overlay {
   position: fixed !important;
@@ -533,32 +534,6 @@ input[type="radio"] {
 
 .animate-bounce { animation: pulse-bounce 1.2s ease-in-out infinite; }
 
-/* ─── Modal ─────────────────────────────────────────────────────────────────── */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  padding: var(--spacing-md);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-  overscroll-behavior: contain;
-}
-
-.modal {
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-lg);
-  max-width: 640px;
-  width: 100%;
-  max-height: 90vh;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  padding: var(--spacing-xl);
-}
 
 /* ─── Navigation Sidebar ────────────────────────────────────────────────────── */
 .sidebar-nav {
@@ -662,4 +637,15 @@ input[type="radio"] {
 ::-webkit-scrollbar-thumb:hover { background: var(--color-primary-light); }
 
 /* ─── Sélection ─────────────────────────────────────────────────────────────── */
-::selection { background: rgba(27, 110, 46, 0.2); color: var(--color-primary-dark); }
+::selection { color: var(--color-text) !important;
+  background-color: var(--color-surface) !important; }
+/* Fix select natif mobile */
+select {
+  color: var(--color-text) !important;
+  background-color: var(--color-surface) !important;
+}
+
+select option {
+  color: var(--color-text) !important;
+  background-color: var(--color-surface) !important;
+}
