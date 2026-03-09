@@ -36,7 +36,8 @@
     "@capacitor/network": "^5.0.7",
     "@capacitor/camera": "^5.0.9",
     "@capacitor/filesystem": "^5.2.1",
-"@supabase/supabase-js": "^2.49.1"
+"@supabase/supabase-js": "^2.49.1",
+"qrcode": "^1.5.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
