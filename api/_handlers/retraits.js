@@ -81,6 +81,28 @@ module.exports = withCors(requireAuth(async (req, res) => {
     const valeurTotale = parseFloat(quantite) * prixFinal;
 
     // ── INSERT retrait ─────────────────────────────────────────────────────
+
+// ── Vérification solde producteur si vente ────────────────────────────────
+if (type_retrait === 'producteur' && destination_producteur_id) {
+  const prodRes = await client.query(
+    'SELECT solde, nom_producteur FROM producteurs WHERE id = $1',
+    [destination_producteur_id]
+  );
+  if (!prodRes.rows[0]) {
+    await client.query('ROLLBACK');
+    return res.status(404).json({ error: 'Producteur introuvable' });
+  }
+  const soldeProd = parseFloat(prodRes.rows[0].solde) || 0;
+  if (soldeProd < valeurTotale) {
+    await client.query('ROLLBACK');
+    return res.status(400).json({
+      error: `Solde insuffisant`,
+      details: `Solde disponible : ${soldeProd.toLocaleString('fr-FR')} FCFA — Montant requis : ${valeurTotale.toLocaleString('fr-FR')} FCFA`,
+      solde_disponible: soldeProd,
+      montant_requis: valeurTotale,
+    });
+  }
+}
     const result = await client.query(
       `INSERT INTO retraits (
         lot_id, utilisateur, type_retrait, quantite, unite, prix_ref, valeur_totale,
