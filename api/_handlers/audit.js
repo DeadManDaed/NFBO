@@ -96,14 +96,14 @@ if (action === 'logs-by-store') {
       AND a.date_reception >= CURRENT_DATE - INTERVAL '30 days'
     UNION ALL
     SELECT
-      r.id, r.date_retrait AS date, r.utilisateur,
+     r.id, r.date_sortie AS date, r.utilisateur,
       l.description AS produit, r.quantite, r.unite,
       r.prix_ref, r.quantite * r.prix_ref AS montant,
       r.type_retrait AS action
     FROM retraits r
     LEFT JOIN lots l ON l.id = r.lot_id
     WHERE r.magasin_id = $1
-      AND r.date_retrait >= CURRENT_DATE - INTERVAL '30 days'
+      AND r.date_sortie >= CURRENT_DATE - INTERVAL '30 days'
     ORDER BY date DESC
     LIMIT 50
   `, [magasin_id]);
