@@ -379,7 +379,7 @@ useEffect(() => {
         className="btn btn-ghost"
         onClick={() => {
           // Ajuster la quantité au maximum payable
-          const qteMax = const qteMax = Math.floor(soldeInsuffisant.solde / parseFloat(formData.prix_ref));
+          const qteMax = Math.floor(soldeInsuffisant.solde / parseFloat(formData.prix_ref));
           set('quantite')({ target: { value: qteMax } });
           setSoldeInsuffisant(null);
         }}
