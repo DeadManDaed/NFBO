@@ -4,6 +4,7 @@ const { withCors } = require('./_lib/cors');
 const routes = {
   '/api/admissions':        () => require('./_handlers/admissions'),
   '/api/audit':             () => require('./_handlers/audit'),
+'/api/caisse':            () => require('./_handlers/caisse'),
   '/api/geo':               () => require('./_handlers/geo'),
 '/api/lots/stock':        () => require('./lots/index'),
 
