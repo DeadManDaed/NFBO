@@ -330,6 +330,10 @@ async transfertCaisse(data) {
 async signalerOperationCaisse(data) {
   return this.request('/caisse?action=signaler', { method: 'PATCH', body: JSON.stringify(data) });
 }
+getProducteursCaisse()   { return this.request('/caisse?action=producteurs'); }
+  emettreChecque(data)     { return this.request('/caisse?action=cheque', { method: 'POST', body: JSON.stringify(data) }); }
+  verifierCheque(code)     { return this.request(`/caisse?action=cheque&code=${code}`); }
+  scannerCheque(code)      { return this.request('/caisse?action=scanner', { method: 'POST', body: JSON.stringify({ code }) }); }
 }
 
 export default new ApiService();
