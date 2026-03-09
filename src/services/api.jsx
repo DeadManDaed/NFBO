@@ -106,14 +106,7 @@ async getToken() {
   }
 
   // ========== RETRAITS ==========
-
-  async getRetraits() {
-    return this.request('/retraits');
-  }
-
-  async getRetrait(id) {
-    return this.request(`/retraits?id=${id}`);
-  }
+ 
 async getRetraits(magasinId = null) {
   const query = magasinId ? `?magasin_id=${magasinId}` : '';
   return this.request(`/retraits${query}`);
