@@ -195,8 +195,7 @@ function ModalDetailMagasin({ magasin, logs, onClose }) {
             </div>
           )}
         </div>
-      </div>
-</div>
+      
     </Modal>
   );
 }
