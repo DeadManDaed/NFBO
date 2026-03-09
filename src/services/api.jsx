@@ -310,27 +310,28 @@ async getAuditLogsByStore(magasinId) {
   // ========== CAISSE ==========
 async getCaisses() {
   return this.request('/caisse?action=liste');
-},
+}
 async getOperationsCaisse() {
   return this.request('/caisse?action=operations');
-},
+}
 async getProducteursSolde() {
   return this.request('/caisse?action=producteurs-solde');
-},
+}
 async depotCaisse(data) {
   return this.request('/caisse?action=depot', { method: 'POST', body: JSON.stringify(data) });
-},
+}
 async retraitCaisse(data) {
   return this.request('/caisse?action=retrait', { method: 'POST', body: JSON.stringify(data) });
-},
+}
 async paiementProducteur(data) {
   return this.request('/caisse?action=paiement-producteur', { method: 'POST', body: JSON.stringify(data) });
-},
+}
 async transfertCaisse(data) {
   return this.request('/caisse?action=transfert', { method: 'POST', body: JSON.stringify(data) });
-},
+}
 async signalerOperationCaisse(data) {
   return this.request('/caisse?action=signaler', { method: 'PATCH', body: JSON.stringify(data) });
-},
+}
+}
 
 export default new ApiService();
