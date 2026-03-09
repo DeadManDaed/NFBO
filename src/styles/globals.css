@@ -483,11 +483,11 @@ input[type="radio"] {
 /* ─── Modal ─────────────────────────────────────────────────────────────────── */
 /* Garantit que toutes les modales sont centrées dans le viewport actuel */
 .modal-overlay {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -499,10 +499,9 @@ input[type="radio"] {
 
 .modal {
   position: relative;
-  max-height: 90vh;
+  max-height: 85vh;
   overflow-y: auto;
   width: 100%;
-  max-width: 560px;
   background: var(--color-surface);
   border-radius: var(--radius-lg);
   padding: 24px;
