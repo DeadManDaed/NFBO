@@ -49,6 +49,11 @@ const [fraicheur,         setFraicheur]         = useState('frais');
 const [activeLot,         setActiveLot]         = useState(null);
 const [soldeProd,         setSoldeProd]         = useState(null);
 const [reglesPoints,      setReglesPoints]      = useState([]);
+const [soldeInsuffisant, setSoldeInsuffisant] = useState(null);
+const [showDepotModal, setShowDepotModal] = useState(false);
+const [montantDepot,   setMontantDepot]   = useState('');
+
+
 
   useEffect(() => {
     api.getRetraits().then(setRetraits).catch(console.error);
@@ -119,8 +124,16 @@ useEffect(() => {
       api.getRetraits().then(setRetraits).catch(console.error);
       refreshStocks();
     } catch (err) {
-      showAlert(`❌ Erreur: ${err.message}`, 'error');
-    }
+  if (err.solde_disponible !== undefined) {
+    // Solde insuffisant → proposer options
+    setSoldeInsuffisant({
+      solde: err.solde_disponible,
+      requis: err.montant_requis,
+    });
+  } else {
+    showAlert(`❌ ${err.message}`, 'error');
+  }
+}
   };
 
   return (
@@ -336,6 +349,84 @@ useEffect(() => {
           </div>
         )}
       </div>
+{/* Modal solde insuffisant */}
+{soldeInsuffisant && (
+  <Modal onClose={() => setSoldeInsuffisant(null)}>
+    <h3 style={{ margin: '0 0 16px', color: 'var(--color-danger)' }}>⚠️ Solde insuffisant</h3>
+    <div style={{ background: '#fef2f2', borderRadius: 'var(--radius-sm)', padding: '12px 16px', marginBottom: 16 }}>
+      <p style={{ margin: '0 0 6px', fontSize: 13 }}>
+        Solde disponible : <strong>{soldeInsuffisant.solde.toLocaleString('fr-FR')} FCFA</strong>
+      </p>
+      <p style={{ margin: 0, fontSize: 13 }}>
+        Montant requis : <strong>{soldeInsuffisant.requis.toLocaleString('fr-FR')} FCFA</strong>
+      </p>
+    </div>
+    <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>
+      Que souhaitez-vous faire ?
+    </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <button
+        className="btn btn-primary"
+        onClick={() => {
+          setSoldeInsuffisant(null);
+          setShowDepotModal(true);
+        }}
+      >
+        💵 Encaisser un dépôt espèces du producteur
+      </button>
+      <button
+        className="btn btn-ghost"
+        onClick={() => {
+          // Ajuster la quantité au maximum payable
+          const qteMax = Math.floor(soldeInsuffisant.solde / parseFloat(formData.prix_ref) * 100) / 100;
+          set('quantite')({ target: { value: qteMax } });
+          setSoldeInsuffisant(null);
+        }}
+      >
+        ✂️ Ajuster la quantité ({Math.floor(soldeInsuffisant.solde / parseFloat(formData.prix_ref) * 100) / 100} {formData.unite})
+      </button>
+      <button className="btn btn-ghost" style={{ color: 'var(--color-danger)' }} onClick={() => setSoldeInsuffisant(null)}>
+        ✕ Annuler l'opération
+      </button>
+    </div>
+  </Modal>
+)}
+
+{showDepotModal && (
+  <Modal onClose={() => setShowDepotModal(false)}>
+    <h3 style={{ margin: '0 0 16px' }}>💵 Dépôt espèces producteur</h3>
+    <div className="form-group">
+      <label className="form-label">Montant déposé (FCFA) *</label>
+      <input className="form-control" type="number" min="1" step="1"
+        value={montantDepot} onChange={e => setMontantDepot(e.target.value)} autoFocus />
+    </div>
+    <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+      <button
+        className="btn btn-primary"
+        style={{ flex: 1 }}
+        onClick={async () => {
+          if (!montantDepot || parseFloat(montantDepot) <= 0) return;
+          try {
+            // Créditer le solde producteur
+            await api.request(`/producteurs?id=${formData.destination_producteur_id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({ solde_increment: parseFloat(montantDepot) }),
+            });
+            setSoldeProd(prev => (prev || 0) + parseFloat(montantDepot));
+            setShowDepotModal(false);
+            setMontantDepot('');
+            showAlert('✅ Solde crédité — relancez la vente', 'success');
+          } catch (err) {
+            showAlert(`❌ ${err.message}`, 'error');
+          }
+        }}
+      >
+        ✅ Confirmer le dépôt
+      </button>
+      <button className="btn btn-ghost" onClick={() => setShowDepotModal(false)}>Annuler</button>
+    </div>
+  </Modal>
+)}
     </PageLayout>
   );
 }
