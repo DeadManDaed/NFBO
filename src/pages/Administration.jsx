@@ -70,6 +70,7 @@ const SECTIONS_CONFIG = {
   lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots" },
   validations: { label: "Validations & Transferts",    icon: "✅", endpoint: "/api/validations" },
   caisse:      { label: "Caisse Centrale & Paiements", icon: "💰", endpoint: null },
+demandes: { label: "Demandes d'inscription", icon: "📝", endpoint: "/auth/demandes" },
 };
 
 const COLUMNS_CONFIG = {
@@ -813,6 +814,203 @@ const { user } = useAuth();
   );
 }
 
+function PanneauDemandes({ onSuccess }) {
+  const [demandes,      setDemandes]      = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [selected,      setSelected]      = useState(null);
+  const [magasins,      setMagasins]      = useState([]);
+  const [formApprob,    setFormApprob]    = useState({ role: 'stock', magasin_id: '' });
+  const [submitting,    setSubmitting]    = useState(false);
+  const [erreur,        setErreur]        = useState('');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [d, m] = await Promise.all([
+        apiFetch('/auth/demandes'),
+        apiFetch('/api/magasins'),
+      ]);
+      setDemandes(d);
+      setMagasins(m);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleApprouver = async () => {
+    setErreur('');
+    if (!formApprob.role) { setErreur('Rôle requis'); return; }
+    setSubmitting(true);
+    try {
+      await apiFetch('/auth/approuver', {
+        method: 'POST',
+        body: JSON.stringify({
+          demande_id: selected.id,
+          role:       formApprob.role,
+          magasin_id: formApprob.magasin_id || null,
+        }),
+      });
+      setSelected(null);
+      load();
+      onSuccess?.('✅ Compte créé avec succès');
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleRejeter = async (id) => {
+    if (!confirm('Rejeter cette demande ?')) return;
+    try {
+      await apiFetch('/auth/rejeter', {
+        method: 'POST',
+        body: JSON.stringify({ demande_id: id }),
+      });
+      load();
+    } catch (err) {
+      alert('❌ ' + err.message);
+    }
+  };
+
+  const BADGE_STATUT = {
+    en_attente: { bg: '#fffbeb', color: '#d97706', label: '⏳ En attente' },
+    approuvée:  { bg: '#f0fdf4', color: '#16a34a', label: '✅ Approuvée' },
+    rejetée:    { bg: '#fef2f2', color: '#dc2626', label: '❌ Rejetée' },
+  };
+
+  if (loading) return <StateLoading />;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {demandes.length === 0 && (
+        <StateEmpty icon="📝" message="Aucune demande d'inscription." />
+      )}
+
+      {demandes.map(d => {
+        const bs = BADGE_STATUT[d.statut] || BADGE_STATUT.en_attente;
+        const isOpen = selected?.id === d.id;
+        return (
+          <div key={d.id} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
+
+            {/* ── En-tête ── */}
+            <div
+              onClick={() => setSelected(isOpen ? null : d)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 16px', cursor: 'pointer', gap: 10 }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                <span style={{ fontSize: 11, color: 'var(--color-text-muted)', transform: isOpen ? 'rotate(90deg)' : 'rotate(0)', display: 'inline-block', transition: 'transform .2s' }}>▶</span>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontWeight: 700, fontSize: 14, margin: '0 0 2px', color: 'var(--color-text)' }}>
+                    {d.prenom} {d.nom}
+                    <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', fontSize: 12 }}> — @{d.username}</span>
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: 0 }}>
+                    {d.telephone}{d.email ? ` · ${d.email}` : ''} · {new Date(d.created_at).toLocaleDateString('fr-FR')}
+                  </p>
+                </div>
+              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, background: bs.bg, color: bs.color, borderRadius: 20, padding: '3px 10px', flexShrink: 0 }}>
+                {bs.label}
+              </span>
+            </div>
+
+            {/* ── Détails + formulaire approbation ── */}
+            {isOpen && (
+              <div style={{ borderTop: '1px solid var(--color-border)', padding: '16px' }}>
+
+                {/* Infos demandeur */}
+                <div className="grid-2" style={{ gap: 8, marginBottom: 16 }}>
+                  {[
+                    ['Prénom',    d.prenom],
+                    ['Nom',       d.nom],
+                    ['Téléphone', d.telephone],
+                    ['Email',     d.email || '—'],
+                    ['Username',  d.username],
+                    ['Demande',   new Date(d.created_at).toLocaleString('fr-FR')],
+                  ].map(([label, value]) => (
+                    <div key={label} style={{ background: 'var(--color-surface-alt)', borderRadius: 6, padding: '8px 10px' }}>
+                      <p style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--color-text-muted)', margin: '0 0 2px' }}>{label}</p>
+                      <p style={{ fontWeight: 600, fontSize: 13, margin: 0 }}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Message du candidat */}
+                {d.message && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 13, color: '#92400e' }}>
+                    💬 <em>{d.message}</em>
+                  </div>
+                )}
+
+                {/* Formulaire approbation — seulement si en_attente */}
+                {d.statut === 'en_attente' && (
+                  <>
+                    {erreur && <div className="alert alert-danger" style={{ marginBottom: 12, fontSize: 13 }}>❌ {erreur}</div>}
+
+                    <div className="form-grid" style={{ marginBottom: 14 }}>
+                      <div className="form-group">
+                        <label className="form-label">Rôle *</label>
+                        <select
+                          className="form-control"
+                          value={formApprob.role}
+                          onChange={e => setFormApprob(f => ({ ...f, role: e.target.value }))}
+                        >
+                          <option value="stock">Agent de Stock</option>
+                          <option value="caisse">Agent de Caisse</option>
+                          <option value="admin">Gestionnaire de Magasin</option>
+                          <option value="auditeur">Auditeur</option>
+                          <option value="superadmin">Super-Administrateur</option>
+                        </select>
+                      </div>
+                      <div className="form-group">
+                        <label className="form-label">Magasin d'affectation</label>
+                        <select
+                          className="form-control"
+                          value={formApprob.magasin_id}
+                          onChange={e => setFormApprob(f => ({ ...f, magasin_id: e.target.value }))}
+                        >
+                          <option value="">— Aucun (Accès central) —</option>
+                          {magasins.map(m => (
+                            <option key={m.id} value={m.id}>{m.nom}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button
+                        onClick={handleApprouver}
+                        disabled={submitting}
+                        className="btn btn-primary"
+                        style={{ flex: 1 }}
+                      >
+                        {submitting ? '⏳...' : '✅ Approuver et créer le compte'}
+                      </button>
+                      <button
+                        onClick={() => handleRejeter(d.id)}
+                        className="btn btn-danger"
+                      >
+                        ❌ Rejeter
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+
 // ─── COMPOSANT PRINCIPAL ───────────────────────────────────────────────────────
 
 export default function Administration() {
@@ -965,7 +1163,9 @@ await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
               <h3 style={{ color: "var(--color-text-muted)", marginTop: 0 }}>🛡️ Approbations Locales en Attente</h3>
               <div id="local-transfer-list" />
             </div>
-          ) : status === "loading" ? (
+         ) : section === "demandes" ? (
+  <PanneauDemandes onSuccess={msg => alert(msg)} />
+) : status === "loading" ? (
             <StateLoading />
           ) : status === "error" ? (
             <StateError message={errorMsg} onRetry={() => loadSection(section)} />
