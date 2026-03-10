@@ -1063,7 +1063,7 @@ await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
   const needsAddBtn = !["validations", "caisse"].includes(section);
   const FORMS = { magasins: FormMagasin, users: FormUser, employers: FormUser, producteurs: FormProducteur, lots: FormLot };
   const FormComponent = FORMS[section];
-  const navSections = ["magasins","users","employers","producteurs","lots","validations","caisse"];
+  const navSections = ["magasins","users","employers","producteurs","lots","validations","caisse","demandes"];
 
   return (
     <PageLayout title="Administration" icon="⚙️" subtitle="Configuration et gestion du système">
