@@ -667,7 +667,7 @@ useEffect(() => {
           </div>
 
           {/* ── Stats caisse sélectionnée ── */}
-          {selected && (
+          {selected && ['caisse', 'admin', 'superadmin'].includes(user?.role) && (
             <>
               <div className="grid-3" style={{ marginBottom: 16 }}>
                 <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
@@ -685,7 +685,7 @@ useEffect(() => {
               </div>
 
               {/* ── Boutons opérations ── */}
-              {['gestionnaire', 'admin', 'superadmin'].includes(user?.role) && (
+              {['caisse', 'admin', 'superadmin'].includes(user?.role) && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
                   <button onClick={() => setModalType('depot')} className="btn btn-primary btn-sm">💰 Dépôt</button>
                   <button onClick={() => setModalType('retrait')} className="btn btn-ghost btn-sm">💸 Retrait</button>
