@@ -8,7 +8,7 @@ const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
   auth: {
     storage:            idbStorage,
-    autoRefreshToken:   true,
+    autoRefreshToken:   false,
     persistSession:     true,
     detectSessionInUrl: false,
   },
