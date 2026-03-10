@@ -73,10 +73,11 @@ if (action === 'register' && req.method === 'POST') {
   try {
     // Vérifier unicité username
     const exists = await pool.query(
-      `SELECT id FROM demandes_inscription WHERE username = $1
-       UNION SELECT id FROM users WHERE username = $1`,
-      [username]
-    );
+  `SELECT 1 FROM demandes_inscription WHERE username = $1
+   UNION ALL
+   SELECT 1 FROM users WHERE username = $1`,
+  [username]
+);
     if (exists.rows.length > 0) {
       return res.status(409).json({ message: 'Ce nom d\'utilisateur est déjà utilisé' });
     }
