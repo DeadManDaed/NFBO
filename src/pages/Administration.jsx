@@ -1033,7 +1033,7 @@ export default function Administration() {
   const loadSection = useCallback(async (sec) => {
     setSection(sec);
     setShowForm(false);
-    if (sec === "caisse" || sec === "validations") { setStatus("ready"); return; }
+    if (["caisse", "validations", "demandes"].includes(sec)) { setStatus("ready"); return; }
 
     const cfg = SECTIONS_CONFIG[sec];
     if (!cfg?.endpoint) return;
