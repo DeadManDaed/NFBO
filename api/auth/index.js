@@ -103,10 +103,10 @@ if (action === 'register' && req.method === 'POST') {
     for (const admin of admins.rows) {
       await pool.query(
         `INSERT INTO messages
-           (destinataire_id, objet, contenu, topic, type_notification)
+           (expediteur_id, destinataire_id, objet, contenu, topic, type_notification)
          VALUES ($1,$2,$3,'inscription','info')`,
         [
-          admin.id,
+          admin_id, admin.id,
           `📝 Nouvelle demande d'inscription — ${prenom} ${nom}`,
           `L'utilisateur "${username}" (${prenom} ${nom}, tél: ${telephone}${email ? ', email: ' + email : ''}) souhaite rejoindre NFBO.\n\nMessage : ${message || '—'}\n\nDemande #${demandeId} — à traiter dans Administration.`,
         ]
