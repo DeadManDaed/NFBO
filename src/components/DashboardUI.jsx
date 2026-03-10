@@ -94,6 +94,49 @@ export function QuickAction({ icon, label, accent, onClick, delay }) {
   );
 }
 
+export function AlerteBanniere({ alertes, onNavigate }) {
+  if (!alertes?.length) return null;
+
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(135deg, #7f1d1d, #991b1b)',
+        borderRadius: 16,
+        padding: '14px 16px',
+        marginBottom: 16,
+        border: '1px solid #ef444440',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ fontSize: 18 }}>⚠️</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#fca5a5' }}>
+            {alertes.length} alerte{alertes.length > 1 ? 's' : ''} stock faible
+          </span>
+        </div>
+        <span style={{ fontSize: 11, color: '#fca5a5', opacity: .7 }}>non cliquable</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+        {alertes.slice(0, 4).map((a, i) => (
+          <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontSize: 12, color: '#fecaca', fontWeight: 500 }}>
+              {a.description || a.lot_description}
+            </span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#f87171' }}>
+              {parseFloat(a.stock_actuel).toLocaleString('fr-FR')} {a.unite}
+            </span>
+          </div>
+        ))}
+        {alertes.length > 4 && (
+          <span style={{ fontSize: 11, color: '#fca5a5', opacity: .7, marginTop: 2 }}>
+            +{alertes.length - 4} autres lots…
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── ÉCRAN HOME (LE CŒUR DU DASHBOARD) ───
 export function HomeScreen({ user, data, onNavigate, reload }) {
   const greeting = () => {
@@ -152,12 +195,14 @@ export function HomeScreen({ user, data, onNavigate, reload }) {
         </div>
       </div>
 
+<AlerteBanniere alertes={data.alertes} />
+
       {/* Grid Stat Cards */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:20 }}>
         <StatCard icon="📥" label="Admissions" value={data.totalAdmissions} accent="#22c55e" delay={1} onClick={() => onNavigate('admissions')} />
         <StatCard icon="📤" label="Retraits" value={data.totalRetraits} accent="#f59e0b" delay={2} onClick={() => onNavigate('retraits')} />
         <StatCard icon="🔄" label="Transferts" value={data.totalTransferts} accent="#3b82f6" delay={3} onClick={() => onNavigate('transferts')} />
-        <StatCard icon="⚠️" label="Alertes" value={data.alertes?.length} accent={data.alertes?.length > 0 ? '#ef4444' : '#22c55e'} delay={4} onClick={() => {}} />
+        <StatCard icon="⚠️" label="Alertes" value={data.alertes?.length} accent={data.alertes?.length > 0 ? '#ef4444' : '#22c55e'} delay={4} onClick={() => onNavigate('stock')} />
       </div>
 
       {/* Recent Admissions */}
