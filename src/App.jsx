@@ -149,6 +149,16 @@ function ConfirmedPage() {
   if (isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
+useEffect(() => {
+  const handleVisibility = () => {
+    if (document.visibilityState === 'visible') {
+      window.location.reload();
+    }
+  };
+  document.addEventListener('visibilitychange', handleVisibility);
+  return () => document.removeEventListener('visibilitychange', handleVisibility);
+}, []);
+
 
   return (
     <div style={{
