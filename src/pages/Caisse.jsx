@@ -670,8 +670,10 @@ useEffect(() => {
             ))}
           </div>
 
+
           {/* ── Stats caisse sélectionnée ── */}
-          {selected && superadmin : ['caisse', 'admin'].includes(user?.role) && (
+         
+ {(selected && superadmin) : ['caisse', 'admin'].includes(user?.role) && (
             <>
               <div className="grid-3" style={{ marginBottom: 16 }}>
                 <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
