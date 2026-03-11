@@ -83,6 +83,8 @@ export function AuthProvider({ children }) {
 
   // ─── Résoudre un user Supabase → profil métier ──────────────────────────
   const resolveProfile = useCallback(async (supabaseUser) => {
+console.log('[auth/resolve] début, user:', supabaseUser?.id || 'null');
+
     if (!supabaseUser) {
       setUser(null);
       setLoading(false);
@@ -90,8 +92,11 @@ export function AuthProvider({ children }) {
     }
     try {
       const profile = await loadUserProfile(supabaseUser.id);
+console.log('[auth/resolve] profil chargé:', profile?.username || 'null');
+
       setUser(profile);
     } catch {
+console.error('[auth/resolve] erreur:', err);
       setUser(null);
     } finally {
       setLoading(false);
