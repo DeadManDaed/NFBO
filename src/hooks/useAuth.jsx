@@ -103,27 +103,38 @@ export function AuthProvider({ children }) {
 
     // 1. Tenter de récupérer la session existante (IndexedDB / refresh token)
     const init = async () => {
-      try {
-        let { data: { session } } = await supabase.auth.getSession();
+  // Timeout de sécurité — si init() ne répond pas en 5s, on débloque
+  const timeout = setTimeout(() => {
+    if (mounted && !resolved) {
+      resolved = true;
+      console.warn('[auth] timeout — session non résolue');
+      setUser(null);
+      setLoading(false);
+    }
+  }, 5000);
 
-        // Pas de session — tenter un refresh silencieux
-        if (!session?.user) {
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          session = refreshed?.session || null;
-        }
+  try {
+    let { data: { session } } = await supabase.auth.getSession();
 
-        if (mounted && !resolved) {
-          resolved = true;
-          await resolveProfile(session?.user || null);
-        }
-      } catch {
-        if (mounted && !resolved) {
-          resolved = true;
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    };
+    if (!session?.user) {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      session = refreshed?.session || null;
+    }
+
+    if (mounted && !resolved) {
+      resolved = true;
+      clearTimeout(timeout);
+      await resolveProfile(session?.user || null);
+    }
+  } catch {
+    if (mounted && !resolved) {
+      resolved = true;
+      clearTimeout(timeout);
+      setUser(null);
+      setLoading(false);
+    }
+  }
+};
 
     init();
 
