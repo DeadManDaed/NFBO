@@ -115,18 +115,22 @@ export function AuthProvider({ children }) {
 
   try {
     let { data: { session } } = await supabase.auth.getSession();
+    console.log('[auth/init] getSession:', session?.user?.id || 'null', '| expires:', session?.expires_at); // ← ajouter
 
     if (!session?.user) {
       const { data: refreshed } = await supabase.auth.refreshSession();
       session = refreshed?.session || null;
+      console.log('[auth/init] refreshSession:', session?.user?.id || 'null'); // ← ajouter
     }
 
     if (mounted && !resolved) {
       resolved = true;
       clearTimeout(timeout);
+      console.log('[auth/init] resolveProfile avec:', session?.user?.id || 'null'); // ← ajouter
       await resolveProfile(session?.user || null);
     }
-  } catch {
+  } catch (err) { // ← capturer l'erreur
+    console.error('[auth/init] erreur:', err); // ← ajouter
     if (mounted && !resolved) {
       resolved = true;
       clearTimeout(timeout);
@@ -142,6 +146,8 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[auth] event:', event, 'user:', session?.user?.id);
+console.log('[auth] session complète:', JSON.stringify(session));
+console.log('[auth] loading actuel:', loading);            
         if (!mounted) return;
 
         // INITIAL_SESSION est géré par init() — on l'ignore ici pour éviter le conflit
