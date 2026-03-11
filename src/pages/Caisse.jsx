@@ -577,7 +577,11 @@ const canCaisse = ['superadmin', 'admin', 'caisse'].includes(user?.role);
       setCaisses(c);
       setOperations(o);
       setProducteurs(p);
-      if (!selected && c.length > 0) setSelected(c[0]);
+      if (c.length > 0) {
+  setSelected(prev =>
+    prev ? (c.find(x => x.id === prev.id) || c[0]) : c[0]
+  );
+}
     } catch (err) {
       showAlert(`❌ ${err.message}`, 'error');
     } finally {
