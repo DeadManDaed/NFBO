@@ -159,7 +159,7 @@ export function HomeScreen({ user, data, onNavigate, reload }) {
             <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:6 }}>
               <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--green)', display:'inline-block', boxShadow:'0 0 0 3px rgba(34,197,94,.25)' }}/>
               <span style={{ fontSize:11, color:'var(--muted)', fontWeight:500 }}>
-                {user?.role === 'superadmin' ? 'Vue globale' : user?.role === 'audit' ? 'Vue globale': `Magasin · ${user?.magasin_nom || 'N/A'}`}
+                {user?.role === 'superadmin' ? 'Vue globale' : user?.role === 'auditeur' ? 'Vue globale': `Magasin · ${user?.magasin_nom || 'N/A'}`}
               </span>
             </div>
           </div>
