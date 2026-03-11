@@ -17,7 +17,7 @@ const TYPE_CONFIG = {
   reception_transfert: { label: 'Transfert reçu',      color: '#8b5cf6', bg: '#f5f3ff', icon: '⬅️' },
 };
 
-// ─── Carte caisse ─────────────────────────────────────────────────────────────
+// ─── Carte caisse ─────────────────────────────────────────────────────────────--
 function CarteCAisse({ caisse, selected, onClick }) {
   const solde = parseFloat(caisse.solde) || 0;
   return (
