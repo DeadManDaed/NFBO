@@ -124,20 +124,19 @@ module.exports = withCors(requireAuth(async (req, res) => {
         ]
       );
 
-      // Notifier l'admin du magasin source si proposé par stock
+      // Notifier superadmin + auditeur si proposé par stock
       if (statutInitial === 'proposé') {
-        const adminSource = await pool.query(
-          `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif' LIMIT 1`,
-          [magasin_depart]
+        const destinataires = await pool.query(
+          `SELECT id FROM users WHERE role IN ('superadmin', 'auditeur') AND statut = 'actif'`
         );
-        if (adminSource.rows[0]) {
+        for (const dest of destinataires.rows) {
           await pool.query(
             `INSERT INTO messages (destinataire_id, objet, contenu, topic, type_notification)
              VALUES ($1, $2, $3, 'transfert', 'info')`,
             [
-              adminSource.rows[0].id,
+              dest.id,
               `📦 Demande de transfert — Lot #${lot_id}`,
-              `${username} propose un transfert de ${quantite} ${unite} vers magasin #${magasin_destination}.\nMotif : ${motif || '—'}\nTransfert #${result.rows[0].id} — à approuver dans Transferts.`,
+              `${username} propose un transfert de ${quantite} ${unite || ''} du magasin #${magasin_depart} vers magasin #${magasin_destination}.\nMotif : ${motif || '—'}\nQuantité souhaitée : ${quantite_min || '—'} à ${quantite_max || '—'}\nTransfert #${result.rows[0].id} — à traiter dans Transferts.`,
             ]
           );
         }
