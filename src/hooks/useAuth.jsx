@@ -47,13 +47,27 @@ async function loadUserProfile(authId, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
       const { data, error } = await supabase
-  .from('users')
-  .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule, magasins(nom)')
-  .eq('auth_id', authId)
-  .single();
+        .from('users')
+        .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
+        .eq('auth_id', authId)
+        .single();
+
       if (error || !data) return null;
       if (data.statut !== 'actif') return null;
-      return data;
+
+      // Charger le nom du magasin séparément
+      let magasin_nom = null;
+      if (data.magasin_id) {
+        const { data: mag } = await supabase
+          .from('magasins')
+          .select('nom')
+          .eq('id', data.magasin_id)
+          .single();
+        magasin_nom = mag?.nom || null;
+      }
+
+      return { ...data, magasin_nom };
+
     } catch (err) {
       if (i < retries - 1) {
         await new Promise(r => setTimeout(r, 1000 * (i + 1)));
@@ -68,57 +82,44 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-  let mounted = true;
+  useEffect(() => {
+    let mounted = true;
 
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(
-    async (event, session) => {
-      console.log('[auth] event:', event, 'user:', session?.user?.id);
-      if (!mounted) return;
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('[auth] event:', event, 'user:', session?.user?.id);
+        if (!mounted) return;
 
-      if (event === 'INITIAL_SESSION' && !session?.user) {
-        setUser(null);
-        setLoading(false);
-        return;
-      }
-
-      if (session?.user) {
-        if (event === 'SIGNED_IN') {
-          await new Promise(r => setTimeout(r, 500));
+        if (event === 'INITIAL_SESSION' && !session?.user) {
+          setUser(null);
+          setLoading(false);
+          return;
         }
-        try {
-          const profile = await loadUserProfile(session.user.id);
-          if (mounted) { setUser(profile); setLoading(false); }
-        } catch {
-          if (mounted) setLoading(false);
+
+        if (session?.user) {
+          if (event === 'SIGNED_IN') {
+            await new Promise(r => setTimeout(r, 500));
+          }
+          try {
+            const profile = await loadUserProfile(session.user.id);
+            if (mounted) { setUser(profile); setLoading(false); }
+          } catch {
+            if (mounted) setLoading(false);
+          }
+        } else {
+          if (mounted) { setUser(null); setLoading(false); }
         }
-      } else {
-        if (mounted) { setUser(null); setLoading(false); }
       }
-    }
-  );
+    );
 
-  return () => {
-    mounted = false;
-    subscription.unsubscribe(); // ← manquait
-  };
-}, []);
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
-
-useEffect(() => {
-  const handleVisibilityChange = () => {
-    if (document.visibilityState === 'hidden') {
-      // Supprimer le token Supabase du localStorage
-      Object.keys(localStorage)
-        .filter(k => k.startsWith('sb-'))
-        .forEach(k => localStorage.removeItem(k));
-      setUser(null);
-      setLoading(false);
-    }
-  };
-  document.addEventListener('visibilitychange', handleVisibilityChange);
-  return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-}, []);
+  // ─── NB : le bloc visibilitychange (tueur de session) a été supprimé ────────
+  // Rollback : le réintroduire ici si nécessaire pendant les tests
 
   const login = async ({ username, password }) => {
     // Supabase Auth exige un email — username peut être un email
