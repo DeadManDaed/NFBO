@@ -121,6 +121,22 @@ export function AuthProvider({ children }) {
   // ─── NB : le bloc visibilitychange (tueur de session) a été supprimé ────────
   // Rollback : le réintroduire ici si nécessaire pendant les tests
 
+useEffect(() => {
+  const restoreSession = async () => {
+    // Supabase a déjà une session active → onAuthStateChange s'en charge
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) return;
+
+    // Pas de session Supabase — tenter un refresh silencieux
+    const { data: { session: refreshed } } = await supabase.auth.refreshSession();
+    if (refreshed?.user) {
+      const profile = await loadUserProfile(refreshed.user.id);
+      if (profile) setUser(profile);
+    }
+  };
+  restoreSession();
+}, []);
+
   const login = async ({ username, password }) => {
     // Supabase Auth exige un email — username peut être un email
     // Si username n'est pas un email, on cherche l'email correspondant
