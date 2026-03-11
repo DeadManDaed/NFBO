@@ -49,6 +49,7 @@ async function loadUserProfile(authId, retries = 3) {
         .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
         .eq('auth_id', authId)
         .single();
+console.log('[auth/profile] data:', data?.username, '| error:', error?.message); // ← ajouter
 
       if (error || !data) return null;
       if (data.statut !== 'actif') return null;
