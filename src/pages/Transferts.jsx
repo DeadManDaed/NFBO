@@ -36,16 +36,13 @@ export default function Transferts() {
     }
   }, [magasinId]);
 
-  const loadMagasins      = async () => { try { setMagasins(await api.getMagasins());   } catch {} };
-  const loadTransferts    = async () => {
-    try {
-      const data = await api.getRetraits();
-      setTransferts(data.filter(r => r.type_retrait === 'magasin'));
-    } catch {}
-  };
+  const loadMagasins   = async () => { try { setMagasins(await api.getMagasins()); } catch {} };
+  const loadTransferts = async () => { try { setTransferts(await api.getTransferts()); } catch {} };
+
   const loadStocksForMagasin = async (magId) => {
     try { setStocks(await api.getStockDisponible(magId)); } catch {}
   };
+
   const loadChauffeurs = async (magSourceId, magDestId = null) => {
     try {
       const all = await api.getChauffeurs();
@@ -93,19 +90,22 @@ export default function Transferts() {
     const stock = stocks.find(s => s.lot_id === parseInt(formData.lot_id));
     try {
       await api.createTransfert({
-        lot_id:                parseInt(formData.lot_id),
-        type_retrait:          'magasin',
-        quantite:              parseFloat(formData.quantite),
-        unite:                 formData.unite,
-        prix_ref:              stock?.prix_ref || 0,
-        magasin_id:            parseInt(formData.magasin_source_id),
-        destination_magasin_id:parseInt(formData.magasin_dest_id),
-        utilisateur:           user?.username || 'unknown',
-        chauffeur_id:          formData.chauffeur_id ? parseInt(formData.chauffeur_id) : null,
-        observations:          formData.observations || null,
+        lot_id:               parseInt(formData.lot_id),
+        quantite:             parseFloat(formData.quantite),
+        unite:                formData.unite,
+        prix_ref:             stock?.prix_ref || 0,
+        magasin_depart:       parseInt(formData.magasin_source_id),
+        magasin_destination:  parseInt(formData.magasin_dest_id),
+        utilisateur:          user?.username || 'unknown',
+        chauffeur_id:         formData.chauffeur_id ? parseInt(formData.chauffeur_id) : null,
+        motif:                formData.observations || null,
       });
       showAlert('✅ Transfert enregistré avec succès', 'success');
-      setFormData({ magasin_source_id: magasinId || '', magasin_dest_id: '', lot_id: '', quantite: '', unite: '', chauffeur_id: '', observations: '' });
+      setFormData({
+        magasin_source_id: magasinId || '',
+        magasin_dest_id: '', lot_id: '', quantite: '',
+        unite: '', chauffeur_id: '', observations: '',
+      });
       setUnitesDisponibles([]);
       setShowForm(false);
       loadTransferts();
@@ -115,7 +115,43 @@ export default function Transferts() {
     }
   };
 
+  const handleValider = async (id) => {
+    if (!confirm('Confirmer la réception de ce transfert ?')) return;
+    try {
+      await api.request(`/transferts?id=${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ statut: 'livré', validateur: user?.username }),
+      });
+      showAlert('✅ Transfert validé', 'success');
+      loadTransferts();
+    } catch (err) {
+      showAlert(`❌ ${err.message}`, 'error');
+    }
+  };
+
+  const handleRejeter = async (id) => {
+    if (!confirm('Rejeter ce transfert ? Le stock sera restauré.')) return;
+    try {
+      await api.request(`/transferts?id=${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ statut: 'rejeté', validateur: user?.username }),
+      });
+      showAlert('✅ Transfert rejeté', 'success');
+      loadTransferts();
+    } catch (err) {
+      showAlert(`❌ ${err.message}`, 'error');
+    }
+  };
+
   const toggleForm = () => setShowForm(v => !v);
+
+  // Filtrer selon le rôle : le magasin destination voit ses transferts entrants en_transit
+  const transfertsVisibles = isSuperAdmin
+    ? transferts
+    : transferts.filter(t =>
+        t.magasin_depart === magasinId ||
+        t.magasin_destination === magasinId
+      );
 
   return (
     <PageLayout
@@ -139,7 +175,7 @@ export default function Transferts() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="form-grid">
-              {/* Magasin source */}
+
               <div className="form-group">
                 <label className="form-label">Magasin source *</label>
                 <select
@@ -158,7 +194,6 @@ export default function Transferts() {
                 )}
               </div>
 
-              {/* Magasin destination */}
               <div className="form-group">
                 <label className="form-label">Magasin destination *</label>
                 <select
@@ -170,12 +205,10 @@ export default function Transferts() {
                   <option value="">Sélectionner</option>
                   {magasins
                     .filter(m => m.id !== parseInt(formData.magasin_source_id))
-                    .map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)
-                  }
+                    .map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
                 </select>
               </div>
 
-              {/* Lot */}
               <div className="form-group">
                 <label className="form-label">Lot à transférer *</label>
                 <select
@@ -194,22 +227,30 @@ export default function Transferts() {
                 </select>
               </div>
 
-              {/* Quantité */}
               <div className="form-group">
                 <label className="form-label">Quantité *</label>
-                <input className="form-control" type="number" required min="0" step="0.01" value={formData.quantite} onChange={set('quantite')} />
+                <input
+                  className="form-control"
+                  type="number" required min="0" step="0.01"
+                  value={formData.quantite}
+                  onChange={set('quantite')}
+                />
               </div>
 
-              {/* Unité */}
               <div className="form-group">
                 <label className="form-label">Unité *</label>
-                <select className="form-control" required value={formData.unite} onChange={set('unite')} disabled={!unitesDisponibles.length}>
+                <select
+                  className="form-control"
+                  required
+                  value={formData.unite}
+                  onChange={set('unite')}
+                  disabled={!unitesDisponibles.length}
+                >
                   <option value="">Sélectionner</option>
                   {unitesDisponibles.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
 
-              {/* Chauffeur */}
               <div className="form-group">
                 <label className="form-label">Chauffeur (optionnel)</label>
                 <select className="form-control" value={formData.chauffeur_id} onChange={set('chauffeur_id')}>
@@ -226,9 +267,8 @@ export default function Transferts() {
               </div>
             </div>
 
-            {/* Observations pleine largeur */}
             <div className="form-group">
-              <label className="form-label">Observations</label>
+              <label className="form-label">Motif / Observations</label>
               <textarea
                 className="form-control"
                 rows={2}
@@ -251,10 +291,10 @@ export default function Transferts() {
       <div className="card">
         <div className="card-header">
           <h3 className="card-title">Historique des transferts</h3>
-          <span className="badge badge-neutral">{transferts.length} total</span>
+          <span className="badge badge-neutral">{transfertsVisibles.length} total</span>
         </div>
 
-        {transferts.length === 0 ? (
+        {transfertsVisibles.length === 0 ? (
           <StateEmpty message="Aucun transfert enregistré." />
         ) : (
           <div className="table-responsive">
@@ -267,30 +307,66 @@ export default function Transferts() {
                   <th>Source → Destination</th>
                   <th>Utilisateur</th>
                   <th>Statut</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {transferts.slice(0, 15).map(t => {
-                  const srcCode  = magasins.find(m => m.id === t.magasin_id)?.code || '?';
-                  const destCode = magasins.find(m => m.id === t.destination_magasin_id)?.code || '?';
+                {transfertsVisibles.slice(0, 30).map(t => {
+                  const srcNom  = magasins.find(m => m.id === t.magasin_depart)?.code      || `#${t.magasin_depart}`;
+                  const destNom = magasins.find(m => m.id === t.magasin_destination)?.code || `#${t.magasin_destination}`;
+                  const enAttente = t.statut === 'en_transit';
+
+                  // Seul le magasin destination peut valider/rejeter
+                  const peutAgir = enAttente && (
+                    isSuperAdmin || t.magasin_destination === magasinId
+                  );
+
                   return (
                     <tr key={t.id}>
-                      <td>{new Date(t.date_retrait || Date.now()).toLocaleDateString('fr-FR')}</td>
-                      <td style={{ fontWeight: 600 }}>{t.lot_description || '—'}</td>
-                      <td>{t.quantite} {t.unite}</td>
+                      <td>{new Date(t.date_creation).toLocaleDateString('fr-FR')}</td>
+                      <td style={{ fontWeight: 600 }}>{t.lot_description || `Lot #${t.lot_id}`}</td>
+                      <td>{parseFloat(t.quantite).toLocaleString('fr-FR')} {t.unite}</td>
                       <td>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
                           <code style={{ background: 'var(--color-info-bg)', color: 'var(--color-info)', padding: '2px 8px', borderRadius: 4 }}>
-                            {srcCode}
+                            {srcNom}
                           </code>
                           →
                           <code style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', padding: '2px 8px', borderRadius: 4 }}>
-                            {destCode}
+                            {destNom}
                           </code>
                         </span>
                       </td>
-                      <td className="text-muted">{t.utilisateur}</td>
-                      <td><span className="badge badge-success">✓ Transféré</span></td>
+                      <td className="text-muted">{t.utilisateur || '—'}</td>
+                      <td>
+                        <span className={`badge badge-${
+                          t.statut === 'livré'    ? 'success' :
+                          t.statut === 'rejeté'   ? 'danger'  : 'warning'
+                        }`}>
+                          {t.statut === 'livré'   ? '✅ Livré'      :
+                           t.statut === 'rejeté'  ? '❌ Rejeté'     : '🚚 En transit'}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        {peutAgir && (
+                          <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                            <button
+                              className="btn btn-primary btn-sm"
+                              onClick={() => handleValider(t.id)}
+                              title="Valider la réception"
+                            >
+                              ✅
+                            </button>
+                            <button
+                              className="btn btn-danger btn-sm"
+                              onClick={() => handleRejeter(t.id)}
+                              title="Rejeter le transfert"
+                            >
+                              ❌
+                            </button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
