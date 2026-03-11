@@ -577,11 +577,7 @@ const canCaisse = ['superadmin', 'admin', 'caisse'].includes(user?.role);
       setCaisses(c);
       setOperations(o);
       setProducteurs(p);
-      if (c.length > 0) {
-  setSelected(prev =>
-    prev ? (c.find(x => x.id === prev.id) || c[0]) : c[0]
-  );
-}
+      setSelected(c.length > 0 ? c[0] : null);
     } catch (err) {
       showAlert(`❌ ${err.message}`, 'error');
     } finally {
@@ -670,10 +666,8 @@ useEffect(() => {
             ))}
           </div>
 
-
           {/* ── Stats caisse sélectionnée ── */}
-         
- {(selected && superadmin) || ['caisse', 'admin'].includes(user?.role) && (
+          {selected && ['caisse', 'admin', 'superadmin'].includes(user?.role) && (
             <>
               <div className="grid-3" style={{ marginBottom: 16 }}>
                 <div className="stat-card stat-card-gradient" style={{ background: 'linear-gradient(135deg, #22c55e, #16a34a)' }}>
@@ -727,11 +721,10 @@ useEffect(() => {
               </div>
             </>
           )}
-        
+
 </>
   )
 )}
-
 {onglet === 'producteurs' && (
   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
     {loadingProd ? <StateLoading message="Chargement des producteurs..." /> :
