@@ -3,12 +3,12 @@
 // Le token est géré automatiquement par le client Supabase.
 // Les données métier (role, magasin_id, nom) viennent de public.users via auth_id.
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-// ─── Helper fetch authentifié ─────────────────────────────────────────────────--
+// ─── Helper fetch authentifié ─────────────────────────────────────────────────
 export async function authFetch(url, options = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
@@ -37,8 +37,6 @@ export async function authFetch(url, options = {}) {
 }
 
 export function getToken() {
-  // Compatibilité avec le code existant qui appelle getToken()
-  // Retourne null — le token est géré par Supabase
   return null;
 }
 
@@ -82,17 +80,70 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // ─── Résoudre un user Supabase → profil métier ──────────────────────────
+  const resolveProfile = useCallback(async (supabaseUser) => {
+    if (!supabaseUser) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
+    try {
+      const profile = await loadUserProfile(supabaseUser.id);
+      setUser(profile);
+    } catch {
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let mounted = true;
+    let resolved = false;
 
+    // 1. Tenter de récupérer la session existante (IndexedDB / refresh token)
+    const init = async () => {
+      try {
+        let { data: { session } } = await supabase.auth.getSession();
+
+        // Pas de session — tenter un refresh silencieux
+        if (!session?.user) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          session = refreshed?.session || null;
+        }
+
+        if (mounted && !resolved) {
+          resolved = true;
+          await resolveProfile(session?.user || null);
+        }
+      } catch {
+        if (mounted && !resolved) {
+          resolved = true;
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    };
+
+    init();
+
+    // 2. Écouter les changements ultérieurs (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('[auth] event:', event, 'user:', session?.user?.id);
         if (!mounted) return;
 
-        if (event === 'INITIAL_SESSION' && !session?.user) {
+        // INITIAL_SESSION est géré par init() — on l'ignore ici pour éviter le conflit
+        if (event === 'INITIAL_SESSION') return;
+
+        if (event === 'SIGNED_OUT') {
           setUser(null);
           setLoading(false);
+          return;
+        }
+
+        if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Token renouvelé silencieusement — pas besoin de recharger le profil
           return;
         }
 
@@ -100,14 +151,11 @@ export function AuthProvider({ children }) {
           if (event === 'SIGNED_IN') {
             await new Promise(r => setTimeout(r, 500));
           }
-          try {
-            const profile = await loadUserProfile(session.user.id);
-            if (mounted) { setUser(profile); setLoading(false); }
-          } catch {
-            if (mounted) setLoading(false);
-          }
+          resolved = true;
+          await resolveProfile(session.user);
         } else {
-          if (mounted) { setUser(null); setLoading(false); }
+          setUser(null);
+          setLoading(false);
         }
       }
     );
@@ -116,30 +164,9 @@ export function AuthProvider({ children }) {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
-
-  // ─── NB : le bloc visibilitychange (tueur de session) a été supprimé ────────
-  // Rollback : le réintroduire ici si nécessaire pendant les tests
-
-useEffect(() => {
-  const restoreSession = async () => {
-    // Supabase a déjà une session active → onAuthStateChange s'en charge
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) return;
-
-    // Pas de session Supabase — tenter un refresh silencieux
-    const { data: { session: refreshed } } = await supabase.auth.refreshSession();
-    if (refreshed?.user) {
-      const profile = await loadUserProfile(refreshed.user.id);
-      if (profile) setUser(profile);
-    }
-  };
-  restoreSession();
-}, []);
+  }, [resolveProfile]);
 
   const login = async ({ username, password }) => {
-    // Supabase Auth exige un email — username peut être un email
-    // Si username n'est pas un email, on cherche l'email correspondant
     let email = username;
 
     if (!username.includes('@')) {
