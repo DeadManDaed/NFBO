@@ -14,7 +14,7 @@ const TABS = [
   { id:'home',          label:'Accueil',   icon: Icons.HomeIcon,  roles:['all'] },
   { id:'admissions',    label:'Entrées',   icon: Icons.AdmIcon,   roles:['superadmin','admin','stock'] },
   { id:'retraits',      label:'Sorties',   icon: Icons.RetIcon,   roles:['superadmin','admin','stock'] },
-  { id:'transferts',    label:'Transf.',   icon: Icons.TransfIcon,roles:['superadmin','admin'] },
+  { id:'transferts',    label:'Transf.',   icon: Icons.TransfIcon,roles:['superadmin','admin', 'stock'] },
   { id:'stock',         label:'Stock',     icon: Icons.StockIcon, roles:['superadmin','admin','stock','caisse'] },
   { id:'caisse',        label:'Caisse',    icon: Icons.CaisseIcon,roles:['superadmin','admin','gestionnaire','caisse'] },
   { id:'audit',         label:'Audit',     icon: Icons.AuditIcon, roles:['superadmin','auditeur'] },
