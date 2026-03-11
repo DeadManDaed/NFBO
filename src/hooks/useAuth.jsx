@@ -8,7 +8,7 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-// ─── Helper fetch authentifié ─────────────────────────────────────────────────
+// ─── Helper fetch authentifié ─────────────────────────────────────────────────--
 export async function authFetch(url, options = {}) {
   const { data: { session } } = await supabase.auth.getSession();
   const token = session?.access_token;
