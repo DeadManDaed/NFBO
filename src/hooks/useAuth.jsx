@@ -47,10 +47,10 @@ async function loadUserProfile(authId, retries = 3) {
   for (let i = 0; i < retries; i++) {
     try {
       const { data, error } = await supabase
-        .from('users')
-        .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
-        .eq('auth_id', authId)
-        .single();
+  .from('users')
+  .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule, magasins(nom)')
+  .eq('auth_id', authId)
+  .single();
       if (error || !data) return null;
       if (data.statut !== 'actif') return null;
       return data;
