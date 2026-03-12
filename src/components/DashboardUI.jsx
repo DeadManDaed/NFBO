@@ -150,32 +150,83 @@ export function HomeScreen({ user, data, onNavigate, reload }) {
     <div style={{ padding:'0 16px' }}>
       {/* Header */}
       <div className="fade-up" style={{ padding:'20px 0 24px' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-          <div>
-            <p style={{ fontSize:12, fontWeight:500, color:'var(--muted)', marginBottom:4, textTransform:'uppercase', letterSpacing:'.8px' }}>{greeting()}</p>
-            <h1 style={{ fontSize:22, fontWeight:800, lineHeight:1.2, color:'var(--text)' }}>
-              {user?.nom || user?.username || 'Utilisateur'}
-            </h1>
-            <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:6 }}>
-              <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--green)', display:'inline-block', boxShadow:'0 0 0 3px rgba(34,197,94,.25)' }}/>
-              <span style={{ fontSize:11, color:'var(--muted)', fontWeight:500 }}>
-                {user?.role === 'superadmin' ? 'Vue globale' : user?.role === 'auditeur' ? 'Vue globale': `Magasin · ${user?.magasin_nom || 'N/A'}`}
-              </span>
+  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+    <div>
+      <p style={{ fontSize:12, fontWeight:500, color:'var(--muted)', marginBottom:4, textTransform:'uppercase', letterSpacing:'.8px' }}>{greeting()}</p>
+
+      {/* Nom cliquable */}
+      <div style={{ position:'relative' }}>
+        <h1
+          onClick={() => setMenuOpen(v => !v)}
+          style={{ fontSize:22, fontWeight:800, lineHeight:1.2, color:'var(--text)',
+            cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8,
+            WebkitTapHighlightColor:'transparent' }}
+        >
+          {user?.nom || user?.username || 'Utilisateur'}
+          <span style={{ fontSize:14, color:'var(--muted)', fontWeight:400,
+            transform: menuOpen ? 'rotate(180deg)' : 'none',
+            display:'inline-block', transition:'transform .2s' }}>▾</span>
+        </h1>
+
+        {menuOpen && (
+          <>
+            <div onClick={() => setMenuOpen(false)}
+              style={{ position:'fixed', inset:0, zIndex:99 }} />
+            <div style={{
+              position:'absolute', top:'100%', left:0, zIndex:100,
+              background:'var(--surface2)', border:'1px solid var(--border)',
+              borderRadius:12, overflow:'hidden',
+              boxShadow:'0 8px 32px rgba(0,0,0,0.4)',
+              minWidth:200, marginTop:6,
+            }}>
+              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)' }}>
+                <p style={{ fontSize:13, fontWeight:700, color:'var(--text)', margin:0 }}>
+                  {user?.prenom ? `${user.prenom} ${user.nom}` : user?.username}
+                </p>
+                <p style={{ fontSize:11, color:'var(--muted)', margin:'2px 0 0' }}>
+                  @{user?.username} · {user?.role}
+                </p>
+              </div>
+              <button
+                onClick={() => { setMenuOpen(false); logout(); }}
+                style={{
+                  width:'100%', padding:'12px 16px',
+                  background:'transparent', border:'none',
+                  display:'flex', alignItems:'center', gap:10,
+                  cursor:'pointer', color:'var(--red)',
+                  fontSize:13, fontWeight:600, textAlign:'left',
+                }}
+              >
+                🚪 Se déconnecter
+              </button>
             </div>
-          </div>
-          <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-  <button
-    onClick={reload}
-    style={{ width:44, height:44, borderRadius:14, background:'var(--color-surface-alt)', border:'1px solid var(--color-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, cursor:'pointer' }}
-    title="Actualiser"
-  >
-    🔄
-  </button>
-  <div style={{ width:44, height:44, borderRadius:14, background:'linear-gradient(135deg,#16a34a,#065f46)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🌿</div>
-</div>
-        </div>
+          </>
+        )}
       </div>
 
+      <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:6 }}>
+        <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--green)',
+          display:'inline-block', boxShadow:'0 0 0 3px rgba(34,197,94,.25)' }}/>
+        <span style={{ fontSize:11, color:'var(--muted)', fontWeight:500 }}>
+          {user?.role === 'superadmin' ? 'Vue globale'
+           : user?.role === 'auditeur' ? 'Vue globale'
+           : `Magasin · ${user?.magasin_nom || 'N/A'}`}
+        </span>
+      </div>
+    </div>
+
+    <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+      <button
+        onClick={reload}
+        style={{ width:44, height:44, borderRadius:14, background:'var(--color-surface-alt)', border:'1px solid var(--color-border)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:18, cursor:'pointer' }}
+        title="Actualiser"
+      >
+        🔄
+      </button>
+      <div style={{ width:44, height:44, borderRadius:14, background:'linear-gradient(135deg,#16a34a,#065f46)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🌿</div>
+    </div>
+  </div>
+</div>
       {/* Hero Card - Valeur Stock */}
       <div className="fade-up stagger-1" style={{ background:'linear-gradient(135deg,#14532d 0%,#166534 50%,#15803d 100%)', borderRadius:24, padding:'22px 20px', marginBottom:20, position:'relative', overflow:'hidden' }} onClick={() => onNavigate('audit')}>
         <p style={{ fontSize:11, fontWeight:600, color:'rgba(255,255,255,.65)', textTransform:'uppercase', letterSpacing:'.8px', marginBottom:8 }}>Valeur totale du stock</p>
