@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from 'react';
 
 // Composant utilitaire pour gérer l'affichage ou le chargement (Skeleton)
 const RenderValue = ({ value, suffix = "" }) => {
