@@ -1,3 +1,4 @@
+console.log('[transferts] query:', JSON.stringify(req.query));
 // api/_handlers/transferts.js
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
