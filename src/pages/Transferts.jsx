@@ -15,6 +15,14 @@ const STATUT_CONFIG = {
   'rejeté':     { label: '❌ Rejeté',      cls: 'badge-danger'  },
 };
 
+const STATUT_LOT_CONFIG = {
+  rupture:   { label: '🔴 Rupture',   cls: 'badge-danger'  },
+  peremption:{ label: '🟠 Péremption',cls: 'badge-warning' },
+  dormant:   { label: '💤 Dormant',   cls: 'badge-neutral' },
+  star:      { label: '⭐ Star',       cls: 'badge-success' },
+  normal:    { label: '🟢 Normal',    cls: 'badge-info'    },
+};
+
 export default function Transferts() {
   const { user, magasinId, isSuperAdmin } = useAuth();
   const { alert, showAlert, hideAlert }   = useAlert();
@@ -23,25 +31,25 @@ export default function Transferts() {
 
   const [showForm,          setShowForm]          = useState(false);
   const [magasins,          setMagasins]          = useState([]);
-  const [lots,              setLots]              = useState([]);       // tous les lots (stock)
-  const [stocks,            setStocks]            = useState([]);       // lots en stock (admin/superadmin)
+  const [lots,              setLots]              = useState([]);
+  const [stocks,            setStocks]            = useState([]);
+  const [sources,           setSources]           = useState([]);  // magasins sources triés
   const [chauffeurs,        setChauffeurs]        = useState([]);
   const [transferts,        setTransferts]        = useState([]);
   const [unitesDisponibles, setUnitesDisponibles] = useState([]);
   const [loading,           setLoading]           = useState(true);
   const [expanded,          setExpanded]          = useState(null);
 
-  // Formulaire demande (stock)
+  // Formulaire demande (stock) — destination = magasin du stock lui-même
   const [demande, setDemande] = useState({
-    lot_id:              '',
-    magasin_destination: '',
-    quantite_min:        '',
-    quantite_max:        '',
-    unite:               '',
-    motif:               '',
+    lot_id:       '',
+    quantite_min: '',
+    quantite_max: '',
+    unite:        '',
+    motif:        '',
   });
 
-  // Formulaire proposition (admin/superadmin)
+  // Formulaire proposition/ordre (admin/superadmin)
   const [proposition, setProposition] = useState({
     magasin_depart:      magasinId || '',
     magasin_destination: '',
@@ -59,9 +67,8 @@ export default function Transferts() {
     loadTransferts();
     if (isStock) {
       loadLots();
-    } else if (magasinId) {
-      loadStocksForMagasin(magasinId);
-      loadChauffeurs(magasinId);
+    } else if (magasinId || isSuperAdmin) {
+      if (magasinId) loadStocksForMagasin(magasinId);
     }
   }, [magasinId]);
 
@@ -82,6 +89,13 @@ export default function Transferts() {
 
   const loadStocksForMagasin = async (magId) => {
     try { setStocks(await api.getStockDisponible(magId)); } catch {}
+  };
+
+  const loadSourcesForLot = async (lotId) => {
+    try {
+      const data = await api.request(`/transferts/sources?lot_id=${lotId}`);
+      setSources(data);
+    } catch { setSources([]); }
   };
 
   const loadChauffeurs = async (magSourceId, magDestId = null) => {
@@ -115,17 +129,21 @@ export default function Transferts() {
 
   const handleSubmitDemande = async (e) => {
     e.preventDefault();
+    if (parseFloat(demande.quantite_min) > parseFloat(demande.quantite_max)) {
+      showAlert('❌ La quantité min ne peut pas dépasser la max', 'error');
+      return;
+    }
     try {
       await api.createTransfert({
         lot_id:              parseInt(demande.lot_id),
-        magasin_destination: parseInt(demande.magasin_destination),
+        magasin_destination: magasinId,   // destination = son propre magasin
         quantite_min:        parseFloat(demande.quantite_min),
         quantite_max:        parseFloat(demande.quantite_max),
         unite:               demande.unite,
         motif:               demande.motif,
       });
       showAlert('✅ Demande soumise — superadmin et auditeur notifiés', 'success');
-      setDemande({ lot_id: '', magasin_destination: '', quantite_min: '', quantite_max: '', unite: '', motif: '' });
+      setDemande({ lot_id: '', quantite_min: '', quantite_max: '', unite: '', motif: '' });
       setUnitesDisponibles([]);
       setShowForm(false);
       loadTransferts();
@@ -141,6 +159,7 @@ export default function Transferts() {
     setProposition(f => ({ ...f, magasin_depart: magId, lot_id: '', quantite: '' }));
     loadStocksForMagasin(magId);
     loadChauffeurs(magId, proposition.magasin_destination);
+    setSources([]);
   };
 
   const handleMagasinDestChange = (magId) => {
@@ -158,6 +177,20 @@ export default function Transferts() {
         unite: stock.unite || stock.unites_admises?.[0] || '',
       }));
     }
+    // superadmin : charger les sources disponibles triées
+    if (isSuperAdmin && lotId) loadSourcesForLot(lotId);
+  };
+
+  const handleLotSuperAdmin = (lotId) => {
+    const lot = lots.find(l => l.id === parseInt(lotId));
+    setProposition(f => ({
+      ...f,
+      lot_id: lotId,
+      unite: lot?.unite || lot?.unites_admises?.[0] || '',
+      magasin_depart: '',
+    }));
+    setUnitesDisponibles(lot?.unites_admises || (lot?.unite ? [lot.unite] : []));
+    if (lotId) loadSourcesForLot(lotId);
   };
 
   const handleSubmitProposition = async (e) => {
@@ -168,8 +201,8 @@ export default function Transferts() {
     }
     const stock = stocks.find(s => s.lot_id === parseInt(proposition.lot_id));
     const quantite = parseFloat(proposition.quantite);
-    if (quantite > parseFloat(stock?.stock_actuel || 0)) {
-      showAlert(`❌ Quantité demandée (${quantite}) dépasse le stock disponible (${stock?.stock_actuel})`, 'error');
+    if (!isStock && stock && quantite > parseFloat(stock?.stock_actuel || 0)) {
+      showAlert(`❌ Quantité (${quantite}) dépasse le stock disponible (${stock?.stock_actuel})`, 'error');
       return;
     }
     try {
@@ -193,6 +226,7 @@ export default function Transferts() {
         unite: '', chauffeur_id: '', motif: '',
       });
       setUnitesDisponibles([]);
+      setSources([]);
       setShowForm(false);
       loadTransferts();
     } catch (err) {
@@ -215,11 +249,12 @@ export default function Transferts() {
     }
   };
 
-  const handleApprouver = (t) => {
-    // Si magasin_depart est null, demander au superadmin de désigner la source
+  const handleApprouver = async (t) => {
     if (!t.magasin_depart) {
+      // Charger les sources disponibles pour ce lot
+      await loadSourcesForLot(t.lot_id);
       const srcId = prompt(
-        'Désigner le magasin source (entrez l\'ID) :\n' +
+        'Désigner le magasin source :\n' +
         magasins.map(m => `${m.id} — ${m.nom}`).join('\n')
       );
       if (!srcId) return;
@@ -231,9 +266,8 @@ export default function Transferts() {
 
   const handleExpedier = (t) => {
     if (!confirm('Expédier ce transfert ? Le stock sera déduit.')) return;
-    // Chauffeur optionnel — peut être préassigné
     if (!t.chauffeur_id) {
-      const chaufId = prompt('ID du chauffeur (laisser vide pour ignorer) :');
+      const chaufId = prompt('ID du chauffeur (optionnel, laisser vide pour ignorer) :');
       if (chaufId === null) return;
       doAction(t.id, 'expedier', { chauffeur_id: chaufId || null });
     } else {
@@ -241,9 +275,16 @@ export default function Transferts() {
     }
   };
 
-  const handleRecevoir  = (t) => { if (confirm('Confirmer la réception ?')) doAction(t.id, 'recevoir'); };
-  const handleValider   = (t) => { if (confirm('Valider définitivement ce transfert ?')) doAction(t.id, 'valider'); };
-  const handleRejeter   = (t) => {
+  const handleRecevoir = (t) => {
+    if (confirm('Confirmer la réception de ce transfert ?')) doAction(t.id, 'recevoir');
+  };
+
+  const handleValider = (t) => {
+    if (confirm('Valider définitivement ce transfert ? Le stock destination sera crédité.'))
+      doAction(t.id, 'valider');
+  };
+
+  const handleRejeter = (t) => {
     const motif = prompt('Motif du rejet :');
     if (motif === null) return;
     doAction(t.id, 'rejeter', { observations: motif });
@@ -251,7 +292,7 @@ export default function Transferts() {
 
   // ── Boutons selon rôle + statut ──────────────────────────────────────────
   const getBoutons = (t) => {
-    const boutons  = [];
+    const boutons   = [];
     const estSource = t.magasin_depart === magasinId;
     const estDest   = t.magasin_destination === magasinId;
 
@@ -277,7 +318,6 @@ export default function Transferts() {
     return boutons;
   };
 
-  // ── Rendu ────────────────────────────────────────────────────────────────
   return (
     <PageLayout
       title="Transferts inter-magasins"
@@ -308,9 +348,14 @@ export default function Transferts() {
                 <select className="form-control" required value={demande.lot_id}
                   onChange={e => handleLotDemande(e.target.value)}>
                   <option value="">Sélectionner un lot</option>
-                  {lots.map(l => (
-                    <option key={l.id} value={l.id}>{l.description}</option>
-                  ))}
+                  {lots.map(l => {
+                    const sc = STATUT_LOT_CONFIG[l.statut_dynamique] || STATUT_LOT_CONFIG.normal;
+                    return (
+                      <option key={l.id} value={l.id}>
+                        {l.description} — {sc.label}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -337,22 +382,13 @@ export default function Transferts() {
                   placeholder="Ex: 200" />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Destination *</label>
-                <select className="form-control" required value={demande.magasin_destination}
-                  onChange={setD('magasin_destination')}>
-                  <option value="">Sélectionner</option>
-                  {magasins.map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
-                </select>
-              </div>
-
             </div>
 
             <div className="form-group">
               <label className="form-label">Motif *</label>
               <textarea className="form-control" rows={3} required
                 value={demande.motif} onChange={setD('motif')}
-                placeholder="Expliquez pourquoi ce réapprovisionnement est nécessaire (stock bas, urgence, saisonnalité...)" />
+                placeholder="Expliquez pourquoi ce réapprovisionnement est nécessaire..." />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
@@ -375,42 +411,83 @@ export default function Transferts() {
           <form onSubmit={handleSubmitProposition} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="form-grid">
 
-              <div className="form-group">
-                <label className="form-label">Magasin source *</label>
-                <select className="form-control" required
-                  value={proposition.magasin_depart}
-                  onChange={e => handleMagasinSourceChange(e.target.value)}
-                  disabled={!isSuperAdmin}>
-                  <option value="">Sélectionner</option>
-                  {magasins.map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
-                </select>
-                {!isSuperAdmin && <p className="text-muted text-xs" style={{ marginTop: 4 }}>🔒 Votre magasin</p>}
-              </div>
+              {/* superadmin : choisit lot en premier → sources se chargent */}
+              {isSuperAdmin ? (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Lot *</label>
+                    <select className="form-control" required value={proposition.lot_id}
+                      onChange={e => handleLotSuperAdmin(e.target.value)}>
+                      <option value="">Sélectionner un lot</option>
+                      {lots.map(l => {
+                        const sc = STATUT_LOT_CONFIG[l.statut_dynamique] || STATUT_LOT_CONFIG.normal;
+                        return (
+                          <option key={l.id} value={l.id}>
+                            {l.description} — {sc.label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Magasin source *</label>
+                    <select className="form-control" required value={proposition.magasin_depart}
+                      onChange={e => setProposition(f => ({ ...f, magasin_depart: e.target.value }))}
+                      disabled={!sources.length}>
+                      <option value="">
+                        {proposition.lot_id ? (sources.length ? 'Sélectionner' : 'Aucun stock disponible') : 'Choisir un lot d\'abord'}
+                      </option>
+                      {sources.map(s => (
+                        <option key={s.magasin_id} value={s.magasin_id}>
+                          {s.dormant ? '💤' : '📦'} {s.magasin_nom} ({s.magasin_code})
+                          — Stock : {parseFloat(s.stock_actuel).toLocaleString('fr-FR')}
+                          {s.dormant ? ' · dormant' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label className="form-label">Magasin source *</label>
+                    <select className="form-control" required value={proposition.magasin_depart}
+                      onChange={e => handleMagasinSourceChange(e.target.value)}
+                      disabled={!isSuperAdmin}>
+                      <option value="">Sélectionner</option>
+                      {magasins.map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
+                    </select>
+                    <p className="text-muted text-xs" style={{ marginTop: 4 }}>🔒 Votre magasin</p>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Lot *</label>
+                    <select className="form-control" required value={proposition.lot_id}
+                      onChange={e => handleLotProposition(e.target.value)}
+                      disabled={!proposition.magasin_depart}>
+                      <option value="">Sélectionner un lot</option>
+                      {stocks.map(s => {
+                        const sc = STATUT_LOT_CONFIG[s.statut_dynamique] || STATUT_LOT_CONFIG.normal;
+                        return (
+                          <option key={s.lot_id} value={s.lot_id}>
+                            {s.description} — {parseFloat(s.stock_actuel).toLocaleString('fr-FR')} {s.unite} · {sc.label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </>
+              )}
 
               <div className="form-group">
                 <label className="form-label">Magasin destination *</label>
-                <select className="form-control" required
-                  value={proposition.magasin_destination}
+                <select className="form-control" required value={proposition.magasin_destination}
                   onChange={e => handleMagasinDestChange(e.target.value)}>
                   <option value="">Sélectionner</option>
                   {magasins
                     .filter(m => m.id !== parseInt(proposition.magasin_depart))
                     .map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Lot *</label>
-                <select className="form-control" required
-                  value={proposition.lot_id}
-                  onChange={e => handleLotProposition(e.target.value)}
-                  disabled={!proposition.magasin_depart}>
-                  <option value="">Sélectionner un lot</option>
-                  {stocks.map(s => (
-                    <option key={s.lot_id} value={s.lot_id}>
-                      {s.description} — Stock : {s.stock_actuel} {s.unite}
-                    </option>
-                  ))}
                 </select>
               </div>
 
@@ -427,9 +504,16 @@ export default function Transferts() {
                 <label className="form-label">Quantité *</label>
                 <input className="form-control" type="number" required min="0.01" step="0.01"
                   value={proposition.quantite} onChange={setP('quantite')} />
-                {proposition.lot_id && (
+                {proposition.lot_id && stocks.find(s => s.lot_id === parseInt(proposition.lot_id)) && (
                   <p className="text-muted text-xs" style={{ marginTop: 4 }}>
-                    📦 Disponible : {stocks.find(s => s.lot_id === parseInt(proposition.lot_id))?.stock_actuel || '—'} {proposition.unite}
+                    📦 Disponible : {stocks.find(s => s.lot_id === parseInt(proposition.lot_id))?.stock_actuel} {proposition.unite}
+                  </p>
+                )}
+                {isSuperAdmin && proposition.magasin_depart && sources.length > 0 && (
+                  <p className="text-muted text-xs" style={{ marginTop: 4 }}>
+                    📦 Disponible dans la source sélectionnée : {
+                      sources.find(s => s.magasin_id === parseInt(proposition.magasin_depart))?.stock_actuel || '—'
+                    }
                   </p>
                 )}
               </div>
@@ -454,11 +538,6 @@ export default function Transferts() {
                     <option key={c.id} value={c.id}>{c.label} {c.nom}</option>
                   ))}
                 </select>
-                {chauffeurs.length === 0 && proposition.magasin_depart && (
-                  <p className="text-muted text-xs" style={{ marginTop: 4 }}>
-                    Aucun chauffeur lié aux magasins impliqués
-                  </p>
-                )}
               </div>
 
             </div>
@@ -504,11 +583,10 @@ export default function Transferts() {
               return (
                 <div key={t.id} style={{
                   background: 'var(--color-surface)',
-                  border: `1px solid var(--color-border)`,
+                  border: '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-md)',
                   overflow: 'hidden',
                 }}>
-                  {/* En-tête cliquable */}
                   <div
                     onClick={() => setExpanded(isOpen ? null : t.id)}
                     style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -549,24 +627,22 @@ export default function Transferts() {
                     </div>
                   </div>
 
-                  {/* Détails */}
                   {isOpen && (
                     <div style={{ borderTop: '1px solid var(--color-border)', padding: 14 }}>
                       <div className="form-grid" style={{ gap: 8, marginBottom: 12 }}>
                         {[
-                          ['Source',        srcNom],
-                          ['Destination',   destNom],
-                          ['Demandeur',     demNom || '—'],
-                          ['Lot',           t.lot_description || `#${t.lot_id}`],
-                          ['Quantité',      t.quantite ? `${parseFloat(t.quantite).toLocaleString('fr-FR')} ${t.unite}` : '—'],
-                          ['Intervalle',    t.quantite_min ? `${t.quantite_min} – ${t.quantite_max || '∞'} ${t.unite}` : '—'],
-                          ['Proposé par',   t.utilisateur  || '—'],
-                          ['Ordonné par',   t.ordonne_par  || '—'],
-                          ['Approuvé par',  t.approuve_par || '—'],
-                          ['Expédié',       t.date_approbation ? new Date(t.date_approbation).toLocaleDateString('fr-FR') : '—'],
-                          ['Reçu par',      t.recu_par     || '—'],
-                          ['Validé par',    t.valide_par   || '—'],
-                          ['Motif',         t.motif        || '—'],
+                          ['Source',       srcNom],
+                          ['Destination',  destNom],
+                          ['Demandeur',    demNom || '—'],
+                          ['Lot',          t.lot_description || `#${t.lot_id}`],
+                          ['Quantité',     t.quantite ? `${parseFloat(t.quantite).toLocaleString('fr-FR')} ${t.unite}` : '—'],
+                          ['Intervalle',   t.quantite_min ? `${t.quantite_min} – ${t.quantite_max || '∞'} ${t.unite}` : '—'],
+                          ['Proposé par',  t.utilisateur  || '—'],
+                          ['Ordonné par',  t.ordonne_par  || '—'],
+                          ['Approuvé par', t.approuve_par || '—'],
+                          ['Reçu par',     t.recu_par     || '—'],
+                          ['Validé par',   t.valide_par   || '—'],
+                          ['Motif',        t.motif        || '—'],
                         ].map(([label, value]) => (
                           <div key={label} style={{ background: 'var(--color-surface-alt)',
                             borderRadius: 6, padding: '7px 10px' }}>
