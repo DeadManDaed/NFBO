@@ -1,4 +1,3 @@
-console.log('[transferts] query:', JSON.stringify(req.query));
 // api/_handlers/transferts.js
 const pool = require('../_lib/db');
 const { withCors } = require('../_lib/cors');
@@ -16,6 +15,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
   const isSuperAdmin = role === 'superadmin';
   const isAdmin      = role === 'admin';
   const isStock      = role === 'stock';
+console.log('[transferts] query:', JSON.stringify(req.query));
 
   // ── GET /api/transferts/sources?lot_id=X ─────────────────────────────────
   const url = req.url?.split('?')[0].replace(/\/$/, '');
