@@ -378,6 +378,7 @@ document.body.style.overflow = '';
           const srcId = document.getElementById('select-source-approbation').value;
           if (!srcId) { showAlert('❌ Sélectionner un magasin source', 'error'); return; }
           doAction(approbation.transfert.id, 'approuver', { magasin_depart: parseInt(srcId) });
+document.body.style.overflow = '';
           setApprobation(null);
         }}>
           ✅ Confirmer l'approbation
@@ -684,7 +685,7 @@ document.body.style.overflow = '';
                   </div>
 
                   {isOpen && (
-                    <div style={{ borderTop: '1px solid var(--color-border)', padding: 14 }}>
+                    <div style={{ color: blue, borderTop: '1px solid var(--color-border)', padding: 14 }}>
                       <div className="form-grid" style={{ gap: 8, marginBottom: 12 }}>
                         {[
                           ['Source',       srcNom],
