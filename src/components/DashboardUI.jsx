@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '../hooks/useAuth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, nomRef } from 'react';
 
 // Composant utilitaire pour gérer l'affichage ou le chargement (Skeleton)
 const RenderValue = ({ value, suffix = "" }) => {
@@ -150,18 +150,32 @@ export function HomeScreen({ user, data, onNavigate, reload }) {
  
 const [menuOpen, setMenuOpen] = useState(false);
 const { logout } = useAuth();
+const nomRef = useRef(null);
+const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
   return (
     <div style={{ padding:'0 16px' }}>
       {/* Header */}
       <div className="fade-up" style={{ padding:'20px 0 24px' }}>
   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-    <div>
+    <div style={{ position:'relative', isolation:'isolate' }}>
+
       <p style={{ fontSize:12, fontWeight:500, color:'var(--muted)', marginBottom:4, textTransform:'uppercase', letterSpacing:'.8px' }}>{greeting()}</p>
 
       {/* Nom cliquable */}
-      <div style={{ position:'relative' }}>
+      <div style={{ position:'fixed',
+  top: menuPos.top,
+  left: menuPos.left,
+  zIndex:9999 }}>
         <h1
-          onClick={() => setMenuOpen(v => !v)}
+ref={nomRef}
+          onClick={() => {
+  if (!menuOpen && nomRef.current) {
+    const rect = nomRef.current.getBoundingClientRect();
+    setMenuPos({ top: rect.bottom + 6, left: rect.left });
+  }
+  setMenuOpen(v => !v);
+}}
           style={{ fontSize:22, fontWeight:800, lineHeight:1.2, color:'var(--text)',
             cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8,
             WebkitTapHighlightColor:'transparent' }}
