@@ -254,13 +254,24 @@ const [approbation, setApprobation] = useState(null); // { transfert, sourcesCha
 
     const handleApprouver = async (t) => {
   if (!t.magasin_depart) {
-    const srcs = await api.request(`/transferts/sources?lot_id=${t.lot_id}`);
-    setApprobation({ transfert: t, sources: srcs });
+    // Charger tous les magasins ayant ce lot en stock
+    try {
+      const token = await api.getToken();
+      const res = await fetch(
+        `/api/transferts?sources=1&lot_id=${t.lot_id}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const srcs = await res.json();
+      setApprobation({ transfert: t, sources: srcs });
+document.body.style.overflow = 'hidden';
+    } catch {
+document.body.style.overflow = '';
+      setApprobation({ transfert: t, sources: [] });
+    }
   } else {
     if (confirm('Approuver ce transfert ?')) doAction(t.id, 'approuver');
   }
 };
-
   const handleExpedier = (t) => {
     if (!confirm('Expédier ce transfert ? Le stock sera déduit.')) return;
     if (!t.chauffeur_id) {
