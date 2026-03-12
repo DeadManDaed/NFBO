@@ -20,6 +20,8 @@ console.log('[transferts] query:', JSON.stringify(req.query));
   // ── GET /api/transferts/sources?lot_id=X ─────────────────────────────────
   const url = req.url?.split('?')[0].replace(/\/$/, '');
   if (req.method === 'GET' && req.query.sources === '1') {
+console.log('[transferts/sources] lot_id:', req.query.lot_id); // ← ajouter
+  const { lot_id } = req.query;
   const { lot_id } = req.query;
   if (!lot_id) return res.status(400).json({ error: 'lot_id requis' });
     try {
