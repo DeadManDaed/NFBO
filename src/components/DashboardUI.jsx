@@ -158,69 +158,67 @@ const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
       {/* Header */}
       <div className="fade-up" style={{ padding:'20px 0 24px' }}>
   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-    <div style={{ position:'relative', isolation:'isolate' }}>
-
+    <div>
       <p style={{ fontSize:12, fontWeight:500, color:'var(--muted)', marginBottom:4, textTransform:'uppercase', letterSpacing:'.8px' }}>{greeting()}</p>
 
       {/* Nom cliquable */}
-      <div style={{ position:'fixed',
-  top: menuPos.top,
-  left: menuPos.left,
-  zIndex:9999 }}>
-        <h1
-ref={nomRef}
-          onClick={() => {
-  if (!menuOpen && nomRef.current) {
-    const rect = nomRef.current.getBoundingClientRect();
-    setMenuPos({ top: rect.bottom + 6, left: rect.left });
-  }
-  setMenuOpen(v => !v);
-}}
-          style={{ fontSize:22, fontWeight:800, lineHeight:1.2, color:'var(--text)',
-            cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8,
-            WebkitTapHighlightColor:'transparent' }}
-        >
-          {user?.nom || user?.username || 'Utilisateur'}
-          <span style={{ fontSize:14, color:'var(--muted)', fontWeight:400,
-            transform: menuOpen ? 'rotate(180deg)' : 'none',
-            display:'inline-block', transition:'transform .2s' }}>▾</span>
-        </h1>
+      <h1
+        ref={nomRef}
+        onClick={() => {
+          if (nomRef.current) {
+            const rect = nomRef.current.getBoundingClientRect();
+            setMenuPos({ top: rect.bottom + 6, left: rect.left });
+          }
+          setMenuOpen(v => !v);
+        }}
+        style={{ fontSize:22, fontWeight:800, lineHeight:1.2, color:'var(--text)',
+          cursor:'pointer', display:'inline-flex', alignItems:'center', gap:8,
+          WebkitTapHighlightColor:'transparent' }}
+      >
+        {user?.nom || user?.username || 'Utilisateur'}
+        <span style={{ fontSize:14, color:'var(--muted)', fontWeight:400,
+          transform: menuOpen ? 'rotate(180deg)' : 'none',
+          display:'inline-block', transition:'transform .2s' }}>▾</span>
+      </h1>
 
-        {menuOpen && (
-          <>
-            <div onClick={() => setMenuOpen(false)}
-              style={{ position:'fixed', inset:0, zIndex:99 }} />
-            <div style={{
-              position:'absolute', top:'100%', left:0, zIndex:100,
-              background:'var(--surface2)', border:'1px solid var(--border)',
-              borderRadius:12, overflow:'hidden',
-              boxShadow:'0 8px 32px rgba(0,0,0,0.4)',
-              minWidth:200, marginTop:6,
-            }}>
-              <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)' }}>
-                <p style={{ fontSize:13, fontWeight:700, color:'var(--text)', margin:0 }}>
-                  {user?.prenom ? `${user.prenom} ${user.nom}` : user?.username}
-                </p>
-                <p style={{ fontSize:11, color:'var(--muted)', margin:'2px 0 0' }}>
-                  @{user?.username} · {user?.role}
-                </p>
-              </div>
-              <button
-                onClick={() => { setMenuOpen(false); logout(); }}
-                style={{
-                  width:'100%', padding:'12px 16px',
-                  background:'transparent', border:'none',
-                  display:'flex', alignItems:'center', gap:10,
-                  cursor:'pointer', color:'var(--red)',
-                  fontSize:13, fontWeight:600, textAlign:'left',
-                }}
-              >
-                🚪 Se déconnecter
-              </button>
+      {/* Menu — position fixed calculée depuis le ref */}
+      {menuOpen && (
+        <>
+          <div onClick={() => setMenuOpen(false)}
+            style={{ position:'fixed', inset:0, zIndex:9998 }} />
+          <div style={{
+            position:'fixed',
+            top: menuPos.top,
+            left: menuPos.left,
+            zIndex:9999,
+            background:'var(--surface2)', border:'1px solid var(--border)',
+            borderRadius:12, overflow:'hidden',
+            boxShadow:'0 8px 32px rgba(0,0,0,0.4)',
+            minWidth:200,
+          }}>
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--border)' }}>
+              <p style={{ fontSize:13, fontWeight:700, color:'var(--text)', margin:0 }}>
+                {user?.prenom ? `${user.prenom} ${user.nom}` : user?.username}
+              </p>
+              <p style={{ fontSize:11, color:'var(--muted)', margin:'2px 0 0' }}>
+                @{user?.username} · {user?.role}
+              </p>
             </div>
-          </>
-        )}
-      </div>
+            <button
+              onClick={() => { setMenuOpen(false); logout(); }}
+              style={{
+                width:'100%', padding:'12px 16px',
+                background:'transparent', border:'none',
+                display:'flex', alignItems:'center', gap:10,
+                cursor:'pointer', color:'var(--red)',
+                fontSize:13, fontWeight:600, textAlign:'left',
+              }}
+            >
+              🚪 Se déconnecter
+            </button>
+          </div>
+        </>
+      )}
 
       <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:6 }}>
         <span style={{ width:7, height:7, borderRadius:'50%', background:'var(--green)',
