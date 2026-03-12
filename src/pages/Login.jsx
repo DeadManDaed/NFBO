@@ -81,8 +81,9 @@ export default function Login() {
     <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #1a2e1a 0%, #2d5a2d 50%, #1a3a1a 100%)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 16,
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      overflowY: 'auto',
+      padding: '24px 16px',
     }}>
       <div style={{
         background: 'var(--color-surface, #1e2d1e)',
@@ -91,6 +92,8 @@ export default function Login() {
         padding: '36px 32px',
         width: '100%',
         maxWidth: 420,
+        marginTop: 'auto',
+        marginBottom: 'auto',
       }}>
 
         {/* ── Logo ── */}
