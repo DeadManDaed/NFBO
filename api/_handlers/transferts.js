@@ -24,30 +24,29 @@ module.exports = withCors(requireAuth(async (req, res) => {
       if (isSuperAdmin || role === 'auditeur') {
         query = `
           SELECT t.*,
-            l.description  AS lot_description,
-            ms.nom         AS magasin_depart_nom,
-            md.nom         AS magasin_destination_nom,
-            mr.nom         AS magasin_demandeur_nom
+            l.description        AS lot_description,
+            ms.nom               AS magasin_depart_nom,
+            md.nom               AS magasin_destination_nom,
+            mr.nom               AS magasin_demandeur_nom
           FROM transferts t
-          LEFT JOIN lots      l  ON l.id  = t.lot_id
-          LEFT JOIN magasins  ms ON ms.id = t.magasin_depart
-          LEFT JOIN magasins  md ON md.id = t.magasin_destination
-          LEFT JOIN magasins  mr ON mr.id = t.magasin_demandeur_id
+          LEFT JOIN lots     l  ON l.id  = t.lot_id
+          LEFT JOIN magasins ms ON ms.id = t.magasin_depart
+          LEFT JOIN magasins md ON md.id = t.magasin_destination
+          LEFT JOIN magasins mr ON mr.id = t.magasin_demandeur_id
           ORDER BY t.date_creation DESC
         `;
       } else {
-        // admin/stock : voir ses transferts entrants ET sortants
         query = `
           SELECT t.*,
-            l.description  AS lot_description,
-            ms.nom         AS magasin_depart_nom,
-            md.nom         AS magasin_destination_nom,
-            mr.nom         AS magasin_demandeur_nom
+            l.description        AS lot_description,
+            ms.nom               AS magasin_depart_nom,
+            md.nom               AS magasin_destination_nom,
+            mr.nom               AS magasin_demandeur_nom
           FROM transferts t
-          LEFT JOIN lots      l  ON l.id  = t.lot_id
-          LEFT JOIN magasins  ms ON ms.id = t.magasin_depart
-          LEFT JOIN magasins  md ON md.id = t.magasin_destination
-          LEFT JOIN magasins  mr ON mr.id = t.magasin_demandeur_id
+          LEFT JOIN lots     l  ON l.id  = t.lot_id
+          LEFT JOIN magasins ms ON ms.id = t.magasin_depart
+          LEFT JOIN magasins md ON md.id = t.magasin_destination
+          LEFT JOIN magasins mr ON mr.id = t.magasin_demandeur_id
           WHERE t.magasin_depart = $1
              OR t.magasin_destination = $1
              OR t.magasin_demandeur_id = $1
@@ -64,41 +63,50 @@ module.exports = withCors(requireAuth(async (req, res) => {
     }
   }
 
-  // ── POST /api/transferts — proposer un transfert ──────────────────────────
-  // Qui : stock (magasin demandeur) ou superadmin (ordonne directement)
+  // ── POST /api/transferts ──────────────────────────────────────────────────
   if (req.method === 'POST') {
     const {
       lot_id, quantite, quantite_min, quantite_max,
       unite, magasin_depart, magasin_destination,
-      chauffeur_id, prix_ref, motif, ordonne
+      chauffeur_id, prix_ref, motif, ordonne,
     } = req.body;
 
-    if (!lot_id || !quantite || !magasin_depart || !magasin_destination) {
-      return res.status(400).json({ error: 'Données incomplètes' });
+    if (!lot_id || !magasin_destination) {
+      return res.status(400).json({ error: 'Données incomplètes (lot et destination requis)' });
     }
 
-    // stock ne peut proposer que depuis son propre magasin
-    if (isStock && parseInt(magasin_depart) !== userMagasin) {
-      return res.status(403).json({ error: 'Vous ne pouvez proposer un transfert que depuis votre magasin' });
+    // stock : demande de réappro — magasin_depart null, quantite_min/max obligatoires
+    if (isStock) {
+      if (!quantite_min || !quantite_max) {
+        return res.status(400).json({ error: 'Quantités min et max obligatoires pour une demande' });
+      }
+      if (!motif) {
+        return res.status(400).json({ error: 'Motif obligatoire pour une demande' });
+      }
     }
 
-    // Vérifier stock disponible
-    const checkStock = await pool.query(
-      `SELECT COALESCE(SUM(vr.quantite_restante), 0) AS stock_actuel
-       FROM virtual_revenues vr
-       JOIN admissions a ON a.id = vr.admission_id
-       WHERE a.lot_id = $1 AND a.magasin_id = $2 AND vr.status = 'pending'`,
-      [lot_id, magasin_depart]
-    );
+    // admin/superadmin : quantite obligatoire + vérification stock
+    if (!isStock) {
+      if (!quantite || !magasin_depart) {
+        return res.status(400).json({ error: 'Quantité et magasin source requis' });
+      }
 
-    const stockDispo = parseFloat(checkStock.rows[0]?.stock_actuel || 0);
-    if (stockDispo < parseFloat(quantite)) {
-      return res.status(400).json({
-        error: `Stock insuffisant. Disponible: ${stockDispo}, Demandé: ${quantite}`
-      });
+      const checkStock = await pool.query(
+        `SELECT COALESCE(SUM(vr.quantite_restante), 0) AS stock_actuel
+         FROM virtual_revenues vr
+         JOIN admissions a ON a.id = vr.admission_id
+         WHERE a.lot_id = $1 AND a.magasin_id = $2 AND vr.status = 'pending'`,
+        [lot_id, magasin_depart]
+      );
+      const stockDispo = parseFloat(checkStock.rows[0]?.stock_actuel || 0);
+      if (stockDispo < parseFloat(quantite)) {
+        return res.status(400).json({
+          error: `Stock insuffisant. Disponible : ${stockDispo}, Demandé : ${quantite}`
+        });
+      }
     }
 
-    // superadmin ordonne → statut direct 'approuvé', bypass étape admin source
+    // superadmin ordonne → bypass étape approbation
     const statutInitial = (isSuperAdmin && ordonne) ? 'approuvé' : 'proposé';
     const ordonneePar   = (isSuperAdmin && ordonne) ? username : null;
 
@@ -114,15 +122,24 @@ module.exports = withCors(requireAuth(async (req, res) => {
            CASE WHEN $14 IS NOT NULL THEN NOW() ELSE NULL END)
          RETURNING id`,
         [
-          lot_id, magasin_depart, magasin_destination,
+          lot_id,
+          magasin_depart || null,
+          magasin_destination,
           isStock ? userMagasin : null,
           chauffeur_id || null,
-          quantite, quantite_min || null, quantite_max || null,
-          unite, prix_ref || 0,
-          username, motif || null,
-          statutInitial, ordonneePar,
+          quantite || null,
+          quantite_min || null,
+          quantite_max || null,
+          unite || null,
+          prix_ref || 0,
+          username,
+          motif || null,
+          statutInitial,
+          ordonneePar,
         ]
       );
+
+      const newId = result.rows[0].id;
 
       // Notifier superadmin + auditeur si proposé par stock
       if (statutInitial === 'proposé') {
@@ -136,7 +153,26 @@ module.exports = withCors(requireAuth(async (req, res) => {
             [
               dest.id,
               `📦 Demande de transfert — Lot #${lot_id}`,
-              `${username} propose un transfert de ${quantite} ${unite || ''} du magasin #${magasin_depart} vers magasin #${magasin_destination}.\nMotif : ${motif || '—'}\nQuantité souhaitée : ${quantite_min || '—'} à ${quantite_max || '—'}\nTransfert #${result.rows[0].id} — à traiter dans Transferts.`,
+              `${username} demande un transfert vers magasin #${magasin_destination}.\nMotif : ${motif || '—'}\nQuantité souhaitée : ${quantite_min || '—'} à ${quantite_max || '—'}\nTransfert #${newId} — à traiter dans Transferts.`,
+            ]
+          );
+        }
+      }
+
+      // Si ordonné : notifier admin(s) du magasin source
+      if (statutInitial === 'approuvé' && magasin_depart) {
+        const admins = await pool.query(
+          `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif'`,
+          [magasin_depart]
+        );
+        for (const adm of admins.rows) {
+          await pool.query(
+            `INSERT INTO messages (destinataire_id, objet, contenu, topic, type_notification)
+             VALUES ($1, $2, $3, 'transfert', 'urgent')`,
+            [
+              adm.id,
+              `⚡ Ordre de transfert #${newId}`,
+              `Le superadmin ordonne un transfert de ${quantite} ${unite || ''} (Lot #${lot_id}) vers magasin #${magasin_destination}.\nMobilisez le stock et un chauffeur dès que possible.`,
             ]
           );
         }
@@ -144,9 +180,9 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
       return res.status(201).json({
         message: statutInitial === 'approuvé'
-          ? 'Transfert ordonné et approuvé'
-          : 'Demande de transfert soumise — en attente d\'approbation',
-        transfert_id: result.rows[0].id,
+          ? 'Transfert ordonné avec succès'
+          : 'Demande soumise — superadmin et auditeur notifiés',
+        transfert_id: newId,
       });
 
     } catch (err) {
@@ -155,14 +191,13 @@ module.exports = withCors(requireAuth(async (req, res) => {
     }
   }
 
-  // ── PUT /api/transferts?id=X — transitions de statut ─────────────────────
+  // ── PUT /api/transferts?id=X ──────────────────────────────────────────────
   if (req.method === 'PUT') {
     const { id } = req.query;
     if (!id) return res.status(400).json({ error: 'id requis' });
 
-    const { action, chauffeur_id, observations } = req.body;
+    const { action, chauffeur_id, observations, magasin_depart: sourceDésigné } = req.body;
 
-    // Charger le transfert
     const tr = await pool.query('SELECT * FROM transferts WHERE id = $1', [id]);
     if (!tr.rows[0]) return res.status(404).json({ error: 'Transfert introuvable' });
     const t = tr.rows[0];
@@ -171,46 +206,50 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // ── approuver : admin source ──────────────────────────────────────────
+      // ── approuver : superadmin désigne la source + approuve ───────────────
       if (action === 'approuver') {
-        if (!isAdmin && !isSuperAdmin) {
-          return res.status(403).json({ error: 'Admin requis pour approuver' });
-        }
-        if (!isSuperAdmin && t.magasin_depart !== userMagasin) {
-          return res.status(403).json({ error: 'Vous n\'êtes pas l\'admin du magasin source' });
+        if (!isSuperAdmin) {
+          return res.status(403).json({ error: 'Superadmin requis pour approuver' });
         }
         if (t.statut !== 'proposé') {
-          return res.status(400).json({ error: `Statut actuel : ${t.statut} — ne peut pas être approuvé` });
+          return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
         }
+        // Si magasin_depart était null (demande stock), sourceDésigné obligatoire
+        if (!t.magasin_depart && !sourceDésigné) {
+          return res.status(400).json({ error: 'Magasin source à désigner pour approuver' });
+        }
+
+        const sourceFinale = t.magasin_depart || parseInt(sourceDésigné);
 
         await client.query(
           `UPDATE transferts SET
-             statut = 'approuvé',
-             approuve_par = $1,
+             statut           = 'approuvé',
+             magasin_depart   = $1,
+             approuve_par     = $2,
              date_approbation = NOW()
-           WHERE id = $2`,
-          [username, id]
+           WHERE id = $3`,
+          [sourceFinale, username, id]
         );
 
-        // Notifier admin destination
-        const adminDest = await client.query(
-          `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif' LIMIT 1`,
-          [t.magasin_destination]
+        // Notifier admin(s) du magasin source
+        const admins = await client.query(
+          `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif'`,
+          [sourceFinale]
         );
-        if (adminDest.rows[0]) {
+        for (const adm of admins.rows) {
           await client.query(
             `INSERT INTO messages (destinataire_id, objet, contenu, topic, type_notification)
              VALUES ($1, $2, $3, 'transfert', 'info')`,
             [
-              adminDest.rows[0].id,
-              `🚚 Transfert approuvé — Lot #${t.lot_id}`,
-              `Le transfert #${id} de ${t.quantite} ${t.unite} a été approuvé par ${username}.\nEn attente d\'assignation du chauffeur.`,
+              adm.id,
+              `📦 Transfert approuvé — à expédier`,
+              `Le transfert #${id} a été approuvé par ${username}.\nMobilisez le stock et assignez un chauffeur pour expédier.`,
             ]
           );
         }
       }
 
-      // ── expedier : admin source assigne chauffeur → en_transit ───────────
+      // ── expedier : admin source — un clic ─────────────────────────────────
       else if (action === 'expedier') {
         if (!isAdmin && !isSuperAdmin) {
           return res.status(403).json({ error: 'Admin requis pour expédier' });
@@ -219,17 +258,16 @@ module.exports = withCors(requireAuth(async (req, res) => {
           return res.status(403).json({ error: 'Vous n\'êtes pas l\'admin du magasin source' });
         }
         if (t.statut !== 'approuvé') {
-          return res.status(400).json({ error: `Statut actuel : ${t.statut} — doit être approuvé d\'abord` });
+          return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
         }
 
-        // Vérifier que le chauffeur appartient à l'un des deux magasins
+        // Vérifier chauffeur si fourni
         if (chauffeur_id) {
           const chauf = await client.query(
-            `SELECT magasin_id FROM employers WHERE id = $1`,
-            [chauffeur_id]
+            `SELECT magasin_id FROM employers WHERE id = $1`, [chauffeur_id]
           );
-          const chMagasin = chauf.rows[0]?.magasin_id;
-          if (chMagasin !== t.magasin_depart && chMagasin !== t.magasin_destination) {
+          const chMag = chauf.rows[0]?.magasin_id;
+          if (chMag !== t.magasin_depart && chMag !== t.magasin_destination) {
             return res.status(400).json({
               error: 'Le chauffeur doit appartenir au magasin source ou destination'
             });
@@ -251,14 +289,31 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
         await client.query(
           `UPDATE transferts SET
-             statut = 'en_transit',
+             statut       = 'en_transit',
              chauffeur_id = COALESCE($1, chauffeur_id)
            WHERE id = $2`,
           [chauffeur_id || null, id]
         );
+
+        // Notifier admin destination
+        const adminDest = await client.query(
+          `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif'`,
+          [t.magasin_destination]
+        );
+        for (const adm of adminDest.rows) {
+          await client.query(
+            `INSERT INTO messages (destinataire_id, objet, contenu, topic, type_notification)
+             VALUES ($1, $2, $3, 'transfert', 'info')`,
+            [
+              adm.id,
+              `🚚 Transfert en route — #${id}`,
+              `Le transfert #${id} (${t.quantite} ${t.unite}, Lot #${t.lot_id}) est en transit vers votre magasin.\nConfirmez la réception à l'arrivée.`,
+            ]
+          );
+        }
       }
 
-      // ── recevoir : admin destination confirme ─────────────────────────────
+      // ── recevoir : admin destination ──────────────────────────────────────
       else if (action === 'recevoir') {
         if (!isAdmin && !isSuperAdmin) {
           return res.status(403).json({ error: 'Admin requis pour confirmer la réception' });
@@ -267,15 +322,15 @@ module.exports = withCors(requireAuth(async (req, res) => {
           return res.status(403).json({ error: 'Vous n\'êtes pas l\'admin du magasin destination' });
         }
         if (t.statut !== 'en_transit') {
-          return res.status(400).json({ error: `Statut actuel : ${t.statut} — doit être en_transit` });
+          return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
         }
 
         await client.query(
           `UPDATE transferts SET
-             statut = 'reçu',
-             recu_par = $1,
+             statut               = 'reçu',
+             recu_par             = $1,
              date_reception_admin = NOW(),
-             date_reception = NOW()
+             date_reception       = NOW()
            WHERE id = $2`,
           [username, id]
         );
@@ -297,17 +352,16 @@ module.exports = withCors(requireAuth(async (req, res) => {
         }
       }
 
-      // ── valider : superadmin valide définitivement ────────────────────────
+      // ── valider : superadmin — enregistrement définitif ───────────────────
       else if (action === 'valider') {
         if (!isSuperAdmin) {
           return res.status(403).json({ error: 'Superadmin requis pour la validation finale' });
         }
         if (t.statut !== 'reçu') {
-          return res.status(400).json({ error: `Statut actuel : ${t.statut} — doit être reçu` });
+          return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
         }
 
         // Créditer le stock du magasin destination
-        // Créer une admission virtuelle pour refléter l'entrée de stock
         const admResult = await client.query(
           `INSERT INTO admissions
              (lot_id, magasin_id, quantite, unite, prix_ref, utilisateur, source)
@@ -325,14 +379,13 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
         await client.query(
           `UPDATE transferts SET
-             statut = 'livré',
-             valide_par = $1,
+             statut          = 'livré',
+             valide_par      = $1,
              date_validation = NOW()
            WHERE id = $2`,
           [username, id]
         );
 
-        // Log audit
         await client.query(
           `INSERT INTO audit (date, utilisateur, action, type_action, entite, entite_id, details)
            VALUES (NOW(), $1, $2, 'validation', 'transferts', $3, $4)`,
@@ -345,7 +398,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
         );
       }
 
-      // ── rejeter : admin source, admin destination, ou superadmin ──────────
+      // ── rejeter ───────────────────────────────────────────────────────────
       else if (action === 'rejeter') {
         const peutRejeter =
           isSuperAdmin ||
@@ -357,7 +410,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
         const statutsRejetables = ['proposé', 'approuvé', 'en_transit', 'reçu'];
         if (!statutsRejetables.includes(t.statut)) {
-          return res.status(400).json({ error: `Statut actuel : ${t.statut} — ne peut pas être rejeté` });
+          return res.status(400).json({ error: `Statut : ${t.statut} — ne peut pas être rejeté` });
         }
 
         // Si en_transit → restaurer le stock source
@@ -380,7 +433,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
         await client.query(
           `UPDATE transferts SET
              statut = 'rejeté',
-             motif = COALESCE($1, motif)
+             motif  = COALESCE($1, motif)
            WHERE id = $2`,
           [observations || null, id]
         );
@@ -392,7 +445,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
       }
 
       await client.query('COMMIT');
-      return res.json({ success: true, message: `Transfert ${action} avec succès` });
+      return res.json({ success: true, message: `Action "${action}" effectuée` });
 
     } catch (err) {
       await client.query('ROLLBACK');
