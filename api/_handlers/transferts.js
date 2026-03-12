@@ -18,9 +18,9 @@ module.exports = withCors(requireAuth(async (req, res) => {
 
   // ── GET /api/transferts/sources?lot_id=X ─────────────────────────────────
   const url = req.url?.split('?')[0].replace(/\/$/, '');
-  if (url.endsWith('/sources') && req.method === 'GET') {
-    const { lot_id } = req.query;
-    if (!lot_id) return res.status(400).json({ error: 'lot_id requis' });
+  if (req.method === 'GET' && req.query.sources === '1') {
+  const { lot_id } = req.query;
+  if (!lot_id) return res.status(400).json({ error: 'lot_id requis' });
     try {
       const result = await pool.query(`
         WITH retraits_freq AS (
