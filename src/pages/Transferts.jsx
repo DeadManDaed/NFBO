@@ -264,6 +264,7 @@ const [approbation, setApprobation] = useState(null); // { transfert, sourcesCha
       const srcs = await res.json();
       setApprobation({ transfert: t, sources: srcs });
     } catch {
+
       setApprobation({ transfert: t, sources: [] });
     }
   } else {
