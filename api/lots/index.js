@@ -38,24 +38,37 @@ module.exports = withCors(requireAuth(async (req, res) => {
 }
   // ─── GET /api/lots  (liste complète) ─────────────────────────────────────────
   if (req.method === 'GET' && !id) {
-    try {
-      const result = await pool.query('SELECT * FROM lots ORDER BY date_creation DESC');
-      return res.json(result.rows);
-    } catch (err) {
-      return res.status(500).json({ message: 'Erreur lors de la récupération des lots' });
-    }
+  try {
+    const result = await pool.query(`
+      SELECT l.*, v.statut_dynamique, v.stock_total,
+             v.freq_retrait, v.freq_moyenne, v.max_recu
+      FROM lots l
+      LEFT JOIN vue_statuts_lots v ON v.id = l.id
+      ORDER BY l.date_creation DESC
+    `);
+    return res.json(result.rows);
+  } catch (err) {
+    return res.status(500).json({ message: 'Erreur lors de la récupération des lots' });
   }
+}
+
 
   // ─── GET /api/lots?id=X ───────────────────────────────────────────────────────
   if (req.method === 'GET' && id) {
-    try {
-      const result = await pool.query('SELECT * FROM lots WHERE id=$1', [id]);
-      if (result.rows.length === 0) return res.status(404).json({ error: 'Lot non trouvé' });
-      return res.json(result.rows[0]);
-    } catch (err) {
-      return res.status(500).json({ error: "Erreur lors de l'extraction du lot" });
-    }
+  try {
+    const result = await pool.query(`
+      SELECT l.*, v.statut_dynamique, v.stock_total,
+             v.freq_retrait, v.freq_moyenne, v.max_recu
+      FROM lots l
+      LEFT JOIN vue_statuts_lots v ON v.id = l.id
+      WHERE l.id = $1
+    `, [id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Lot non trouvé' });
+    return res.json(result.rows[0]);
+  } catch (err) {
+    return res.status(500).json({ error: "Erreur lors de l'extraction du lot" });
   }
+}
 
   // ─── POST /api/lots ───────────────────────────────────────────────────────────
   if (req.method === 'POST') {
