@@ -263,9 +263,7 @@ const [approbation, setApprobation] = useState(null); // { transfert, sourcesCha
       );
       const srcs = await res.json();
       setApprobation({ transfert: t, sources: srcs });
-document.body.style.overflow = 'hidden';
     } catch {
-document.body.style.overflow = '';
       setApprobation({ transfert: t, sources: [] });
     }
   } else {
