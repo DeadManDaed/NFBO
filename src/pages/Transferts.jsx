@@ -39,6 +39,7 @@ export default function Transferts() {
   const [unitesDisponibles, setUnitesDisponibles] = useState([]);
   const [loading,           setLoading]           = useState(true);
   const [expanded,          setExpanded]          = useState(null);
+const [approbation, setApprobation] = useState(null); // { transfert, sourcesChargées }
 
   // Formulaire demande (stock) — destination = magasin du stock lui-même
   const [demande, setDemande] = useState({
