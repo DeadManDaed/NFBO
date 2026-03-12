@@ -14,20 +14,20 @@
   --color-primary:       #1b6e2e;   /* vert forêt */
   --color-primary-light: #2e9447;
   --color-primary-dark:  #0f4a1c;
-  --color-secondary:     #d4820a;   /* ocre chaud */
+  --color-secondary:     #b86a00;   /* ocre chaud */
   --color-accent:        #e8f5e9;   /* vert très pâle */
 
   /* Neutres */
-  --color-bg:            #f4f6f3;   /* fond app légèrement vert-gris */
+  --color-bg:            #ffffff;   /* fond app légèrement vert-gris */
   --color-surface:       #ffffff;
   --color-surface-alt:   #f0f4f1;
-  --color-border:        #dde5de;
+  --color-border:        #b5c9b8;
   --color-border-strong: #b5c9b8;
 
   /* Textes */
-  --color-text:          #1a2b1c;
-  --color-text-muted:    #5a7160;
-  --color-text-light:    #8fa992;
+  --color-text:          #0f1f11;
+  --color-text-muted:    #3d5c42;
+  --color-text-light:    #5a7a5f;
 
   /* Statuts */
   --color-success:       #2e7d32;
