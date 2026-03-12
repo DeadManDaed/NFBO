@@ -7,12 +7,12 @@ import Alert from '../components/Alert';
 import PageLayout, { StateEmpty, StateLoading } from '../components/PageLayout';
 
 const STATUT_CONFIG = {
-  'proposé':    { label: '📋 Proposé',     className: 'badge-warning' },
-  'approuvé':   { label: '👍 Approuvé',    className: 'badge-info' },
-  'en_transit': { label: '🚚 En transit',  className: 'badge-primary' },
-  'reçu':       { label: '📬 Reçu',        className: 'badge-success' },
-  'livré':      { label: '✅ Livré',        className: 'badge-success' },
-  'rejeté':     { label: '❌ Rejeté',       className: 'badge-danger' },
+  'proposé':    { label: '📋 Proposé',    cls: 'badge-warning' },
+  'approuvé':   { label: '👍 Approuvé',   cls: 'badge-info'    },
+  'en_transit': { label: '🚚 En transit', cls: 'badge-primary' },
+  'reçu':       { label: '📬 Reçu',       cls: 'badge-success' },
+  'livré':      { label: '✅ Livré',       cls: 'badge-success' },
+  'rejeté':     { label: '❌ Rejeté',      cls: 'badge-danger'  },
 };
 
 export default function Transferts() {
@@ -23,14 +23,26 @@ export default function Transferts() {
 
   const [showForm,          setShowForm]          = useState(false);
   const [magasins,          setMagasins]          = useState([]);
-  const [stocks,            setStocks]            = useState([]);
+  const [lots,              setLots]              = useState([]);       // tous les lots (stock)
+  const [stocks,            setStocks]            = useState([]);       // lots en stock (admin/superadmin)
   const [chauffeurs,        setChauffeurs]        = useState([]);
   const [transferts,        setTransferts]        = useState([]);
   const [unitesDisponibles, setUnitesDisponibles] = useState([]);
   const [loading,           setLoading]           = useState(true);
   const [expanded,          setExpanded]          = useState(null);
 
-  const [formData, setFormData] = useState({
+  // Formulaire demande (stock)
+  const [demande, setDemande] = useState({
+    lot_id:              '',
+    magasin_destination: '',
+    quantite_min:        '',
+    quantite_max:        '',
+    unite:               '',
+    motif:               '',
+  });
+
+  // Formulaire proposition (admin/superadmin)
+  const [proposition, setProposition] = useState({
     magasin_depart:      magasinId || '',
     magasin_destination: '',
     lot_id:              '',
@@ -45,13 +57,21 @@ export default function Transferts() {
   useEffect(() => {
     loadMagasins();
     loadTransferts();
-    if (magasinId) {
+    if (isStock) {
+      loadLots();
+    } else if (magasinId) {
       loadStocksForMagasin(magasinId);
       loadChauffeurs(magasinId);
     }
   }, [magasinId]);
 
-  const loadMagasins   = async () => { try { setMagasins(await api.getMagasins()); } catch {} };
+  const loadMagasins = async () => {
+    try { setMagasins(await api.getMagasins()); } catch {}
+  };
+
+  const loadLots = async () => {
+    try { setLots(await api.getLots()); } catch {}
+  };
 
   const loadTransferts = async () => {
     setLoading(true);
@@ -67,34 +87,72 @@ export default function Transferts() {
   const loadChauffeurs = async (magSourceId, magDestId = null) => {
     try {
       const all = await api.getChauffeurs();
-      // Filtrer : chauffeur doit appartenir à source OU destination
-      const filtres = all.filter(c =>
-        c.magasin_id === parseInt(magSourceId) ||
-        (magDestId && c.magasin_id === parseInt(magDestId))
-      ).map(c => ({
-        ...c,
-        label: c.magasin_id === parseInt(magSourceId) ? '🟢 Source' : '🔵 Destination',
-      }));
+      const filtres = all
+        .filter(c =>
+          c.magasin_id === parseInt(magSourceId) ||
+          (magDestId && c.magasin_id === parseInt(magDestId))
+        )
+        .map(c => ({
+          ...c,
+          label: c.magasin_id === parseInt(magSourceId) ? '🟢 Source' : '🔵 Destination',
+        }));
       setChauffeurs(filtres);
     } catch {}
   };
 
+  // ── Handlers formulaire demande (stock) ─────────────────────────────────
+  const setD = (field) => (e) => setDemande(f => ({ ...f, [field]: e.target.value }));
+
+  const handleLotDemande = (lotId) => {
+    const lot = lots.find(l => l.id === parseInt(lotId));
+    setDemande(f => ({
+      ...f,
+      lot_id: lotId,
+      unite: lot?.unite || lot?.unites_admises?.[0] || '',
+    }));
+    setUnitesDisponibles(lot?.unites_admises || (lot?.unite ? [lot.unite] : []));
+  };
+
+  const handleSubmitDemande = async (e) => {
+    e.preventDefault();
+    try {
+      await api.createTransfert({
+        lot_id:              parseInt(demande.lot_id),
+        magasin_destination: parseInt(demande.magasin_destination),
+        quantite_min:        parseFloat(demande.quantite_min),
+        quantite_max:        parseFloat(demande.quantite_max),
+        unite:               demande.unite,
+        motif:               demande.motif,
+      });
+      showAlert('✅ Demande soumise — superadmin et auditeur notifiés', 'success');
+      setDemande({ lot_id: '', magasin_destination: '', quantite_min: '', quantite_max: '', unite: '', motif: '' });
+      setUnitesDisponibles([]);
+      setShowForm(false);
+      loadTransferts();
+    } catch (err) {
+      showAlert(`❌ ${err.message}`, 'error');
+    }
+  };
+
+  // ── Handlers formulaire proposition (admin/superadmin) ──────────────────
+  const setP = (field) => (e) => setProposition(f => ({ ...f, [field]: e.target.value }));
+
   const handleMagasinSourceChange = (magId) => {
-    setFormData(f => ({ ...f, magasin_depart: magId, lot_id: '', quantite: '' }));
+    setProposition(f => ({ ...f, magasin_depart: magId, lot_id: '', quantite: '' }));
     loadStocksForMagasin(magId);
-    loadChauffeurs(magId, formData.magasin_destination);
+    loadChauffeurs(magId, proposition.magasin_destination);
   };
 
   const handleMagasinDestChange = (magId) => {
-    setFormData(f => ({ ...f, magasin_destination: magId }));
-    loadChauffeurs(formData.magasin_depart, magId);
+    setProposition(f => ({ ...f, magasin_destination: magId }));
+    loadChauffeurs(proposition.magasin_depart, magId);
   };
 
-  const handleLotChange = (lotId) => {
+  const handleLotProposition = (lotId) => {
     const stock = stocks.find(s => s.lot_id === parseInt(lotId));
     if (stock) {
       setUnitesDisponibles(stock.unites_admises || []);
-      setFormData(f => ({
+      setProposition(f => ({
         ...f,
         lot_id: lotId,
         unite: stock.unite || stock.unites_admises?.[0] || '',
@@ -102,30 +160,34 @@ export default function Transferts() {
     }
   };
 
-  const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
-
-  const handleSubmit = async (e) => {
+  const handleSubmitProposition = async (e) => {
     e.preventDefault();
-    if (formData.magasin_depart === formData.magasin_destination) {
+    if (proposition.magasin_depart === proposition.magasin_destination) {
       showAlert('❌ Source et destination identiques', 'error');
       return;
     }
-    const stock = stocks.find(s => s.lot_id === parseInt(formData.lot_id));
+    const stock = stocks.find(s => s.lot_id === parseInt(proposition.lot_id));
+    const quantite = parseFloat(proposition.quantite);
+    if (quantite > parseFloat(stock?.stock_actuel || 0)) {
+      showAlert(`❌ Quantité demandée (${quantite}) dépasse le stock disponible (${stock?.stock_actuel})`, 'error');
+      return;
+    }
     try {
       await api.createTransfert({
-        lot_id:              parseInt(formData.lot_id),
-        quantite:            parseFloat(formData.quantite),
-        quantite_min:        formData.quantite_min ? parseFloat(formData.quantite_min) : null,
-        quantite_max:        formData.quantite_max ? parseFloat(formData.quantite_max) : null,
-        unite:               formData.unite,
-        magasin_depart:      parseInt(formData.magasin_depart),
-        magasin_destination: parseInt(formData.magasin_destination),
+        lot_id:              parseInt(proposition.lot_id),
+        quantite,
+        quantite_min:        proposition.quantite_min ? parseFloat(proposition.quantite_min) : null,
+        quantite_max:        proposition.quantite_max ? parseFloat(proposition.quantite_max) : null,
+        unite:               proposition.unite,
+        magasin_depart:      parseInt(proposition.magasin_depart),
+        magasin_destination: parseInt(proposition.magasin_destination),
+        chauffeur_id:        proposition.chauffeur_id || null,
         prix_ref:            stock?.prix_ref || 0,
-        motif:               formData.motif || null,
+        motif:               proposition.motif || null,
         ordonne:             isSuperAdmin,
       });
-      showAlert('✅ Demande de transfert soumise', 'success');
-      setFormData({
+      showAlert(isSuperAdmin ? '⚡ Transfert ordonné' : '✅ Proposition soumise', 'success');
+      setProposition({
         magasin_depart: magasinId || '', magasin_destination: '',
         lot_id: '', quantite: '', quantite_min: '', quantite_max: '',
         unite: '', chauffeur_id: '', motif: '',
@@ -145,7 +207,7 @@ export default function Transferts() {
         method: 'PUT',
         body: JSON.stringify({ action, ...extra }),
       });
-      showAlert(`✅ Opération effectuée`, 'success');
+      showAlert('✅ Opération effectuée', 'success');
       loadTransferts();
       setExpanded(null);
     } catch (err) {
@@ -153,15 +215,35 @@ export default function Transferts() {
     }
   };
 
-  const handleApprouver  = (t) => { if (confirm('Approuver ce transfert ?')) doAction(t.id, 'approuver'); };
-  const handleExpedier   = (t) => {
-    const chauf = prompt('ID du chauffeur (laisser vide si aucun) :');
-    if (chauf === null) return;
-    doAction(t.id, 'expedier', { chauffeur_id: chauf || null });
+  const handleApprouver = (t) => {
+    // Si magasin_depart est null, demander au superadmin de désigner la source
+    if (!t.magasin_depart) {
+      const srcId = prompt(
+        'Désigner le magasin source (entrez l\'ID) :\n' +
+        magasins.map(m => `${m.id} — ${m.nom}`).join('\n')
+      );
+      if (!srcId) return;
+      doAction(t.id, 'approuver', { magasin_depart: parseInt(srcId) });
+    } else {
+      if (confirm('Approuver ce transfert ?')) doAction(t.id, 'approuver');
+    }
   };
-  const handleRecevoir   = (t) => { if (confirm('Confirmer la réception ?')) doAction(t.id, 'recevoir'); };
-  const handleValider    = (t) => { if (confirm('Valider définitivement ce transfert ?')) doAction(t.id, 'valider'); };
-  const handleRejeter    = (t) => {
+
+  const handleExpedier = (t) => {
+    if (!confirm('Expédier ce transfert ? Le stock sera déduit.')) return;
+    // Chauffeur optionnel — peut être préassigné
+    if (!t.chauffeur_id) {
+      const chaufId = prompt('ID du chauffeur (laisser vide pour ignorer) :');
+      if (chaufId === null) return;
+      doAction(t.id, 'expedier', { chauffeur_id: chaufId || null });
+    } else {
+      doAction(t.id, 'expedier');
+    }
+  };
+
+  const handleRecevoir  = (t) => { if (confirm('Confirmer la réception ?')) doAction(t.id, 'recevoir'); };
+  const handleValider   = (t) => { if (confirm('Valider définitivement ce transfert ?')) doAction(t.id, 'valider'); };
+  const handleRejeter   = (t) => {
     const motif = prompt('Motif du rejet :');
     if (motif === null) return;
     doAction(t.id, 'rejeter', { observations: motif });
@@ -169,32 +251,33 @@ export default function Transferts() {
 
   // ── Boutons selon rôle + statut ──────────────────────────────────────────
   const getBoutons = (t) => {
-    const boutons = [];
+    const boutons  = [];
     const estSource = t.magasin_depart === magasinId;
     const estDest   = t.magasin_destination === magasinId;
 
-    if (t.statut === 'proposé' && (isAdmin || isSuperAdmin) && (isSuperAdmin || estSource)) {
-      boutons.push({ label: '👍 Approuver', action: () => handleApprouver(t), cls: 'btn-primary' });
+    if (t.statut === 'proposé' && isSuperAdmin) {
+      boutons.push({ label: '👍 Approuver / Désigner source', action: () => handleApprouver(t), cls: 'btn-primary' });
     }
-    if (t.statut === 'approuvé' && (isAdmin || isSuperAdmin) && (isSuperAdmin || estSource)) {
+    if (t.statut === 'approuvé' && (isSuperAdmin || (isAdmin && estSource))) {
       boutons.push({ label: '🚚 Expédier', action: () => handleExpedier(t), cls: 'btn-primary' });
     }
-    if (t.statut === 'en_transit' && (isAdmin || isSuperAdmin) && (isSuperAdmin || estDest)) {
+    if (t.statut === 'en_transit' && (isSuperAdmin || (isAdmin && estDest))) {
       boutons.push({ label: '📬 Confirmer réception', action: () => handleRecevoir(t), cls: 'btn-primary' });
     }
     if (t.statut === 'reçu' && isSuperAdmin) {
       boutons.push({ label: '✅ Valider définitivement', action: () => handleValider(t), cls: 'btn-primary' });
     }
-    // Rejeter : disponible à plusieurs étapes
-    const peutRejeter = isSuperAdmin ||
-      ((isAdmin || isStock) && (estSource || estDest) &&
-       ['proposé','approuvé','en_transit','reçu'].includes(t.statut));
+    const peutRejeter =
+      isSuperAdmin ||
+      (isAdmin && (estSource || estDest) &&
+        ['proposé', 'approuvé', 'en_transit', 'reçu'].includes(t.statut));
     if (peutRejeter) {
       boutons.push({ label: '❌ Rejeter', action: () => handleRejeter(t), cls: 'btn-danger' });
     }
     return boutons;
   };
 
+  // ── Rendu ────────────────────────────────────────────────────────────────
   return (
     <PageLayout
       title="Transferts inter-magasins"
@@ -202,29 +285,102 @@ export default function Transferts() {
       subtitle="Mouvements de stock entre magasins"
       actions={
         <button onClick={() => setShowForm(v => !v)} className={showForm ? 'btn btn-ghost' : 'btn btn-primary'}>
-          {showForm ? '✖ Annuler' : '➕ Nouveau transfert'}
+          {showForm ? '✖ Annuler' : isStock ? '📋 Nouvelle demande' : '➕ Nouveau transfert'}
         </button>
       }
     >
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
 
-      {/* ── Formulaire ── */}
-      {showForm && (
+      {/* ── Formulaire demande (stock) ── */}
+      {showForm && isStock && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="card-header">
-            <h3 className="card-title">Nouvelle demande de transfert</h3>
+            <h3 className="card-title">📋 Demande de réapprovisionnement</h3>
+            <p className="text-muted text-xs" style={{ margin: '4px 0 0' }}>
+              Le superadmin désignera le magasin source après réception de votre demande.
+            </p>
           </div>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <form onSubmit={handleSubmitDemande} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="form-grid">
+
+              <div className="form-group">
+                <label className="form-label">Lot demandé *</label>
+                <select className="form-control" required value={demande.lot_id}
+                  onChange={e => handleLotDemande(e.target.value)}>
+                  <option value="">Sélectionner un lot</option>
+                  {lots.map(l => (
+                    <option key={l.id} value={l.id}>{l.description}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Unité *</label>
+                <select className="form-control" required value={demande.unite}
+                  onChange={setD('unite')} disabled={!unitesDisponibles.length}>
+                  <option value="">Sélectionner</option>
+                  {unitesDisponibles.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Quantité minimale attendue *</label>
+                <input className="form-control" type="number" required min="0.01" step="0.01"
+                  value={demande.quantite_min} onChange={setD('quantite_min')}
+                  placeholder="Ex: 50" />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Quantité maximale attendue *</label>
+                <input className="form-control" type="number" required min="0.01" step="0.01"
+                  value={demande.quantite_max} onChange={setD('quantite_max')}
+                  placeholder="Ex: 200" />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Destination *</label>
+                <select className="form-control" required value={demande.magasin_destination}
+                  onChange={setD('magasin_destination')}>
+                  <option value="">Sélectionner</option>
+                  {magasins.map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
+                </select>
+              </div>
+
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Motif *</label>
+              <textarea className="form-control" rows={3} required
+                value={demande.motif} onChange={setD('motif')}
+                placeholder="Expliquez pourquoi ce réapprovisionnement est nécessaire (stock bas, urgence, saisonnalité...)" />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="submit" className="btn btn-primary btn-lg">
+                📤 Soumettre la demande
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── Formulaire proposition/ordre (admin/superadmin) ── */}
+      {showForm && !isStock && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="card-header">
+            <h3 className="card-title">
+              {isSuperAdmin ? '⚡ Ordonner un transfert' : '📦 Proposer un transfert'}
+            </h3>
+          </div>
+          <form onSubmit={handleSubmitProposition} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="form-grid">
 
               <div className="form-group">
                 <label className="form-label">Magasin source *</label>
-                <select
-                  className="form-control" required
-                  value={formData.magasin_depart}
+                <select className="form-control" required
+                  value={proposition.magasin_depart}
                   onChange={e => handleMagasinSourceChange(e.target.value)}
-                  disabled={!isSuperAdmin}
-                >
+                  disabled={!isSuperAdmin}>
                   <option value="">Sélectionner</option>
                   {magasins.map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
                 </select>
@@ -233,62 +389,76 @@ export default function Transferts() {
 
               <div className="form-group">
                 <label className="form-label">Magasin destination *</label>
-                <select
-                  className="form-control" required
-                  value={formData.magasin_destination}
-                  onChange={e => handleMagasinDestChange(e.target.value)}
-                >
+                <select className="form-control" required
+                  value={proposition.magasin_destination}
+                  onChange={e => handleMagasinDestChange(e.target.value)}>
                   <option value="">Sélectionner</option>
                   {magasins
-                    .filter(m => m.id !== parseInt(formData.magasin_depart))
+                    .filter(m => m.id !== parseInt(proposition.magasin_depart))
                     .map(m => <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>)}
                 </select>
               </div>
 
               <div className="form-group">
                 <label className="form-label">Lot *</label>
-                <select
-                  className="form-control" required
-                  value={formData.lot_id}
-                  onChange={e => handleLotChange(e.target.value)}
-                  disabled={!formData.magasin_depart}
-                >
+                <select className="form-control" required
+                  value={proposition.lot_id}
+                  onChange={e => handleLotProposition(e.target.value)}
+                  disabled={!proposition.magasin_depart}>
                   <option value="">Sélectionner un lot</option>
                   {stocks.map(s => (
                     <option key={s.lot_id} value={s.lot_id}>
-                      {s.description} — Stock: {s.stock_actuel} {s.unite}
+                      {s.description} — Stock : {s.stock_actuel} {s.unite}
                     </option>
                   ))}
                 </select>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Quantité proposée *</label>
-                <input className="form-control" type="number" required min="0" step="0.01"
-                  value={formData.quantite} onChange={set('quantite')} />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Quantité min souhaitée</label>
-                <input className="form-control" type="number" min="0" step="0.01"
-                  value={formData.quantite_min} onChange={set('quantite_min')}
-                  placeholder="Optionnel" />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Quantité max souhaitée</label>
-                <input className="form-control" type="number" min="0" step="0.01"
-                  value={formData.quantite_max} onChange={set('quantite_max')}
-                  placeholder="Optionnel" />
-              </div>
-
-              <div className="form-group">
                 <label className="form-label">Unité *</label>
-                <select className="form-control" required value={formData.unite}
-                  onChange={set('unite')} disabled={!unitesDisponibles.length}>
+                <select className="form-control" required value={proposition.unite}
+                  onChange={setP('unite')} disabled={!unitesDisponibles.length}>
                   <option value="">Sélectionner</option>
                   {unitesDisponibles.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Quantité *</label>
+                <input className="form-control" type="number" required min="0.01" step="0.01"
+                  value={proposition.quantite} onChange={setP('quantite')} />
+                {proposition.lot_id && (
+                  <p className="text-muted text-xs" style={{ marginTop: 4 }}>
+                    📦 Disponible : {stocks.find(s => s.lot_id === parseInt(proposition.lot_id))?.stock_actuel || '—'} {proposition.unite}
+                  </p>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Quantité min</label>
+                <input className="form-control" type="number" min="0" step="0.01"
+                  value={proposition.quantite_min} onChange={setP('quantite_min')} placeholder="Optionnel" />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Quantité max</label>
+                <input className="form-control" type="number" min="0" step="0.01"
+                  value={proposition.quantite_max} onChange={setP('quantite_max')} placeholder="Optionnel" />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Chauffeur</label>
+                <select className="form-control" value={proposition.chauffeur_id} onChange={setP('chauffeur_id')}>
+                  <option value="">— À assigner lors de l'expédition —</option>
+                  {chauffeurs.map(c => (
+                    <option key={c.id} value={c.id}>{c.label} {c.nom}</option>
+                  ))}
+                </select>
+                {chauffeurs.length === 0 && proposition.magasin_depart && (
+                  <p className="text-muted text-xs" style={{ marginTop: 4 }}>
+                    Aucun chauffeur lié aux magasins impliqués
+                  </p>
+                )}
               </div>
 
             </div>
@@ -296,13 +466,13 @@ export default function Transferts() {
             <div className="form-group">
               <label className="form-label">Motif / Observations</label>
               <textarea className="form-control" rows={2}
-                value={formData.motif} onChange={set('motif')}
-                placeholder="Raison du transfert, urgence, contexte..." />
+                value={proposition.motif} onChange={setP('motif')}
+                placeholder="Raison du transfert, contexte, urgence..." />
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <button type="submit" className="btn btn-primary btn-lg">
-                📦 Soumettre la demande
+                {isSuperAdmin ? '⚡ Ordonner' : '📦 Proposer'}
               </button>
             </div>
           </form>
@@ -324,16 +494,17 @@ export default function Transferts() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 4px' }}>
             {transferts.map(t => {
-              const cfg      = STATUT_CONFIG[t.statut] || { label: t.statut, className: 'badge-neutral' };
-              const isOpen   = expanded === t.id;
-              const boutons  = getBoutons(t);
-              const srcNom   = t.magasin_depart_nom   || magasins.find(m => m.id === t.magasin_depart)?.nom       || `#${t.magasin_depart}`;
-              const destNom  = t.magasin_destination_nom || magasins.find(m => m.id === t.magasin_destination)?.nom || `#${t.magasin_destination}`;
+              const cfg     = STATUT_CONFIG[t.statut] || { label: t.statut, cls: 'badge-neutral' };
+              const isOpen  = expanded === t.id;
+              const boutons = getBoutons(t);
+              const srcNom  = t.magasin_depart_nom      || (t.magasin_depart ? `#${t.magasin_depart}` : '⏳ À désigner');
+              const destNom = t.magasin_destination_nom || `#${t.magasin_destination}`;
+              const demNom  = t.magasin_demandeur_nom   || null;
 
               return (
                 <div key={t.id} style={{
                   background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
+                  border: `1px solid var(--color-border)`,
                   borderRadius: 'var(--radius-md)',
                   overflow: 'hidden',
                 }}>
@@ -351,41 +522,51 @@ export default function Transferts() {
                         <p style={{ fontWeight: 700, fontSize: 13, margin: '0 0 2px',
                           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {t.lot_description || `Lot #${t.lot_id}`}
-                          <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', fontSize: 12 }}>
-                            {' '}— {parseFloat(t.quantite).toLocaleString('fr-FR')} {t.unite}
-                          </span>
+                          {t.quantite && (
+                            <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', fontSize: 12 }}>
+                              {' '}— {parseFloat(t.quantite).toLocaleString('fr-FR')} {t.unite}
+                            </span>
+                          )}
+                          {!t.quantite && t.quantite_min && (
+                            <span style={{ fontWeight: 400, color: 'var(--color-text-muted)', fontSize: 12 }}>
+                              {' '}— {t.quantite_min}–{t.quantite_max} {t.unite}
+                            </span>
+                          )}
                         </p>
                         <p style={{ fontSize: 11, color: 'var(--color-text-muted)', margin: 0 }}>
-                          {srcNom} → {destNom} · {new Date(t.date_creation).toLocaleDateString('fr-FR')}
+                          {srcNom} → {destNom}
+                          {demNom && <span> · Demandeur : {demNom}</span>}
+                          {' · '}{new Date(t.date_creation).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
                       {boutons.length > 0 && (
                         <span style={{ width: 8, height: 8, borderRadius: '50%',
-                          background: '#f59e0b', display: 'inline-block' }} />
+                          background: '#f59e0b', display: 'inline-block' }} title="Action requise" />
                       )}
-                      <span className={`badge ${cfg.className}`}>{cfg.label}</span>
+                      <span className={`badge ${cfg.cls}`}>{cfg.label}</span>
                     </div>
                   </div>
 
-                  {/* Détails dépliés */}
+                  {/* Détails */}
                   {isOpen && (
                     <div style={{ borderTop: '1px solid var(--color-border)', padding: 14 }}>
-
-                      {/* Infos */}
                       <div className="form-grid" style={{ gap: 8, marginBottom: 12 }}>
                         {[
-                          ['Source',       srcNom],
-                          ['Destination',  destNom],
-                          ['Quantité',     `${parseFloat(t.quantite).toLocaleString('fr-FR')} ${t.unite}`],
-                          ['Intervalle',   t.quantite_min ? `${t.quantite_min} – ${t.quantite_max || '∞'}` : '—'],
-                          ['Proposé par',  t.utilisateur || '—'],
-                          ['Approuvé par', t.approuve_par || '—'],
-                          ['Reçu par',     t.recu_par || '—'],
-                          ['Validé par',   t.valide_par || '—'],
-                          ['Ordonné par',  t.ordonne_par || '—'],
-                          ['Motif',        t.motif || '—'],
+                          ['Source',        srcNom],
+                          ['Destination',   destNom],
+                          ['Demandeur',     demNom || '—'],
+                          ['Lot',           t.lot_description || `#${t.lot_id}`],
+                          ['Quantité',      t.quantite ? `${parseFloat(t.quantite).toLocaleString('fr-FR')} ${t.unite}` : '—'],
+                          ['Intervalle',    t.quantite_min ? `${t.quantite_min} – ${t.quantite_max || '∞'} ${t.unite}` : '—'],
+                          ['Proposé par',   t.utilisateur  || '—'],
+                          ['Ordonné par',   t.ordonne_par  || '—'],
+                          ['Approuvé par',  t.approuve_par || '—'],
+                          ['Expédié',       t.date_approbation ? new Date(t.date_approbation).toLocaleDateString('fr-FR') : '—'],
+                          ['Reçu par',      t.recu_par     || '—'],
+                          ['Validé par',    t.valide_par   || '—'],
+                          ['Motif',         t.motif        || '—'],
                         ].map(([label, value]) => (
                           <div key={label} style={{ background: 'var(--color-surface-alt)',
                             borderRadius: 6, padding: '7px 10px' }}>
@@ -396,7 +577,6 @@ export default function Transferts() {
                         ))}
                       </div>
 
-                      {/* Boutons d'action */}
                       {boutons.length > 0 && (
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                           {boutons.map((b, i) => (
