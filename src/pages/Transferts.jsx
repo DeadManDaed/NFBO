@@ -249,20 +249,14 @@ export default function Transferts() {
     }
   };
 
-  const handleApprouver = async (t) => {
-    if (!t.magasin_depart) {
-      // Charger les sources disponibles pour ce lot
-      await loadSourcesForLot(t.lot_id);
-      const srcId = prompt(
-        'Désigner le magasin source :\n' +
-        magasins.map(m => `${m.id} — ${m.nom}`).join('\n')
-      );
-      if (!srcId) return;
-      doAction(t.id, 'approuver', { magasin_depart: parseInt(srcId) });
-    } else {
-      if (confirm('Approuver ce transfert ?')) doAction(t.id, 'approuver');
-    }
-  };
+    const handleApprouver = async (t) => {
+  if (!t.magasin_depart) {
+    const srcs = await api.request(`/transferts/sources?lot_id=${t.lot_id}`);
+    setApprobation({ transfert: t, sources: srcs });
+  } else {
+    if (confirm('Approuver ce transfert ?')) doAction(t.id, 'approuver');
+  }
+};
 
   const handleExpedier = (t) => {
     if (!confirm('Expédier ce transfert ? Le stock sera déduit.')) return;
@@ -330,6 +324,54 @@ export default function Transferts() {
       }
     >
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
+{/* ── Modal approbation superadmin ── */}
+{approbation && (
+  <div style={{
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+    zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+  }}>
+    <div style={{
+      background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)',
+      padding: 24, maxWidth: 480, width: '100%',
+      boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+    }}>
+      <h3 style={{ margin: '0 0 8px' }}>👍 Approuver le transfert #{approbation.transfert.id}</h3>
+      <p className="text-muted text-xs" style={{ marginBottom: 16 }}>
+        Lot : {approbation.transfert.lot_description || `#${approbation.transfert.lot_id}`}
+        {' · '}Intervalle : {approbation.transfert.quantite_min}–{approbation.transfert.quantite_max} {approbation.transfert.unite}
+      </p>
+
+      <div className="form-group" style={{ marginBottom: 16 }}>
+        <label className="form-label">Désigner le magasin source *</label>
+        <select className="form-control" id="select-source-approbation"
+          defaultValue="">
+          <option value="">Sélectionner</option>
+          {approbation.sources.map(s => (
+            <option key={s.magasin_id} value={s.magasin_id}>
+              {s.dormant ? '💤' : '📦'} {s.magasin_nom} ({s.magasin_code})
+              — Stock : {parseFloat(s.stock_actuel).toLocaleString('fr-FR')}
+              {s.dormant ? ' · dormant' : ''}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+        <button className="btn btn-ghost" onClick={() => setApprobation(null)}>
+          Annuler
+        </button>
+        <button className="btn btn-primary" onClick={() => {
+          const srcId = document.getElementById('select-source-approbation').value;
+          if (!srcId) { showAlert('❌ Sélectionner un magasin source', 'error'); return; }
+          doAction(approbation.transfert.id, 'approuver', { magasin_depart: parseInt(srcId) });
+          setApprobation(null);
+        }}>
+          ✅ Confirmer l'approbation
+        </button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* ── Formulaire demande (stock) ── */}
       {showForm && isStock && (
