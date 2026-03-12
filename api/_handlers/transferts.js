@@ -16,11 +16,59 @@ module.exports = withCors(requireAuth(async (req, res) => {
   const isAdmin      = role === 'admin';
   const isStock      = role === 'stock';
 
+  // ── GET /api/transferts/sources?lot_id=X ─────────────────────────────────
+  const url = req.url?.split('?')[0].replace(/\/$/, '');
+  if (url.endsWith('/sources') && req.method === 'GET') {
+    const { lot_id } = req.query;
+    if (!lot_id) return res.status(400).json({ error: 'lot_id requis' });
+    try {
+      const result = await pool.query(`
+        WITH retraits_freq AS (
+          SELECT r.lot_id,
+            COUNT(*) / NULLIF(
+              EXTRACT(DAY FROM NOW() - MIN(r.date_sortie::timestamptz)), 0
+            ) AS freq
+          FROM retraits r
+          GROUP BY r.lot_id
+        ),
+        moyenne AS (
+          SELECT AVG(freq) AS moy FROM retraits_freq
+        ),
+        stock_dispo AS (
+          SELECT
+            a.magasin_id,
+            m.nom                          AS magasin_nom,
+            m.code                         AS magasin_code,
+            SUM(vr.quantite_restante)      AS stock_actuel,
+            rf.freq                        AS freq_retrait,
+            mo.moy                         AS freq_moyenne,
+            CASE WHEN rf.freq IS NULL OR rf.freq < mo.moy / 2.0
+              THEN true ELSE false
+            END AS dormant
+          FROM virtual_revenues vr
+          JOIN admissions a ON a.id = vr.admission_id
+          JOIN magasins m   ON m.id = a.magasin_id
+          LEFT JOIN retraits_freq rf ON rf.lot_id = a.lot_id
+          CROSS JOIN moyenne mo
+          WHERE a.lot_id = $1
+            AND vr.status = 'pending'
+            AND vr.quantite_restante > 0
+          GROUP BY a.magasin_id, m.nom, m.code, rf.freq, mo.moy
+        )
+        SELECT * FROM stock_dispo
+        ORDER BY dormant DESC, stock_actuel DESC
+      `, [lot_id]);
+      return res.json(result.rows);
+    } catch (err) {
+      console.error('[transferts/sources]', err.message);
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
   // ── GET /api/transferts ───────────────────────────────────────────────────
   if (req.method === 'GET') {
     try {
       let query, params = [];
-
       if (isSuperAdmin || role === 'auditeur') {
         query = `
           SELECT t.*,
@@ -54,7 +102,6 @@ module.exports = withCors(requireAuth(async (req, res) => {
         `;
         params = [userMagasin];
       }
-
       const result = await pool.query(query, params);
       return res.json(result.rows);
     } catch (err) {
@@ -75,22 +122,21 @@ module.exports = withCors(requireAuth(async (req, res) => {
       return res.status(400).json({ error: 'Données incomplètes (lot et destination requis)' });
     }
 
-    // stock : demande de réappro — magasin_depart null, quantite_min/max obligatoires
+    // Validation stock
     if (isStock) {
       if (!quantite_min || !quantite_max) {
-        return res.status(400).json({ error: 'Quantités min et max obligatoires pour une demande' });
+        return res.status(400).json({ error: 'Quantités min et max obligatoires' });
       }
       if (!motif) {
-        return res.status(400).json({ error: 'Motif obligatoire pour une demande' });
+        return res.status(400).json({ error: 'Motif obligatoire' });
       }
     }
 
-    // admin/superadmin : quantite obligatoire + vérification stock
+    // Validation admin/superadmin
     if (!isStock) {
       if (!quantite || !magasin_depart) {
         return res.status(400).json({ error: 'Quantité et magasin source requis' });
       }
-
       const checkStock = await pool.query(
         `SELECT COALESCE(SUM(vr.quantite_restante), 0) AS stock_actuel
          FROM virtual_revenues vr
@@ -106,43 +152,58 @@ module.exports = withCors(requireAuth(async (req, res) => {
       }
     }
 
-    // superadmin ordonne → bypass étape approbation
-    const statutInitial = (isSuperAdmin && ordonne) ? 'approuvé' : 'proposé';
-    const ordonneePar   = (isSuperAdmin && ordonne) ? username : null;
-
     try {
-      const result = await pool.query(
-        `INSERT INTO transferts
-           (lot_id, magasin_depart, magasin_destination, magasin_demandeur_id,
-            chauffeur_id, quantite, quantite_min, quantite_max,
-            unite, prix_ref, utilisateur, motif, statut,
-            ordonne_par, approuve_par, date_approbation)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,
-           CASE WHEN $14 IS NOT NULL THEN $14 ELSE NULL END,
-           CASE WHEN $14 IS NOT NULL THEN NOW() ELSE NULL END)
-         RETURNING id`,
-        [
-          lot_id,
-          magasin_depart || null,
-          magasin_destination,
-          isStock ? userMagasin : null,
-          chauffeur_id || null,
-          quantite || null,
-          quantite_min || null,
-          quantite_max || null,
-          unite || null,
-          prix_ref || 0,
-          username,
-          motif || null,
-          statutInitial,
-          ordonneePar,
-        ]
-      );
+      let result;
+
+      // superadmin ordonne → statut 'approuvé' directement
+      if (isSuperAdmin && ordonne) {
+        result = await pool.query(
+          `INSERT INTO transferts
+             (lot_id, magasin_depart, magasin_destination,
+              chauffeur_id, quantite, quantite_min, quantite_max,
+              unite, prix_ref, utilisateur, motif,
+              statut, ordonne_par, approuve_par, date_approbation)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,
+                   'approuvé',$10,$10,NOW())
+           RETURNING id`,
+          [
+            lot_id, magasin_depart, magasin_destination,
+            chauffeur_id || null,
+            quantite, quantite_min || null, quantite_max || null,
+            unite || null, prix_ref || 0,
+            username, motif || null,
+          ]
+        );
+      } else {
+        // stock ou admin → statut 'proposé'
+        result = await pool.query(
+          `INSERT INTO transferts
+             (lot_id, magasin_depart, magasin_destination, magasin_demandeur_id,
+              chauffeur_id, quantite, quantite_min, quantite_max,
+              unite, prix_ref, utilisateur, motif, statut)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'proposé')
+           RETURNING id`,
+          [
+            lot_id,
+            magasin_depart || null,
+            magasin_destination,
+            isStock ? userMagasin : null,
+            chauffeur_id || null,
+            quantite || null,
+            quantite_min || null,
+            quantite_max || null,
+            unite || null,
+            prix_ref || 0,
+            username,
+            motif || null,
+          ]
+        );
+      }
 
       const newId = result.rows[0].id;
 
-      // Notifier superadmin + auditeur si proposé par stock
-      if (statutInitial === 'proposé') {
+      // Notifier superadmin + auditeur si proposé
+      if (!ordonne) {
         const destinataires = await pool.query(
           `SELECT id FROM users WHERE role IN ('superadmin', 'auditeur') AND statut = 'actif'`
         );
@@ -159,8 +220,8 @@ module.exports = withCors(requireAuth(async (req, res) => {
         }
       }
 
-      // Si ordonné : notifier admin(s) du magasin source
-      if (statutInitial === 'approuvé' && magasin_depart) {
+      // Si ordonné → notifier admins du magasin source
+      if (isSuperAdmin && ordonne && magasin_depart) {
         const admins = await pool.query(
           `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif'`,
           [magasin_depart]
@@ -179,7 +240,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
       }
 
       return res.status(201).json({
-        message: statutInitial === 'approuvé'
+        message: (isSuperAdmin && ordonne)
           ? 'Transfert ordonné avec succès'
           : 'Demande soumise — superadmin et auditeur notifiés',
         transfert_id: newId,
@@ -206,7 +267,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // ── approuver : superadmin désigne la source + approuve ───────────────
+      // ── approuver : superadmin désigne source si absente ─────────────────
       if (action === 'approuver') {
         if (!isSuperAdmin) {
           return res.status(403).json({ error: 'Superadmin requis pour approuver' });
@@ -214,7 +275,6 @@ module.exports = withCors(requireAuth(async (req, res) => {
         if (t.statut !== 'proposé') {
           return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
         }
-        // Si magasin_depart était null (demande stock), sourceDésigné obligatoire
         if (!t.magasin_depart && !sourceDésigné) {
           return res.status(400).json({ error: 'Magasin source à désigner pour approuver' });
         }
@@ -231,7 +291,6 @@ module.exports = withCors(requireAuth(async (req, res) => {
           [sourceFinale, username, id]
         );
 
-        // Notifier admin(s) du magasin source
         const admins = await client.query(
           `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif'`,
           [sourceFinale]
@@ -249,19 +308,18 @@ module.exports = withCors(requireAuth(async (req, res) => {
         }
       }
 
-      // ── expedier : admin source — un clic ─────────────────────────────────
+      // ── expedier : admin source ───────────────────────────────────────────
       else if (action === 'expedier') {
         if (!isAdmin && !isSuperAdmin) {
           return res.status(403).json({ error: 'Admin requis pour expédier' });
         }
         if (!isSuperAdmin && t.magasin_depart !== userMagasin) {
-          return res.status(403).json({ error: 'Vous n\'êtes pas l\'admin du magasin source' });
+          return res.status(403).json({ error: "Vous n'êtes pas l'admin du magasin source" });
         }
         if (t.statut !== 'approuvé') {
           return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
         }
 
-        // Vérifier chauffeur si fourni
         if (chauffeur_id) {
           const chauf = await client.query(
             `SELECT magasin_id FROM employers WHERE id = $1`, [chauffeur_id]
@@ -274,7 +332,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
           }
         }
 
-        // Déduire le stock du magasin source
+        // Déduire stock source
         await client.query(
           `UPDATE virtual_revenues vr
            SET quantite_restante = GREATEST(0, quantite_restante - $1),
@@ -295,7 +353,6 @@ module.exports = withCors(requireAuth(async (req, res) => {
           [chauffeur_id || null, id]
         );
 
-        // Notifier admin destination
         const adminDest = await client.query(
           `SELECT id FROM users WHERE magasin_id = $1 AND role = 'admin' AND statut = 'actif'`,
           [t.magasin_destination]
@@ -307,7 +364,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
             [
               adm.id,
               `🚚 Transfert en route — #${id}`,
-              `Le transfert #${id} (${t.quantite} ${t.unite}, Lot #${t.lot_id}) est en transit vers votre magasin.\nConfirmez la réception à l'arrivée.`,
+              `Le transfert #${id} (${t.quantite} ${t.unite}, Lot #${t.lot_id}) est en transit.\nConfirmez la réception à l'arrivée.`,
             ]
           );
         }
@@ -319,7 +376,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
           return res.status(403).json({ error: 'Admin requis pour confirmer la réception' });
         }
         if (!isSuperAdmin && t.magasin_destination !== userMagasin) {
-          return res.status(403).json({ error: 'Vous n\'êtes pas l\'admin du magasin destination' });
+          return res.status(403).json({ error: "Vous n'êtes pas l'admin du magasin destination" });
         }
         if (t.statut !== 'en_transit') {
           return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
@@ -335,7 +392,6 @@ module.exports = withCors(requireAuth(async (req, res) => {
           [username, id]
         );
 
-        // Notifier superadmin
         const superAdmins = await client.query(
           `SELECT id FROM users WHERE role = 'superadmin' AND statut = 'actif'`
         );
@@ -352,7 +408,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
         }
       }
 
-      // ── valider : superadmin — enregistrement définitif ───────────────────
+      // ── valider : superadmin ──────────────────────────────────────────────
       else if (action === 'valider') {
         if (!isSuperAdmin) {
           return res.status(403).json({ error: 'Superadmin requis pour la validation finale' });
@@ -361,7 +417,6 @@ module.exports = withCors(requireAuth(async (req, res) => {
           return res.status(400).json({ error: `Statut actuel : ${t.statut}` });
         }
 
-        // Créditer le stock du magasin destination
         const admResult = await client.query(
           `INSERT INTO admissions
              (lot_id, magasin_id, quantite, unite, prix_ref, utilisateur, source)
@@ -413,7 +468,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
           return res.status(400).json({ error: `Statut : ${t.statut} — ne peut pas être rejeté` });
         }
 
-        // Si en_transit → restaurer le stock source
+        // Si en_transit → restaurer stock source
         if (t.statut === 'en_transit') {
           const admRestaure = await client.query(
             `INSERT INTO admissions
