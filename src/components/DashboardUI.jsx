@@ -1,6 +1,7 @@
 /* Chemin d'accès : src/components/DashboardUI.jsx */
 
 import React from 'react';
+import { useAuth } from '../hooks/useAuth';
 
 // Composant utilitaire pour gérer l'affichage ou le chargement (Skeleton)
 const RenderValue = ({ value, suffix = "" }) => {
@@ -145,7 +146,9 @@ export function HomeScreen({ user, data, onNavigate, reload }) {
     if (h < 18) return 'Bon après-midi';
     return 'Bonsoir';
   };
-
+ 
+const [menuOpen, setMenuOpen] = useState(false);
+const { logout } = useAuth();
   return (
     <div style={{ padding:'0 16px' }}>
       {/* Header */}
