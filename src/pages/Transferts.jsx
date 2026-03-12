@@ -684,7 +684,7 @@ document.body.style.overflow = '';
                   </div>
 
                   {isOpen && (
-                    <div style={{ color: blue, borderTop: '1px solid var(--color-border)', padding: 14 }}>
+                    <div style={{ color: 'blue', borderTop: '1px solid var(--color-border)', padding: 14 }}>
                       <div className="form-grid" style={{ gap: 8, marginBottom: 12 }}>
                         {[
                           ['Source',       srcNom],
