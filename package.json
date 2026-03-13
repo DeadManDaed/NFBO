@@ -3,12 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server:watch\"",
     "dev:client": "vite",
     "dev:server": "cd server && npm run dev",
+    "dev:server:watch": "cd server && nodemon --watch . --ext js,ts --exec \"node server.js\"",
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server/server.js",
+    "vercel-build": "npm run build",
     "cap:init": "cap init",
     "cap:add:android": "cap add android",
     "cap:add:ios": "cap add ios",
@@ -36,8 +38,12 @@
     "@capacitor/network": "^5.0.7",
     "@capacitor/camera": "^5.0.9",
     "@capacitor/filesystem": "^5.2.1",
-"@supabase/supabase-js": "^2.49.1",
-"qrcode": "^1.5.3"
+    "@supabase/supabase-js": "^2.49.1",
+    "qrcode": "^1.5.3",
+    "ioredis": "^5.3.2",
+    "cookie": "^0.5.0",
+    "uuid": "^9.0.0",
+    "dotenv": "^16.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
@@ -46,6 +52,7 @@
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
     "concurrently": "^8.2.2",
-    "@capacitor/cli": "^5.6.0"
+    "@capacitor/cli": "^5.6.0",
+    "nodemon": "^3.0.1"
   }
 }
