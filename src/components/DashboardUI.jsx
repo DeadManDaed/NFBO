@@ -154,7 +154,7 @@ const nomRef = useRef(null);
 const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
 
   return (
-    <div style={{ padding:'0 16px' }}>
+    <div style={{ padding:'0 16px', position: 'relative' }}>
       {/* Header */}
       <div className="fade-up" style={{ padding:'20px 0 24px' }}>
   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
@@ -244,7 +244,7 @@ const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   </div>
 </div>
       {/* Hero Card - Valeur Stock */}
-      <div className="fade-up stagger-1" style={{ background:'linear-gradient(135deg,#14532d 0%,#166534 50%,#15803d 100%)', borderRadius:24, padding:'22px 20px', marginBottom:20, position:'relative' }} onClick={() => onNavigate('audit')}>
+      <div className="fade-up stagger-1" style={{ background:'linear-gradient(135deg,#14532d 0%,#166534 50%,#15803d 100%)', borderRadius:24, padding:'22px 20px', marginBottom:20, position:'relative', zIndex:0 }} onClick={() => onNavigate('audit')}>
         <p style={{ fontSize:11, fontWeight:600, color:'rgba(255,255,255,.65)', textTransform:'uppercase', letterSpacing:'.8px', marginBottom:8 }}>Valeur totale du stock</p>
         <p style={{ fontSize:30, fontWeight:800, color:'#fff', lineHeight:1, marginBottom:12 }}>
           <RenderValue value={data.valeurStock} suffix="FCFA" />
