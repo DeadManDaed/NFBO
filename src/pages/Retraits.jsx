@@ -180,6 +180,26 @@ useEffect(() => {
             </p>
           )}
         </div>
+{/* Magasin source — superadmin uniquement */}
+{user?.role === 'superadmin' && (
+  <div className="form-group">
+    <label className="form-label">Magasin source *</label>
+    <select
+      className="form-control"
+      required
+      value={formData.magasin_id}
+      onChange={set('magasin_id')}
+    >
+      <option value="">-- Sélectionner --</option>
+      {magasins
+        .filter(m => m.id !== 21)
+        .map(m => (
+          <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>
+        ))
+      }
+    </select>
+  </div>
+)}
 
         {/* Type */}
         <div className="form-group">
