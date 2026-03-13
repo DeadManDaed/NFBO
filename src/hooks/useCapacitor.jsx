@@ -55,9 +55,11 @@ export function useCapacitor() {
         });
 
         appStateListener = await App.addListener('appStateChange', ({ isActive }) => {
-          console.log('🔄 App state:', isActive ? 'active' : 'background');
-        });
-
+  if (!isActive) {
+    const { supabase } = require('../lib/supabase');
+    supabase.auth.signOut();
+  }
+});
         console.log('✅ Application native initialisée');
       } catch (error) {
         console.error('❌ Erreur initialisation native:', error);
