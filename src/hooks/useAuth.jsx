@@ -1,8 +1,4 @@
 // src/hooks/useAuth.jsx
-// Authentification via Supabase Auth.
-// Le token est géré automatiquement par le client Supabase.
-// Les données métier (role, magasin_id, nom) viennent de public.users via auth_id.
-
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -77,7 +73,7 @@ async function loadUserProfile(authId, retries = 3) {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const resolveProfile = useCallback(async (supabaseUser) => {
     if (!supabaseUser) {
@@ -97,49 +93,12 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let mounted = true;
-    let resolved = false;
-
-    const init = async () => {
-      const timeout = setTimeout(() => {
-        if (mounted && !resolved) {
-          resolved = true;
-          setUser(null);
-          setLoading(false);
-        }
-      }, 5000);
-
-      try {
-        let { data: { session } } = await supabase.auth.getSession();
-
-        if (!session?.user) {
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          session = refreshed?.session || null;
-        }
-
-        if (mounted && !resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          await resolveProfile(session?.user || null);
-        }
-      } catch (err) {
-        console.error('[auth/init] erreur:', err);
-        if (mounted && !resolved) {
-          resolved = true;
-          clearTimeout(timeout);
-          setUser(null);
-          setLoading(false);
-        }
-      }
-    };
-
-    init();
 
     // Déconnexion à la perte du focus
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         supabase.auth.signOut();
         setUser(null);
-        setLoading(false);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -148,24 +107,13 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         if (!mounted) return;
         if (event === 'INITIAL_SESSION') return;
-
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-
-        if (event === 'TOKEN_REFRESHED' && session?.user) return;
+        if (event === 'SIGNED_OUT') { setUser(null); return; }
+        if (event === 'TOKEN_REFRESHED') return;
 
         if (session?.user) {
-          if (event === 'SIGNED_IN') {
-            await new Promise(r => setTimeout(r, 500));
-          }
-          resolved = true;
           await resolveProfile(session.user);
         } else {
           setUser(null);
-          setLoading(false);
         }
       }
     );
@@ -190,17 +138,21 @@ export function AuthProvider({ children }) {
       email = data.email;
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw new Error(error.message || 'Identifiants incorrects');
+    setLoading(true);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setLoading(false);
+      throw new Error(error.message || 'Identifiants incorrects');
+    }
 
     const profile = await loadUserProfile(data.user.id);
-    if (!profile) throw new Error('Profil utilisateur introuvable ou inactif');
+    if (!profile) {
+      setLoading(false);
+      throw new Error('Profil utilisateur introuvable ou inactif');
+    }
 
     setUser(profile);
+    setLoading(false);
     return profile;
   };
 
