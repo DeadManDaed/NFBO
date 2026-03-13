@@ -84,7 +84,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
       const date_reception = new Date().toISOString();
       const username       = utilisateur || req.user.username;
       const montantTotal   = parseFloat(quantite) * parseFloat(prix_ref);
-
+console.log('[admissions] mode_paiement:', mode_paiement, '| source:', source, '| isAchatDirect:', isAchatDirect);
       const result = await pool.query(
         `INSERT INTO admissions (
           lot_id, producteur_id, quantite, unite, prix_ref,
