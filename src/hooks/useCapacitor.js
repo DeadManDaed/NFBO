@@ -41,13 +41,25 @@ export function useCapacitor() {
       });
 
       // Gérer le bouton retour Android
-      App.addListener('backButton', ({ canGoBack }) => {
-        if (!canGoBack) {
-          App.exitApp();
-        } else {
-          window.history.back();
-        }
-      });
+       // Sur une section secondaire → retourner au dashboard
+  if (path !== '/dashboard' && path !== '/') {
+    window.location.href = '/dashboard';
+    return;
+  }
+
+  // Sur le dashboard → demander confirmation avant quitter
+  if (window.__nfbo_back_confirm) {
+    // Deuxième appui → quitter
+    App.exitApp();
+  } else {
+    // Premier appui → afficher toast et armer le timer
+    window.__nfbo_back_confirm = true;
+    window.dispatchEvent(new CustomEvent('nfbo:back-toast', {
+      detail: { message: 'Appuyez encore pour quitter' }
+    }));
+    setTimeout(() => { window.__nfbo_back_confirm = false; }, 2000);
+  }
+});
 
       // Gérer le cycle de vie de l'app
       App.addListener('appStateChange', ({ isActive }) => {
