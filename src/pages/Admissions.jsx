@@ -394,27 +394,28 @@ const [showForm, setShowForm] = useState(false);
     setSubmitting(true);
 
     const payload = {
-      lot_id:          parseInt(formData.lot_id),
-      producteur_id:   parseInt(formData.producteur_id),
-      quantite:        parseFloat(formData.quantite),
-      unite:           formData.unite,
-      prix_ref:        parseFloat(formData.prix_ref),
-      coef_qualite:    gradeInfo.coef ?? 1.0,
-      grade_qualite:   gradeInfo.grade || null,
-      date_expiration: formData.date_expiration || null,
-      magasin_id:      parseInt(formData.magasin_id),
-      mode_paiement:   formData.mode_paiement || null,
-      utilisateur:     user?.username || 'system',
-    };
+  lot_id:          parseInt(formData.lot_id),
+  producteur_id:   formData.source === 'achat_direct' ? null : parseInt(formData.producteur_id),
+  quantite:        parseFloat(formData.quantite),
+  unite:           formData.unite,
+  prix_ref:        parseFloat(formData.prix_ref),
+  coef_qualite:    gradeInfo.coef ?? 1.0,
+  grade_qualite:   gradeInfo.grade || null,
+  date_expiration: formData.date_expiration || null,
+  magasin_id:      1,  // verrouillé
+  mode_paiement:   formData.source === 'achat_direct' ? 'especes' : formData.mode_paiement,
+  utilisateur:     user?.username || 'system',
+  source:          formData.source,
+};
 
     try {
       await api.createAdmission(payload);
       showAlert('✅ Admission validée avec succès !', 'success');
       setFormData({
-        lot_id: '', producteur_id: '', quantite: '', unite: '',
-        prix_ref: '', date_expiration: '',
-        magasin_id: magasinId || '', mode_paiement: 'solde',
-      });
+  lot_id: '', producteur_id: '', quantite: '', unite: '',
+  prix_ref: '', date_expiration: '',
+  magasin_id: 1, mode_paiement: 'especes', source: 'achat_direct',
+});
       setActiveLot(null);
       setGradeInfo({ grade: null, coef: 1.0 });
       loadData();
@@ -485,31 +486,40 @@ const [showForm, setShowForm] = useState(false);
               </div>
 
               <div className="form-group">
-                <label className="form-label">Producteur / Déposant *</label>
-                <select required value={formData.producteur_id} onChange={set('producteur_id')} className="form-control">
-                  <option value="">-- Sélectionner --</option>
-                  {producteurs
-                    .filter(p => p.type_producteur !== 'interne')
-                    .map(p => (
-                      <option key={p.id} value={p.id}>{p.nom_producteur}</option>
-                    ))
-                  }
-                </select>
-              </div>
+  <label className="form-label">Source *</label>
+  <select value={formData.source} onChange={set('source')} className="form-control">
+    <option value="achat_direct">🛒 Achat direct</option>
+    <option value="producteur">🧑‍🌾 Producteur / Déposant</option>
+  </select>
+</div>
+
+{formData.source === 'producteur' && (
+  <div className="form-group">
+    <label className="form-label">Producteur / Déposant *</label>
+    <select
+      required
+      value={formData.producteur_id}
+      onChange={set('producteur_id')}
+      className="form-control"
+    >
+      <option value="">-- Sélectionner --</option>
+      {producteurs
+        .filter(p => p.type_producteur !== 'interne')
+        .map(p => (
+          <option key={p.id} value={p.id}>{p.nom_producteur}</option>
+        ))
+      }
+    </select>
+  </div>
+)}
 
               {user?.role === 'superadmin' ? (
                 <div className="form-group">
-                  <label className="form-label">Magasin de stockage *</label>
-                  <select required value={formData.magasin_id} onChange={set('magasin_id')} className="form-control">
-                    <option value="">-- Sélectionner --</option>
-                    {magasins
-                      .filter(m => m.id !== 21)
-                      .map(m => (
-                        <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>
-                      ))
-                    }
-                  </select>
-                </div>
+  <label className="form-label">Magasin</label>
+  <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
+    {magasins.find(m => m.id === 1)?.nom || 'Magasin principal'}
+  </p>
+</div>
               ) : (
                 <div className="form-group">
                   <label className="form-label">Magasin</label>
@@ -550,14 +560,16 @@ const [showForm, setShowForm] = useState(false);
                   <label className="form-label">Expiration</label>
                   <input type="date" value={formData.date_expiration} onChange={set('date_expiration')} className="form-control" />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Paiement *</label>
-                  <select required value={formData.mode_paiement} onChange={set('mode_paiement')} className="form-control">
-                    <option value="solde">Crédit compte (5%)</option>
-                    <option value="mobile_money">Mobile Money (7%)</option>
-                    <option value="especes">Espèces</option>
-                  </select>
-                </div>
+                {formData.source !== 'achat_direct' && (
+  <div className="form-group">
+    <label className="form-label">Paiement *</label>
+    <select required value={formData.mode_paiement} onChange={set('mode_paiement')} className="form-control">
+      <option value="solde">Crédit compte (5%)</option>
+      <option value="mobile_money">Mobile Money (7%)</option>
+      <option value="especes">Espèces</option>
+    </select>
+  </div>
+)}
               </div>
 
               <FinancePreview
