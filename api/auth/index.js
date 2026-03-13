@@ -1,4 +1,4 @@
-// api/auth/index.js
+// api/_handlers/auth/index.js
 // Login/logout gérés par Supabase Auth côté frontend.
 // Ce fichier ne garde que /me pour compatibilité avec le code existant,
 // et /confirm pour la confirmation email via Supabase.
@@ -7,6 +7,32 @@ const { withCors }    = require('../_lib/cors');
 const { requireAuth } = require('../_lib/auth');
 
 module.exports = withCors(async (req, res) => {
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // DÉLÉGATION VERS HANDLERS OAuth (callback / refresh / logout)
+  // Si la requête correspond à /api/auth/callback, /api/auth/refresh ou /api/auth/logout,
+  // on délègue immédiatement au fichier dédié pour garder le code séparé.
+  // Ce bloc doit rester en tout début de fonction pour intercepter ces routes.
+  try {
+    const rawPath = (req.url || '').split('?')[0].replace(/\/$/, '');
+    // Note: on compare avec le chemin complet attendu par le dispatcher principal.
+    if (req.method === 'GET' && rawPath.startsWith('/api/auth/callback')) {
+      return require('./callback')(req, res);
+    }
+    if (req.method === 'POST' && rawPath === '/api/auth/refresh') {
+      return require('./refresh')(req, res);
+    }
+    if (req.method === 'POST' && rawPath === '/api/auth/logout') {
+      return require('./logout')(req, res);
+    }
+  } catch (e) {
+    // Si require échoue (fichier manquant, erreur de syntaxe), on log et on continue
+    // pour laisser la logique existante répondre (utile en déploiement progressif).
+    console.error('Delegation OAuth error:', e && e.stack ? e.stack : e);
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
+
   const url    = req.url?.split('?')[0].replace(/\/$/, '');
   const action = url.split('/').pop();
 
@@ -39,185 +65,186 @@ module.exports = withCors(async (req, res) => {
       return res.status(200).json(req.user);
     })(req, res);
   }
-/*********************************************
-            GESTION DE L'INSCRIPTION 
-    *********************************************/
+  /*********************************************
+              GESTION DE L'INSCRIPTION 
+      *********************************************/
 
-// ─── LISTE DEMANDES (superadmin) ─────────────────────────────────────────
-if (action === 'demandes' && req.method === 'GET') {
-  return requireAuth(async (req, res) => {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Superadmin requis' });
-    }
-    const pool = require('../_lib/db');
-    const result = await pool.query(
-      `SELECT id, username, prenom, nom, telephone, email, message, statut, created_at
-       FROM demandes_inscription
-       ORDER BY created_at DESC`
-    );
-    return res.json(result.rows);
-  })(req, res);
-}
+  // ─── LISTE DEMANDES (superadmin) ─────────────────────────────────────────
+  if (action === 'demandes' && req.method === 'GET') {
+    return requireAuth(async (req, res) => {
+      if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: 'Superadmin requis' });
+      }
+      const pool = require('../_lib/db');
+      const result = await pool.query(
+        `SELECT id, username, prenom, nom, telephone, email, message, statut, created_at
+         FROM demandes_inscription
+         ORDER BY created_at DESC`
+      );
+      return res.json(result.rows);
+    })(req, res);
+  }
+
   // ─── SIGNUP REQUEST ──────────────────────────────────────────────────────────
-if (action === 'register' && req.method === 'POST') {
-  const { username, password, prenom, nom, telephone, email, message } = req.body;
+  if (action === 'register' && req.method === 'POST') {
+    const { username, password, prenom, nom, telephone, email, message } = req.body;
 
-  if (!username || !password || !prenom || !nom || !telephone) {
-    return res.status(400).json({ message: 'Champs obligatoires manquants' });
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ message: 'Mot de passe trop court (min. 6 caractères)' });
-  }
-
-  const pool = require('../_lib/db');
-  try {
-    // Vérifier unicité username
-    const exists = await pool.query(
-  `SELECT 1 FROM demandes_inscription WHERE username = $1
-   UNION ALL
-   SELECT 1 FROM users WHERE username = $1`,
-  [username]
-);
-    if (exists.rows.length > 0) {
-      return res.status(409).json({ message: 'Ce nom d\'utilisateur est déjà utilisé' });
+    if (!username || !password || !prenom || !nom || !telephone) {
+      return res.status(400).json({ message: 'Champs obligatoires manquants' });
     }
-
-    // Stocker la demande (mot de passe hashé)
-    const crypto = require('crypto');
-    const passwordHash = crypto.createHmac('sha256', process.env.JWT_SECRET || 'nfbo_secret')
-      .update(password).digest('hex');
-
-    const result = await pool.query(
-      `INSERT INTO demandes_inscription
-         (username, prenom, nom, telephone, email, message, mot_de_passe_hash)
-       VALUES ($1,$2,$3,$4,$5,$6,$7)
-       RETURNING id`,
-      [username, prenom, nom, telephone, email || null, message || null, passwordHash]
-    );
-    const demandeId = result.rows[0].id;
-
-    // Notifier le(s) superadmin(s)
-    const admins = await pool.query(
-      `SELECT id FROM users WHERE role = 'superadmin' AND statut = 'actif'`
-    );
-    for (const admin of admins.rows) {
-      await pool.query(
-        `INSERT INTO messages
-           (destinataire_id, objet, contenu, topic, type_notification)
-         VALUES ($1,$2,$3,'inscription','info')`,
-        [
-          admin.id,
-          `📝 Nouvelle demande d'inscription — ${prenom} ${nom}`,
-          `L'utilisateur "${username}" (${prenom} ${nom}, tél: ${telephone}${email ? ', email: ' + email : ''}) souhaite rejoindre NFBO.\n\nMessage : ${message || '—'}\n\nDemande #${demandeId} — à traiter dans Administration.`,
-        ]
-      );
-    }
-
-    return res.status(201).json({
-      message: 'Demande envoyée ! Un administrateur examinera votre demande et vous contactera.',
-    });
-
-  } catch (err) {
-    console.error('Erreur signup-request:', err.message);
-    return res.status(500).json({ message: 'Erreur serveur', details: err.message });
-  }
-}
-
-// ─── APPROUVER UNE DEMANDE (superadmin seulement) ─────────────────────────
-if (action === 'approuver' && req.method === 'POST') {
-  return requireAuth(async (req, res) => {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Superadmin requis' });
-    }
-
-    const { demande_id, role, magasin_id } = req.body;
-    if (!demande_id || !role) {
-      return res.status(400).json({ message: 'demande_id et role requis' });
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Mot de passe trop court (min. 6 caractères)' });
     }
 
     const pool = require('../_lib/db');
-    const { createClient } = require('@supabase/supabase-js');
-
-    const supabaseAdmin = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-
     try {
-      // Charger la demande
-      const demandeRes = await pool.query(
-        'SELECT * FROM demandes_inscription WHERE id = $1 AND statut = $2',
-        [demande_id, 'en_attente']
+      // Vérifier unicité username
+      const exists = await pool.query(
+        `SELECT 1 FROM demandes_inscription WHERE username = $1
+         UNION ALL
+         SELECT 1 FROM users WHERE username = $1`,
+        [username]
       );
-      if (!demandeRes.rows[0]) {
-        return res.status(404).json({ message: 'Demande introuvable ou déjà traitée' });
-      }
-      const d = demandeRes.rows[0];
-
-      // Email Supabase — fictif si absent
-      const authEmail = d.email ||
-        `${d.username.toLowerCase().replace(/[^a-z0-9]/g, '')}@nfbo.local`;
-
-      // Créer dans Supabase Auth
-      const { data: authData, error: authError } =
-        await supabaseAdmin.auth.admin.createUser({
-          email:         authEmail,
-          password:      d.mot_de_passe_hash, // hash utilisé comme password temporaire
-          email_confirm: !d.email,
-          user_metadata: { username: d.username, prenom: d.prenom, nom: d.nom },
-        });
-
-      if (authError) throw authError;
-      const authId = authData.user.id;
-
-      // Insérer dans public.users
-      await pool.query(
-        `INSERT INTO users
-           (auth_id, username, prenom, nom, telephone, email, role, magasin_id, statut)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'actif')`,
-        [authId, d.username, d.prenom, d.nom,
-         d.telephone, d.email || null, role, magasin_id || null]
-      );
-
-      // Marquer la demande approuvée
-      await pool.query(
-        `UPDATE demandes_inscription SET statut = 'approuvée' WHERE id = $1`,
-        [demande_id]
-      );
-
-      // Envoyer email de confirmation si email réel
-      if (d.email) {
-        await supabaseAdmin.auth.admin.generateLink({
-          type:  'signup',
-          email: authEmail,
-        });
+      if (exists.rows.length > 0) {
+        return res.status(409).json({ message: 'Ce nom d\'utilisateur est déjà utilisé' });
       }
 
-      return res.json({ message: `Compte de ${d.prenom} ${d.nom} créé avec succès.` });
+      // Stocker la demande (mot de passe hashé)
+      const crypto = require('crypto');
+      const passwordHash = crypto.createHmac('sha256', process.env.JWT_SECRET || 'nfbo_secret')
+        .update(password).digest('hex');
+
+      const result = await pool.query(
+        `INSERT INTO demandes_inscription
+           (username, prenom, nom, telephone, email, message, mot_de_passe_hash)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING id`,
+        [username, prenom, nom, telephone, email || null, message || null, passwordHash]
+      );
+      const demandeId = result.rows[0].id;
+
+      // Notifier le(s) superadmin(s)
+      const admins = await pool.query(
+        `SELECT id FROM users WHERE role = 'superadmin' AND statut = 'actif'`
+      );
+      for (const admin of admins.rows) {
+        await pool.query(
+          `INSERT INTO messages
+             (destinataire_id, objet, contenu, topic, type_notification)
+           VALUES ($1,$2,$3,'inscription','info')`,
+          [
+            admin.id,
+            `📝 Nouvelle demande d'inscription — ${prenom} ${nom}`,
+            `L'utilisateur "${username}" (${prenom} ${nom}, tél: ${telephone}${email ? ', email: ' + email : ''}) souhaite rejoindre NFBO.\n\nMessage : ${message || '—'}\n\nDemande #${demandeId} — à traiter dans Administration.`,
+          ]
+        );
+      }
+
+      return res.status(201).json({
+        message: 'Demande envoyée ! Un administrateur examinera votre demande et vous contactera.',
+      });
 
     } catch (err) {
-      console.error('Erreur approbation:', err.message);
-      return res.status(500).json({ message: 'Erreur lors de l\'approbation', details: err.message });
+      console.error('Erreur signup-request:', err.message);
+      return res.status(500).json({ message: 'Erreur serveur', details: err.message });
     }
-  })(req, res);
-}
+  }
 
-// ─── REJETER UNE DEMANDE ──────────────────────────────────────────────────
-if (action === 'rejeter' && req.method === 'POST') {
-  return requireAuth(async (req, res) => {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Superadmin requis' });
-    }
-    const { demande_id, motif } = req.body;
-    const pool = require('../_lib/db');
-    await pool.query(
-      `UPDATE demandes_inscription SET statut = 'rejetée' WHERE id = $1`,
-      [demande_id]
-    );
-    return res.json({ message: 'Demande rejetée.' });
-  })(req, res);
-}
+  // ─── APPROUVER UNE DEMANDE (superadmin seulement) ─────────────────────────
+  if (action === 'approuver' && req.method === 'POST') {
+    return requireAuth(async (req, res) => {
+      if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: 'Superadmin requis' });
+      }
+
+      const { demande_id, role, magasin_id } = req.body;
+      if (!demande_id || !role) {
+        return res.status(400).json({ message: 'demande_id et role requis' });
+      }
+
+      const pool = require('../_lib/db');
+      const { createClient } = require('@supabase/supabase-js');
+
+      const supabaseAdmin = createClient(
+        process.env.SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+      );
+
+      try {
+        // Charger la demande
+        const demandeRes = await pool.query(
+          'SELECT * FROM demandes_inscription WHERE id = $1 AND statut = $2',
+          [demande_id, 'en_attente']
+        );
+        if (!demandeRes.rows[0]) {
+          return res.status(404).json({ message: 'Demande introuvable ou déjà traitée' });
+        }
+        const d = demandeRes.rows[0];
+
+        // Email Supabase — fictif si absent
+        const authEmail = d.email ||
+          `${d.username.toLowerCase().replace(/[^a-z0-9]/g, '')}@nfbo.local`;
+
+        // Créer dans Supabase Auth
+        const { data: authData, error: authError } =
+          await supabaseAdmin.auth.admin.createUser({
+            email:         authEmail,
+            password:      d.mot_de_passe_hash, // hash utilisé comme password temporaire
+            email_confirm: !d.email,
+            user_metadata: { username: d.username, prenom: d.prenom, nom: d.nom },
+          });
+
+        if (authError) throw authError;
+        const authId = authData.user.id;
+
+        // Insérer dans public.users
+        await pool.query(
+          `INSERT INTO users
+             (auth_id, username, prenom, nom, telephone, email, role, magasin_id, statut)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'actif')`,
+          [authId, d.username, d.prenom, d.nom,
+           d.telephone, d.email || null, role, magasin_id || null]
+        );
+
+        // Marquer la demande approuvée
+        await pool.query(
+          `UPDATE demandes_inscription SET statut = 'approuvée' WHERE id = $1`,
+          [demande_id]
+        );
+
+        // Envoyer email de confirmation si email réel
+        if (d.email) {
+          await supabaseAdmin.auth.admin.generateLink({
+            type:  'signup',
+            email: authEmail,
+          });
+        }
+
+        return res.json({ message: `Compte de ${d.prenom} ${d.nom} créé avec succès.` });
+
+      } catch (err) {
+        console.error('Erreur approbation:', err.message);
+        return res.status(500).json({ message: 'Erreur lors de l\'approbation', details: err.message });
+      }
+    })(req, res);
+  }
+
+  // ─── REJETER UNE DEMANDE ──────────────────────────────────────────────────
+  if (action === 'rejeter' && req.method === 'POST') {
+    return requireAuth(async (req, res) => {
+      if (req.user.role !== 'superadmin') {
+        return res.status(403).json({ message: 'Superadmin requis' });
+      }
+      const { demande_id, motif } = req.body;
+      const pool = require('../_lib/db');
+      await pool.query(
+        `UPDATE demandes_inscription SET statut = 'rejetée' WHERE id = $1`,
+        [demande_id]
+      );
+      return res.json({ message: 'Demande rejetée.' });
+    })(req, res);
+  }
 
   // ─── CONFIRM ─────────────────────────────────────────────────────────────────
   // Supabase gère la confirmation email automatiquement.
