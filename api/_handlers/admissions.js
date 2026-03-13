@@ -31,56 +31,100 @@ if (req.method === 'GET') {
     return res.status(500).json({ error: err.message });
   }
 }
-  // POST /api/admissions
+  // api/_handlers/admissions.js — remplacer le bloc POST /api/admissions
+
 if (req.method === 'POST') {
-    if (!['superadmin', 'admin', 'stock'].includes(req.user.role)) {
-      return res.status(403).json({ message: 'Accès refusé' });
-    }
-    const {
-      lot_id, producteur_id, quantite, unite, prix_ref,
-      coef_qualite, date_expiration, magasin_id, mode_paiement, utilisateur
-    } = req.body;
+  if (!['superadmin', 'admin', 'stock'].includes(req.user.role)) {
+    return res.status(403).json({ message: 'Accès refusé' });
+  }
 
-    // Validation basique
-    if (!lot_id || !producteur_id || !quantite || !unite || !magasin_id) {
-      return res.status(400).json({ error: 'Champs obligatoires manquants' });
-    }
+  const {
+    lot_id, producteur_id, quantite, unite, prix_ref,
+    coef_qualite, date_expiration, magasin_id, mode_paiement,
+    utilisateur, source,
+  } = req.body;
 
-    try {
-      const date_reception = new Date().toISOString();
-      const result = await pool.query(
-        `INSERT INTO admissions (
-          lot_id, producteur_id, quantite, unite, prix_ref,
-          coef_qualite, date_reception, date_expiration,
-          magasin_id, mode_paiement, utilisateur
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-        [
-          parseInt(lot_id), parseInt(producteur_id), parseFloat(quantite),
-          unite, parseFloat(prix_ref), parseFloat(coef_qualite),
-          date_reception, date_expiration || null,
-          parseInt(magasin_id), mode_paiement, utilisateur || req.user.username
-        ]
+  const isAchatDirect = source === 'achat_direct';
+
+  // Validation
+  if (!lot_id || !quantite || !unite || !magasin_id) {
+    return res.status(400).json({ error: 'Champs obligatoires manquants' });
+  }
+  if (!isAchatDirect && !producteur_id) {
+    return res.status(400).json({ error: 'Producteur requis pour ce type d\'admission' });
+  }
+
+  try {
+    const date_reception = new Date().toISOString();
+    const username = utilisateur || req.user.username;
+    const montantTotal = parseFloat(quantite) * parseFloat(prix_ref);
+
+    // Insérer l'admission
+    const result = await pool.query(
+      `INSERT INTO admissions (
+        lot_id, producteur_id, quantite, unite, prix_ref,
+        coef_qualite, date_reception, date_expiration,
+        magasin_id, mode_paiement, utilisateur, source
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
+      [
+        parseInt(lot_id),
+        isAchatDirect ? null : parseInt(producteur_id),
+        parseFloat(quantite),
+        unite,
+        parseFloat(prix_ref),
+        parseFloat(coef_qualite || 1),
+        date_reception,
+        date_expiration || null,
+        parseInt(magasin_id),
+        isAchatDirect ? 'especes' : (mode_paiement || null),
+        username,
+        isAchatDirect ? 'achat_direct' : 'producteur',
+      ]
+    );
+
+    // Débit caisse magasin 1 si achat direct
+    if (isAchatDirect) {
+      // Récupérer la caisse du magasin 1
+      const caisseRes = await pool.query(
+        `SELECT id, solde FROM caisse WHERE magasin_id = 1 LIMIT 1`
       );
-      return res.status(201).json(result.rows[0]);
-    } catch (err) {
-      console.error('Erreur SQL Admission:', err.message);
-      return res.status(500).json({ error: 'Erreur SQL', details: err.message });
-    }
-  }
 
-  // DELETE /api/admissions?id=X
-  if (req.method === 'DELETE' && id) {
-    if (req.user.role !== 'superadmin') {
-      return res.status(403).json({ message: 'Suppression réservée au superadmin' });
+      if (caisseRes.rows.length > 0) {
+        const caisse = caisseRes.rows[0];
+        const nouveauSolde = parseFloat(caisse.solde) - montantTotal;
+
+        // Mettre à jour le solde
+        await pool.query(
+          `UPDATE caisse SET solde = $1 WHERE id = $2`,
+          [nouveauSolde, caisse.id]
+        );
+
+        // Enregistrer l'opération
+        await pool.query(
+          `INSERT INTO operations_caisse (
+            caisse_id, type_operation, montant, solde_apres,
+            description, utilisateur, lot_id, date_operation
+          ) VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())`,
+          [
+            caisse.id,
+            'achat_direct',
+            -montantTotal,
+            nouveauSolde,
+            `Achat direct — ${result.rows[0].id} — lot #${lot_id}`,
+            username,
+            parseInt(lot_id),
+          ]
+        );
+      }
     }
-    try {
-      const result = await pool.query('DELETE FROM admissions WHERE id=$1 RETURNING *', [id]);
-      if (result.rows.length === 0) return res.status(404).json({ error: 'Admission introuvable' });
-      return res.json({ message: 'Admission supprimée', admission: result.rows[0] });
-    } catch (err) {
-      return res.status(500).json({ error: 'Erreur lors de la suppression' });
-    }
+
+    return res.status(201).json(result.rows[0]);
+
+  } catch (err) {
+    console.error('Erreur SQL Admission:', err.message);
+    return res.status(500).json({ error: 'Erreur SQL', details: err.message });
   }
+}
 
   res.status(405).end();
 }));
