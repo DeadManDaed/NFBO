@@ -282,4 +282,34 @@ const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
       </SectionBlock>
     </div>
   );
+export function BackToast() {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const handler = () => {
+      setVisible(true);
+      setTimeout(() => setVisible(false), 2000);
+    };
+    window.addEventListener('nfbo:back-toast', handler);
+    return () => window.removeEventListener('nfbo:back-toast', handler);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 90, left: '50%',
+      transform: 'translateX(-50%)',
+      background: 'rgba(30,30,30,0.92)',
+      color: '#fff', borderRadius: 24,
+      padding: '10px 20px', fontSize: 13,
+      fontWeight: 600, zIndex: 9999,
+      boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+      pointerEvents: 'none',
+      whiteSpace: 'nowrap',
+    }}>
+      🚪 Appuyez encore pour quitter
+    </div>
+  );
+}
 }
