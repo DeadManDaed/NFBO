@@ -156,8 +156,8 @@ const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   return (
     <div style={{ padding:'0 16px', position: 'relative' }}>
       {/* Header */}
-      <div className="fade-up" style={{ padding:'20px 0 24px' }}>
-  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+      <div className="fade-up" style={{ padding:'20px 0 24px', position: 'relative', zIndex: 50 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
     <div>
       <p style={{ fontSize:12, fontWeight:500, color:'var(--muted)', marginBottom:4, textTransform:'uppercase', letterSpacing:'.8px' }}>{greeting()}</p>
 
