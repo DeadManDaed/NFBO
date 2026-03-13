@@ -15,6 +15,9 @@ import Audit from './pages/Audit';
 import Administration from './pages/Administration';
 import React from 'react';
 
+let lastBackPress = 0;
+
+
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
