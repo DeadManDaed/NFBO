@@ -409,6 +409,7 @@ const [showForm, setShowForm] = useState(false);
 };
 
     try {
+console.log('[admission] payload envoyé:', JSON.stringify(payload));
       await api.createAdmission(payload);
       showAlert('✅ Admission validée avec succès !', 'success');
       setFormData({
