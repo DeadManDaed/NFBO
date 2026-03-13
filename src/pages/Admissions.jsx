@@ -336,10 +336,10 @@ export default function Admissions({ onBack }) {
   const [submitting,  setSubmitting]  = useState(false);
 
   const [formData, setFormData] = useState({
-    lot_id: '', producteur_id: '', quantite: '', unite: '',
-    prix_ref: '', date_expiration: '',
-    magasin_id: magasinId || '', mode_paiement: 'solde',
-  });
+  lot_id: '', producteur_id: '', quantite: '', unite: '',
+  prix_ref: '', date_expiration: '',
+  magasin_id: 1, mode_paiement: 'especes', source: 'achat_direct',
+});
 const [showForm, setShowForm] = useState(false);
 
   const unitesDisponibles = activeLot
