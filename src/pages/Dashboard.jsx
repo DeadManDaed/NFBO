@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useStocks } from '../hooks/useStocks';
 import { useDashboardData } from '../hooks/useDashboardData';
-import { HomeScreen } from '../components/DashboardUI';
+import { HomeScreen, BackToast } from '../components/DashboardUI';
 import { TabBar } from '../components/TabBar';
 import ModuleView from '../components/ModuleView';
 import * as Icons from '../components/DashboardIcons';
@@ -29,6 +29,16 @@ export default function Dashboard() {
 
   const [activeTab, setActiveTab]         = useState('home');
   const [unreadMessages, setUnreadMessages] = useState(0);
+
+useEffect(() => {
+  const handler = () => {
+    if (activeTab !== 'home') {
+      setActiveTab('home');
+    }
+  };
+  window.addEventListener('nfbo:back-home', handler);
+  return () => window.removeEventListener('nfbo:back-home', handler);
+}, [activeTab]);
 
   const visibleTabs = TABS.filter(t =>
     t.roles.includes('all') || t.roles.includes(user?.role)
@@ -55,6 +65,7 @@ export default function Dashboard() {
         onSelect={setActiveTab}
         unreadMessages={unreadMessages}
       />
+    <BackToast />
     </div>
   );
 }
