@@ -21,6 +21,18 @@ function setSessionCookie(res, sessionId) {
   res.setHeader('Set-Cookie', cookie);
 }
 
+function clearSessionCookie(res) {
+  const cookie = serialize('session_id', '', {
+    httpOnly: true,
+    secure: COOKIE_SECURE,
+    sameSite: COOKIE_SAMESITE,
+    domain: COOKIE_DOMAIN || undefined,
+    path: '/',
+    maxAge: 0
+  });
+  res.setHeader('Set-Cookie', cookie);
+}
+
 module.exports = async function handleRefresh(req, res) {
   try {
     const cookies = parse(req.headers.cookie || '');
@@ -29,7 +41,8 @@ module.exports = async function handleRefresh(req, res) {
 
     const session = await getSession(sessionId);
     if (!session || !session.refresh_token) {
-      res.setHeader('Set-Cookie', `session_id=; HttpOnly; Max-Age=0; Path=/;`);
+      await deleteSession(sessionId);
+      clearSessionCookie(res);
       return res.status(401).json({ error: 'invalid_session' });
     }
 
@@ -50,7 +63,7 @@ module.exports = async function handleRefresh(req, res) {
     const tokens = await tokenResp.json();
     if (tokens.error) {
       await deleteSession(sessionId);
-      res.setHeader('Set-Cookie', `session_id=; HttpOnly; Max-Age=0; Path=/;`);
+      clearSessionCookie(res);
       return res.status(401).json(tokens);
     }
 
