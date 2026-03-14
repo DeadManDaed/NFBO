@@ -1,6 +1,22 @@
 // api/_handlers/auth/logout.js
-const { parse } = require('cookie');
+const { parse, serialize } = require('cookie');
 const { getSession, deleteSession } = require('./session');
+
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || '';
+const COOKIE_SECURE = (process.env.COOKIE_SECURE || 'true') === 'true';
+const COOKIE_SAMESITE = process.env.COOKIE_SAMESITE || 'Strict';
+
+function clearSessionCookie(res) {
+  const cookie = serialize('session_id', '', {
+    httpOnly: true,
+    secure: COOKIE_SECURE,
+    sameSite: COOKIE_SAMESITE,
+    domain: COOKIE_DOMAIN || undefined,
+    path: '/',
+    maxAge: 0
+  });
+  res.setHeader('Set-Cookie', cookie);
+}
 
 module.exports = async function handleLogout(req, res) {
   try {
@@ -14,7 +30,7 @@ module.exports = async function handleLogout(req, res) {
       }
       await deleteSession(sessionId);
     }
-    res.setHeader('Set-Cookie', `session_id=; HttpOnly; Max-Age=0; Path=/;`);
+    clearSessionCookie(res);
     res.statusCode = 204;
     res.end();
   } catch (err) {
