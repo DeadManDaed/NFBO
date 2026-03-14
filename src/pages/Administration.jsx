@@ -1011,24 +1011,70 @@ function PanneauDemandes({ onSuccess }) {
 }
 
 
-// ─── COMPOSANT PRINCIPAL ───────────────────────────────────────────────────────
+/ ─── COMPOSANT STATS (STYLE TABLEAU DE BORD) ──────────────────────────────────
+
+function StatsRow({ section, data, demandesCount }) {
+  const stats = {
+    magasins: [
+      { label: "Total Magasins", value: data.length, icon: "🏪", color: "var(--color-primary)" },
+      { label: "Régions couvertes", value: [...new Set(data.map(m => m.region_id))].length, icon: "🌍", color: "#6366f1" }
+    ],
+    users: [
+      { label: "Utilisateurs", value: data.length, icon: "👥", color: "#f59e0b" },
+      { label: "Actifs", value: data.filter(u => u.statut === 'actif').length, icon: "✅", color: "var(--color-success)" }
+    ],
+    producteurs: [
+      { label: "Total Producteurs", value: data.length, icon: "🌾", color: "#10b981" },
+      { label: "Solde Global", value: data.reduce((acc, p) => acc + parseFloat(p.solde || 0), 0).toLocaleString() + " F", icon: "💰", color: "#059669" }
+    ],
+    lots: [
+      { label: "Articles Référencés", value: data.length, icon: "📦", color: "#8b5cf6" },
+      { label: "Catégories", value: [...new Set(data.map(l => l.categorie))].length, icon: "🏷️", color: "#ec4899" }
+    ],
+    demandes: [
+      { label: "En attente", value: demandesCount, icon: "⏳", color: "#f59e0b" }
+    ]
+  };
+
+  const currentStats = stats[section] || [];
+  if (currentStats.length === 0) return null;
+
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginBottom: 24 }}>
+      {currentStats.map((s, i) => (
+        <div key={i} className="card" style={{ display: "flex", alignItems: "center", gap: 16, padding: "16px 20px", border: "none", boxShadow: "var(--shadow-sm)" }}>
+          <div style={{ fontSize: "2rem", background: `${s.color}15`, color: s.color, width: 50, height: 50, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {s.icon}
+          </div>
+          <div>
+            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>{s.label}</p>
+            <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--color-text)" }}>{s.value}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── COMPOSANT PRINCIPAL (VERSION HARMONISÉE) ────────────────────────────────
 
 export default function Administration() {
-  const [section,      setSection]      = useState("magasins");
-  const [data,         setData]         = useState([]);
+  const [section, setSection] = useState("magasins");
+  const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [status,       setStatus]       = useState("loading");
-  const [errorMsg,     setErrorMsg]     = useState("");
-  const [showForm,     setShowForm]     = useState(false);
-  const [drawerOpen,   setDrawerOpen]   = useState(false);
+  const [status, setStatus] = useState("loading");
+  const [errorMsg, setErrorMsg] = useState("");
+  const [showForm, setShowForm] = useState(false);
 
-  const openDrawer  = () => setDrawerOpen(true);
-  const closeDrawer = () => setDrawerOpen(false);
-
-  const handleNavClick = (sec) => {
-    loadSection(sec);
-    closeDrawer();
-  };
+  // Liste des sections organisées par groupes pour la clarté
+  const sections = [
+    { id: 'magasins',    label: 'Magasins',    icon: '🏪' },
+    { id: 'users',       label: 'Utilisateurs', icon: '👥' },
+    { id: 'producteurs', label: 'Producteurs',  icon: '🌾' },
+    { id: 'lots',        label: 'Produits/Lots', icon: '📦' },
+    { id: 'caisse',      label: 'Caisse',       icon: '💰' },
+    { id: 'demandes',    label: 'Demandes',     icon: '📝' },
+  ];
 
   const loadSection = useCallback(async (sec) => {
     setSection(sec);
@@ -1053,136 +1099,96 @@ export default function Administration() {
   useEffect(() => { loadSection("magasins"); }, [loadSection]);
 
   const handleDelete = async (sec, id) => {
-    if (!confirm("⚠️ Êtes-vous sûr de vouloir supprimer cet élément ?")) return;
+    if (!confirm("⚠️ Confirmer la suppression ?")) return;
     try { 
-await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
+      await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
       loadSection(sec);
     } catch (err) { alert("Erreur: " + err.message); }
   };
 
-  const needsAddBtn = !["validations", "caisse"].includes(section);
-  const FORMS = { magasins: FormMagasin, users: FormUser, employers: FormUser, producteurs: FormProducteur, lots: FormLot };
+  const FORMS = { magasins: FormMagasin, users: FormUser, producteurs: FormProducteur, lots: FormLot };
   const FormComponent = FORMS[section];
-  const navSections = ["magasins","users","employers","producteurs","lots","validations","caisse","demandes"];
 
   return (
-    <PageLayout title="Administration" icon="⚙️" subtitle="Configuration et gestion du système">
+    <PageLayout title="Administration" icon="⚙️" subtitle="Gestion globale du système NFBO">
+      
+      {/* ── SYSTÈME D'ONGLETS (Style Admissions/Caisse) ── */}
+      <div className="tabs-container" style={{ marginBottom: 24, overflowX: 'auto', display: 'flex', gap: 8, paddingBottom: 8 }}>
+        {sections.map(s => (
+          <button
+            key={s.id}
+            onClick={() => loadSection(s.id)}
+            className={`tab-btn ${section === s.id ? 'active' : ''}`}
+            style={{
+              padding: '10px 18px',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              background: section === s.id ? 'var(--color-primary)' : 'var(--color-surface)',
+              color: section === s.id ? 'white' : 'var(--color-text-muted)',
+              cursor: 'pointer',
+              fontWeight: 600,
+              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              boxShadow: 'var(--shadow-sm)'
+            }}
+          >
+            <span>{s.icon}</span> {s.label}
+          </button>
+        ))}
+      </div>
 
-      {/* ── OVERLAY (ferme le drawer en cliquant à côté) ── */}
-      {drawerOpen && (
-        <div
-          onClick={closeDrawer}
-          style={{
-            position: "fixed", inset: 0, zIndex: 40,
-            background: "rgba(0,0,0,0.45)",
-          }}
-        />
-      )}
-
-      {/* ── DRAWER SIDEBAR ── */}
-      <nav style={{
-        position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 50,
-        width: 260,
-        background: "var(--color-surface)",
-        boxShadow: "4px 0 20px rgba(0,0,0,0.3)",
-        transform: drawerOpen ? "translateX(0)" : "translateX(-100%)",
-        transition: "transform 0.28s cubic-bezier(0.4,0,0.2,1)",
-        display: "flex", flexDirection: "column",
-        padding: "60px 16px 24px",
-        overflowY: "auto",
-      }}>
-        {/* Bouton fermeture en haut du drawer */}
-        <button
-          onClick={closeDrawer}
-          style={{
-            position: "absolute", top: 16, right: 16,
-            background: "none", border: "none",
-            fontSize: 22, cursor: "pointer",
-            color: "var(--color-text)",
-          }}
-          aria-label="Fermer le menu"
-        >
-          ✕
-        </button>
-
-        <p style={{ fontSize: 11, color: "var(--color-primary)", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, marginBottom: 12 }}>
-          Configuration
-        </p>
-        <div className="sidebar-nav">
-          {navSections.map(s => (
-            <NavButton key={s} section={s} currentSection={section} onClick={handleNavClick} />
-          ))}
-        </div>
-      </nav>
-
-      {/* ── CONTENU PLEINE LARGEUR ── */}
       <div style={{ width: "100%", minWidth: 0 }}>
-
-        {/* Header de section : hamburger + titre + bouton Ajouter */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button
-              onClick={openDrawer}
-              style={{
-                background: "none", border: "none",
-                fontSize: 22, cursor: "pointer",
-                color: "var(--color-primary)",
-                padding: "4px 8px",
-                lineHeight: 1,
-              }}
-              aria-label="Ouvrir le menu"
-            >
-              ☰
-            </button>
-            <h2 style={{ margin: 0, fontSize: "1.2rem", color: "var(--color-text)" }}>
-              {SECTIONS_CONFIG[section]?.icon} {SECTIONS_CONFIG[section]?.label}
-            </h2>
-          </div>
-          {needsAddBtn && !showForm && (
+       
+        {/* AJOUT DES STATS ICI */}
+        {!showForm && status === "ready" && (
+            <StatsRow 
+                section={section} 
+                data={data} 
+                demandesCount={section === 'demandes' ? data.length : 0} 
+            />
+        )} 
+        {/* Header de la section active */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 700 }}>
+             {SECTIONS_CONFIG[section]?.label}
+          </h2>
+          {!["caisse", "demandes", "validations"].includes(section) && !showForm && (
             <button onClick={() => setShowForm(true)} className="btn btn-primary">
-              + Ajouter
+              + Ajouter {section.slice(0, -1)}
             </button>
           )}
         </div>
 
-          {/* Formulaire inline */}
-          {showForm && FormComponent && (
-            <div style={{ marginBottom: 20 }}>
-              <FormComponent
-                onCancel={() => setShowForm(false)}
-                onSuccess={() => { setShowForm(false); loadSection(section); }}
-              />
-            </div>
-          )}
-
-          {/* Contenu dynamique */}
-          {section === "caisse" ? (
-            <ModuleCaisse />
-          ) : section === "validations" ? (
-            <div className="card">
-              <h3 style={{ color: "var(--color-text-muted)", marginTop: 0 }}>🛡️ Approbations Locales en Attente</h3>
-              <div id="local-transfer-list" />
-            </div>
-         ) : section === "demandes" ? (
-  <PanneauDemandes onSuccess={msg => alert(msg)} />
-) : status === "loading" ? (
-            <StateLoading />
-          ) : status === "error" ? (
-            <StateError message={errorMsg} onRetry={() => loadSection(section)} />
-          ) : filteredData.length === 0 ? (
-            <>
-              {section === "producteurs" && <ProducteursFilter data={data} onFilter={setFilteredData} />}
-              <StateEmpty />
-            </>
-          ) : (
-            <>
-              {section === "producteurs" && <ProducteursFilter data={data} onFilter={setFilteredData} />}
-              <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-                <AdminTable data={filteredData} section={section} onDelete={handleDelete} />
-              </div>
-            </>
-          )}
-        
+        {/* Affichage des Formulaires ou des Données */}
+        {showForm && FormComponent ? (
+          <div className="animate-fade-in">
+            <FormComponent
+              onCancel={() => setShowForm(false)}
+              onSuccess={() => { setShowForm(false); loadSection(section); }}
+            />
+          </div>
+        ) : (
+          <div className="animate-fade-in">
+            {section === "caisse" ? (
+              <ModuleCaisse />
+            ) : section === "demandes" ? (
+              <PanneauDemandes onSuccess={msg => alert(msg)} />
+            ) : status === "loading" ? (
+              <StateLoading />
+            ) : status === "error" ? (
+              <StateError message={errorMsg} onRetry={() => loadSection(section)} />
+            ) : (
+              <>
+                {section === "producteurs" && <ProducteursFilter data={data} onFilter={setFilteredData} />}
+                <div className="card" style={{ padding: 0, overflow: "hidden", border: '1px solid var(--color-border)' }}>
+                  <AdminTable data={filteredData} section={section} onDelete={handleDelete} />
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </PageLayout>
   );
