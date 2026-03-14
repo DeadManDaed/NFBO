@@ -1,17 +1,35 @@
-//src/components/DashboardLayout.jsx
-
-
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useCapacitorContext } from './CapacitorProvider';
 
 export default function DashboardLayout() {
-  const { user, logout, isSuperAdmin } = useAuth();
+  const { user, logout } = useAuth();
   const { isNative, platform } = useCapacitorContext();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Fermé par défaut sur mobile
+
+  // 🧠 Système de mémoire du scroll
+  const scrollPositions = useRef({});
+
+  useEffect(() => {
+    const currentPath = location.pathname;
+
+    // 1. Appliquer la position sauvegardée (ou 0 si première visite)
+    const savedPosition = scrollPositions.current[currentPath] || 0;
+    
+    // Petit timeout pour laisser à React le temps de rendre le contenu
+    const timer = setTimeout(() => {
+      window.scrollTo({ top: savedPosition, behavior: 'instant' });
+    }, 10);
+
+    // 2. Nettoyage : Avant de changer de route, on sauvegarde la position actuelle
+    return () => {
+      scrollPositions.current[currentPath] = window.scrollY;
+      clearTimeout(timer);
+    };
+  }, [location.pathname]);
 
   const handleLogout = async () => {
     if (confirm('Voulez-vous vraiment vous déconnecter ?')) {
@@ -37,95 +55,71 @@ export default function DashboardLayout() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary via-purple-500 to-secondary">
+    <div className="min-h-screen bg-gray-900"> {/* Fond sombre pour éviter les flashs blancs */}
       {/* Header */}
-      <div className="bg-white shadow-lg">
-        <div className="flex items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-4">
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white shadow-md">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 hover:bg-gray-100 rounded-lg lg:hidden"
             >
-              <span className="text-2xl">{sidebarOpen ? '✖' : '☰'}</span>
+              <span className="text-2xl">{sidebarOpen ? '✕' : '☰'}</span>
             </button>
-            <div className="flex items-center gap-3">
-              <div className="text-4xl">📦</div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">NFBO</h1>
-                <p className="text-sm text-gray-600">
-                  {user?.nom || user?.username}
-                  {isNative && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">{platform}</span>}
-                </p>
-              </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">🌿</span>
+              <h1 className="text-lg font-extrabold text-gray-800 tracking-tight">NFBO</h1>
             </div>
           </div>
-
           <button
             onClick={handleLogout}
-            className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all"
+            className="text-xs font-bold text-red-500 border border-red-200 px-3 py-1.5 rounded-full hover:bg-red-50 transition-colors"
           >
             Déconnexion
           </button>
         </div>
-      </div>
+      </header>
 
-      <div className="flex">
+      <div className="flex pt-[60px]"> {/* Padding top pour compenser le header fixe */}
         {/* Sidebar */}
         <aside
           className={`${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-64 bg-white shadow-xl transition-transform duration-300 mt-[73px] lg:mt-0`}
+          } lg:translate-x-0 fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-100 transition-transform duration-300 ease-in-out pt-[60px] lg:pt-0`}
         >
-          <nav className="p-4 space-y-2">
+          <nav className="p-4 space-y-1.5">
             {filteredMenuItems.map(item => {
               const isActive = location.pathname === item.path;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
-                  onClick={() => window.innerWidth < 1024 && setSidebarOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  onClick={() => setSidebarOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                     isActive
-                      ? 'bg-gradient-to-r from-primary to-secondary text-white shadow-lg'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-green-600 text-white shadow-md'
+                      : 'text-gray-600 hover:bg-gray-50'
                   }`}
                 >
-                  <span className="text-2xl">{item.icon}</span>
-                  <span className="font-medium">{item.label}</span>
+                  <span className="text-xl">{item.icon}</span>
+                  <span className="font-semibold text-sm">{item.label}</span>
                 </Link>
               );
             })}
           </nav>
-
-          {/* User info */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gray-50 border-t">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center text-white font-bold">
-                {user?.nom?.[0] || user?.username?.[0] || 'U'}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-800 truncate">{user?.nom || user?.username}</p>
-                <p className="text-sm text-gray-600 truncate">
-                  {user?.role === 'superadmin' ? 'Super Admin' :
-                   user?.role === 'admin' ? 'Administrateur' :
-                   user?.role || 'Utilisateur'}
-                </p>
-              </div>
-            </div>
-          </div>
         </aside>
 
-        {/* Overlay pour mobile */}
+        {/* Overlay Mobile */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-30 lg:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
 
-        {/* Main content */}
-        <main className="flex-1 p-6">
-          <div className="max-w-7xl mx-auto">
+        {/* Main Content */}
+        <main className="flex-1 w-full lg:pl-64 min-h-[calc(100vh-60px)] bg-gray-50">
+          <div className="p-4 md:p-6 max-w-5xl mx-auto">
             <Outlet />
           </div>
         </main>
