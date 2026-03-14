@@ -1,43 +1,26 @@
 // src/pages/Retraits.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../hooks/useAlert';
 import { useStocks } from '../hooks/useStocks';
 import api from '../services/api';
 import Alert from '../components/Alert';
-import PageLayout, { StateEmpty } from '../components/PageLayout';
-import Modal from '../components/Modal';
+import PageLayout, { StateLoading, StateEmpty } from '../components/PageLayout';
 
-// Couleur de badge selon le type de retrait
-const typeClass = {
-  vente:      'badge badge-success',
-  producteur: 'badge badge-info',
-  magasin:    'badge badge-warning',
-  destruction:'badge badge-danger',
-};
-
-export default function Retraits() {
-  const { user, magasinId }             = useAuth();
-  const { alert, showAlert, hideAlert } = useAlert();
-  const { stocks, refresh: refreshStocks } = useStocks(magasinId);
-
-  const [retraits,          setRetraits]          = useState([]);
-  const [producteurs,       setProducteurs]       = useState([]);
-  const [magasins,          setMagasins]          = useState([]);
-  const [showForm,          setShowForm]          = useState(false);
-  const [unitesDisponibles, setUnitesDisponibles] = useState([]);
-
-  const [formData, setFormData] = useState({
-    lot_id:                     '',
-    type_retrait:               'vente',
-    quantite:                   '',
-    unite:                      '',
-    prix_ref:                   '',
-    destination_producteur_id:  '',
-    destination_magasin_id:     '',
-    motif:                      '',
-    magasin_id:                 magasinId || '',
-  });
+// ─── STYLES DU BOTTOM SHEET ────────────────────────────────────────────────────
+const BottomSheetStyles = () => (
+  <style>{`
+    .sheet-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); z-index: 99998; opacity: 0; visibility: hidden; transition: all 0.3s; }
+    .sheet-overlay.active { opacity: 1; visibility: visible; }
+    .bottom-sheet { position: fixed; bottom: 0; left: 0; right: 0; max-height: 80vh; background: var(--color-surface, #fff); border-radius: 24px 24px 0 0; z-index: 99999; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.1); display: flex; flex-direction: column; box-shadow: 0 -10px 40px rgba(0,0,0,0.3); }
+    .sheet-header { padding: 12px 20px; border-bottom: 1px solid var(--color-border, #eee); flex-shrink: 0; text-align: center; }
+    .sheet-handle { width: 40px; height: 5px; background: #ccc; border-radius: 3px; margin: 0 auto 12px; }
+    .sheet-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; }
+    .sheet-footer { position: absolute; bottom: 0; left: 0; right: 0; padding: 16px 20px; background: var(--color-surface); border-top: 1px solid var(--color-border); }
+    body.sheet-open { overflow: hidden !important; }
+  `}</style>
+);
 
 const MARGES_FRAICHEUR = {
   'tres_frais': 0.15,
@@ -46,408 +29,298 @@ const MARGES_FRAICHEUR = {
   'vieux':      0.07,
 };
 
-const [fraicheur,         setFraicheur]         = useState('frais');
-const [activeLot,         setActiveLot]         = useState(null);
-const [soldeProd,         setSoldeProd]         = useState(null);
-const [reglesPoints,      setReglesPoints]      = useState([]);
-const [soldeInsuffisant, setSoldeInsuffisant] = useState(null);
-const [showDepotModal, setShowDepotModal] = useState(false);
-const [montantDepot,   setMontantDepot]   = useState('');
-
-
-
-  useEffect(() => {
-    api.getRetraits().then(setRetraits).catch(console.error);
-    api.getProducteurs().then(setProducteurs).catch(console.error);
-    api.getMagasins().then(setMagasins).catch(console.error);
-  }, []);
-
-useEffect(() => {
-  if (!activeLot) return;
-  const marge = MARGES_FRAICHEUR[fraicheur] || 0.09;
-  const prixVente = Math.round(parseFloat(activeLot.prix_ref) * (1 + marge));
-  set('prix_ref')({ target: { value: prixVente } });
-}, [fraicheur, activeLot]);
-
-useEffect(() => {
-  if (formData.destination_producteur_id) {
-    api.request(`/producteurs?id=${formData.destination_producteur_id}`)
-      .then(p => setSoldeProd(parseFloat(p.solde) || 0))
-      .catch(() => setSoldeProd(null));
-  } else {
-    setSoldeProd(null);
-  }
-}, [formData.destination_producteur_id]);
-
-
-
-  const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
-
-  const handleLotChange = (lotId) => {
-  set('lot_id')({ target: { value: lotId } });
-  const stock = stocks.find(s => String(s.lot_id) === String(lotId));
-  setActiveLot(stock || null);
-  if (stock) {
-    const marge = MARGES_FRAICHEUR[fraicheur] || 0.09;
-    const prixVente = Math.round(parseFloat(stock.prix_ref) * (1 + marge));
-    set('prix_ref')({ target: { value: prixVente } });
-    set('unite')({ target: { value: Array.isArray(stock.unite) ? stock.unite[0] : stock.unite } });
-  }
+const TYPE_RETRAIT_LABELS = {
+  vente: { label: 'Vente client', icon: '🛒', color: 'var(--color-success)' },
+  producteur: { label: 'Retour producteur', icon: '👨‍🌾', color: 'var(--color-info)' },
+  destruction: { label: 'Destruction', icon: '🗑️', color: 'var(--color-danger)' },
 };
 
-  const handleTypeRetraitChange = (type) => {
-    setFormData(f => ({ ...f, type_retrait: type, destination_producteur_id: '', destination_magasin_id: '', motif: '' }));
+export default function Retraits() {
+  const { user, magasinId } = useAuth();
+  const { alert, showAlert, hideAlert } = useAlert();
+  const { stocks, refresh: refreshStocks } = useStocks(magasinId);
+
+  // Données
+  const [retraits, setRetraits] = useState([]);
+  const [producteurs, setProducteurs] = useState([]);
+  const [magasins, setMagasins] = useState([]);
+
+  // États UI Sheet
+  const [showSheet, setShowSheet] = useState(false);
+  const [sheetMode, setSheetMode] = useState('form'); // 'form', 'insuffisant', 'depot'
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  // État du formulaire
+  const [form, setForm] = useState({
+    lot_id: '', type_retrait: 'vente', quantite: '', unite: '',
+    prix_ref: '', destination_producteur_id: '', motif: '', fraicheur: 'frais',
+    montantDepot: ''
+  });
+  
+  const [activeLot, setActiveLot] = useState(null);
+  const [soldeProd, setSoldeProd] = useState(null);
+  const [errorDetails, setErrorDetails] = useState(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.getRetraits(),
+      api.getProducteurs(),
+      api.getMagasins()
+    ]).then(([r, p, m]) => {
+      setRetraits(r); setProducteurs(p); setMagasins(m);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  // Logique de prix auto selon fraîcheur
+  useEffect(() => {
+    if (!activeLot || form.type_retrait !== 'vente') return;
+    const marge = MARGES_FRAICHEUR[form.fraicheur] || 0.09;
+    const prixVente = Math.round(parseFloat(activeLot.prix_ref) * (1 + marge));
+    setForm(f => ({ ...f, prix_ref: prixVente }));
+  }, [form.fraicheur, activeLot, form.type_retrait]);
+
+  // Récupérer solde producteur au changement
+  useEffect(() => {
+    if (form.destination_producteur_id) {
+      api.request(`/producteurs?id=${form.destination_producteur_id}`)
+        .then(p => setSoldeProd(parseFloat(p.solde) || 0))
+        .catch(() => setSoldeProd(null));
+    }
+  }, [form.destination_producteur_id]);
+
+  const handleOpenSheet = (mode = 'form') => {
+    setSheetMode(mode);
+    setShowSheet(true);
+    if (mode === 'form') {
+       // Reset partiel
+       setForm(f => ({ ...f, lot_id: '', quantite: '', destination_producteur_id: '', motif: '' }));
+       setActiveLot(null);
+    }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const retrait = {
-      lot_id:       parseInt(formData.lot_id),
-      type_retrait: formData.type_retrait,
-      quantite:     parseFloat(formData.quantite),
-      unite:        formData.unite,
-      prix_ref:     parseFloat(formData.prix_ref),
-      magasin_id:   parseInt(formData.magasin_id),
-      utilisateur:  user?.username || 'unknown',
+  const handleLotChange = (lotId) => {
+    const stock = stocks.find(s => String(s.lot_id) === String(lotId));
+    setActiveLot(stock || null);
+    setForm(f => ({ 
+      ...f, 
+      lot_id: lotId, 
+      unite: stock ? (Array.isArray(stock.unite) ? stock.unite[0] : stock.unite) : '' 
+    }));
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    const payload = {
+      lot_id: parseInt(form.lot_id),
+      type_retrait: form.type_retrait,
+      quantite: parseFloat(form.quantite),
+      unite: form.unite,
+      prix_ref: parseFloat(form.prix_ref),
+      magasin_id: magasinId,
+      utilisateur: user?.username || 'unknown',
     };
-    if (formData.type_retrait === 'producteur' && formData.destination_producteur_id)
-      retrait.destination_producteur_id = parseInt(formData.destination_producteur_id);
-    
-    if (formData.type_retrait === 'destruction' && formData.motif)
-      retrait.motif = formData.motif;
+
+    if (form.type_retrait === 'producteur') payload.destination_producteur_id = parseInt(form.destination_producteur_id);
+    if (form.type_retrait === 'destruction') payload.motif = form.motif;
 
     try {
-      await api.createRetrait(retrait);
-      showAlert('✅ Retrait enregistré avec succès', 'success');
-      setFormData({ lot_id: '', type_retrait: 'vente', quantite: '', unite: '', prix_ref: '', destination_producteur_id: '', destination_magasin_id: '', motif: '', magasin_id: magasinId || '' });
-      setUnitesDisponibles([]);
-      setShowForm(false);
-      api.getRetraits().then(setRetraits).catch(console.error);
+      await api.createRetrait(payload);
+      showAlert('✅ Retrait enregistré', 'success');
+      setShowSheet(false);
+      api.getRetraits().then(setRetraits);
       refreshStocks();
     } catch (err) {
-  if (err.solde_disponible !== undefined) {
-    // Solde insuffisant → proposer options
-    setSoldeInsuffisant({
-      solde: err.solde_disponible,
-      requis: err.montant_requis,
-    });
-  } else {
-    showAlert(`❌ ${err.message}`, 'error');
-  }
-}
+      if (err.solde_disponible !== undefined) {
+        setErrorDetails({ solde: err.solde_disponible, requis: err.montant_requis });
+        setSheetMode('insuffisant');
+      } else {
+        showAlert(`❌ ${err.message}`, 'error');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDepotEspeces = async () => {
+    if (!form.montantDepot) return;
+    setSubmitting(true);
+    try {
+      await api.request(`/producteurs?id=${form.destination_producteur_id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ solde_increment: parseFloat(form.montantDepot) }),
+      });
+      showAlert('✅ Solde crédité', 'success');
+      setForm(f => ({ ...f, montantDepot: '' }));
+      setSheetMode('form'); // On revient au formulaire pour retenter la vente
+    } catch (err) {
+      showAlert(err.message, 'error');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
-    <PageLayout
-      title="Retraits de stock"
-      icon="📤"
-      subtitle="Ventes, retours et destructions"
-      actions={
-        <button
-          onClick={() => setShowForm(v => !v)}
-          className={showForm ? 'btn btn-ghost' : 'btn btn-primary'}
-        >
-          {showForm ? '✖ Annuler' : '➕ Nouveau retrait'}
-        </button>
-      }
+    <PageLayout 
+      title="Retraits" 
+      icon="📤" 
+      subtitle="Sorties de stock et ventes"
+      actions={<button onClick={() => handleOpenSheet('form')} className="btn btn-primary btn-sm">➕ Retrait</button>}
     >
+      <BottomSheetStyles />
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
 
-      {/* ── Formulaire ── */}
-      {showForm && (
-  <div className="card">
-    <div className="card-header">
-      <h3 className="card-title">Nouveau retrait</h3>
-    </div>
-
-    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div className="form-grid">
-
-        {/* Lot */}
-        <div className="form-group">
-          <label className="form-label">Lot à retirer *</label>
-          <select className="form-control" required value={formData.lot_id} onChange={e => handleLotChange(e.target.value)}>
-            <option value="">Sélectionner un lot</option>
-            {stocks.map(s => (
-              <option key={s.lot_id} value={s.lot_id}>
-                {s.description} — Stock: {s.stock_actuel} {Array.isArray(s.unite) ? s.unite[0] : s.unite}
-              </option>
-            ))}
-          </select>
-          {activeLot && (
-            <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-              Prix réf. : {Number(activeLot.prix_ref).toLocaleString('fr-FR')} FCFA · Catégorie : {activeLot.categorie}
-            </p>
-          )}
-        </div>
-{/* Magasin source — superadmin uniquement */}
-{user?.role === 'superadmin' && (
-  <div className="form-group">
-    <label className="form-label">Magasin source *</label>
-    <select
-      className="form-control"
-      required
-      value={formData.magasin_id}
-      onChange={set('magasin_id')}
-    >
-      <option value="">-- Sélectionner --</option>
-      {magasins
-        .filter(m => m.id !== 21)
-        .map(m => (
-          <option key={m.id} value={m.id}>{m.nom} ({m.code})</option>
-        ))
-      }
-    </select>
-  </div>
-)}
-
-        {/* Type */}
-        <div className="form-group">
-          <label className="form-label">Type de retrait *</label>
-          <select className="form-control" required value={formData.type_retrait} onChange={e => handleTypeRetraitChange(e.target.value)}>
-            <option value="vente">🛒 Vente client</option>
-            <option value="producteur">👨‍🌾 Retour producteur</option>
-            <option value="destruction">🗑️ Destruction</option>
-          </select>
-        </div>
-
-        {/* Fraîcheur — vente uniquement */}
-        {formData.type_retrait === 'vente' && (
-          <div className="form-group">
-            <label className="form-label">Fraîcheur du lot</label>
-            <select className="form-control" value={fraicheur} onChange={e => setFraicheur(e.target.value)}>
-              <option value="tres_frais">🌟 Très frais (+15%)</option>
-              <option value="frais">✅ Frais (+12%)</option>
-              <option value="normal">🔶 Normal (+9%)</option>
-              <option value="vieux">⚠️ Vieux (+7%)</option>
-            </select>
-          </div>
-        )}
-
-        {/* Quantité */}
-        <div className="form-group">
-          <label className="form-label">Quantité *</label>
-          <input className="form-control" type="number" required min="0" step="0.01"
-            value={formData.quantite} onChange={set('quantite')} />
-        </div>
-
-        {/* Unité */}
-        <div className="form-group">
-          <label className="form-label">Unité *</label>
-          <select className="form-control" required value={formData.unite} onChange={set('unite')} disabled={!unitesDisponibles.length}>
-            <option value="">Sélectionner</option>
-            {unitesDisponibles.map(u => <option key={u} value={u}>{u}</option>)}
-          </select>
-        </div>
-
-        {/* Prix unitaire */}
-        <div className="form-group">
-          <label className="form-label">Prix unitaire (FCFA) *</label>
-          <input className="form-control" type="number" required min="0" step="1"
-            value={formData.prix_ref} onChange={set('prix_ref')} />
-          {activeLot && formData.type_retrait === 'vente' && (
-            <p style={{ fontSize: 11, color: 'var(--color-success)', marginTop: 4 }}>
-              Marge : +{Math.round(MARGES_FRAICHEUR[fraicheur] * 100)}% sur {Number(activeLot.prix_ref).toLocaleString('fr-FR')} FCFA
-            </p>
-          )}
-        </div>
-
-        {/* Mode paiement — vente uniquement */}
-        {formData.type_retrait === 'vente' && (
-          <div className="form-group">
-            <label className="form-label">Mode de paiement *</label>
-            <select className="form-control" required value={formData.mode_paiement} onChange={set('mode_paiement')}>
-              <option value="">-- Sélectionner --</option>
-              <option value="especes">💵 Espèces</option>
-              <option value="mobile_money">📱 Mobile Money</option>
-            </select>
-          </div>
-        )}
-
-        {/* Producteur destinataire */}
-        {formData.type_retrait === 'producteur' && (
-          <div className="form-group">
-            <label className="form-label">Producteur destinataire *</label>
-            <select className="form-control" required value={formData.destination_producteur_id} onChange={set('destination_producteur_id')}>
-              <option value="">Sélectionner</option>
-              {producteurs.map(p => <option key={p.id} value={p.id}>{p.nom_producteur}</option>)}
-            </select>
-            {soldeProd !== null && (
-              <p style={{ fontSize: 12, marginTop: 4, color: soldeProd > 0 ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
-                Solde : {soldeProd.toLocaleString('fr-FR')} FCFA
-              </p>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Motif destruction */}
-      {formData.type_retrait === 'destruction' && (
-        <div className="form-group">
-          <label className="form-label">Motif de destruction *</label>
-          <textarea className="form-control" required rows={3}
-            value={formData.motif} onChange={set('motif')}
-            placeholder="Expliquez la raison de la destruction..." />
-        </div>
-      )}
-
-      {/* Récapitulatif valeur totale */}
-      {formData.quantite && formData.prix_ref && (
-        <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-md)', padding: '12px 16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Valeur totale</span>
-            <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-success)' }}>
-              {(parseFloat(formData.quantite) * parseFloat(formData.prix_ref)).toLocaleString('fr-FR')} FCFA
-            </span>
-          </div>
-          {activeLot && formData.type_retrait === 'vente' && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-              <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Points fidélité estimés</span>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-primary)' }}>
-                +{Math.floor((parseFloat(formData.quantite) * parseFloat(formData.prix_ref)) / 1000)} pts
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button type="submit" className="btn btn-primary btn-lg">
-          ✅ Enregistrer le retrait
-        </button>
-      </div>
-    </form>
-  </div>
-)}
-
-      {/* ── Historique ── */}
       <div className="card">
-        <div className="card-header">
-          <h3 className="card-title">Retraits récents</h3>
-          <span className="badge badge-neutral">{retraits.length} total</span>
-        </div>
-
-        {retraits.length === 0 ? (
-          <StateEmpty message="Aucun retrait enregistré." />
-        ) : (
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Lot</th>
-                  <th>Type</th>
-                  <th>Quantité</th>
-                  <th>Destination</th>
-                  <th>Utilisateur</th>
-                </tr>
-              </thead>
-              <tbody>
-                {retraits.slice(0, 15).map(r => (
-                  <tr key={r.id}>
-                    <td>{new Date(r.date_retrait || Date.now()).toLocaleDateString('fr-FR')}</td>
-                    <td style={{ fontWeight: 600 }}>{r.lot_description || '—'}</td>
-                    <td>
-                      <span className={typeClass[r.type_retrait] || 'badge badge-neutral'}>
-                        {r.type_retrait}
-                      </span>
-                    </td>
-                    <td>{r.quantite} {r.unite}</td>
-                    <td>
-                      {r.destination_producteur_id ? r.nom_producteur
-                        : r.destination_magasin_id ? 'Magasin'
-                        : r.type_retrait === 'destruction' ? (
-                          <span className="text-muted text-xs" title={r.motif}>
-                            {r.motif?.slice(0, 30)}{r.motif?.length > 30 ? '…' : ''}
-                          </span>
-                        ) : 'Client'}
-                    </td>
-                    <td className="text-muted">{r.utilisateur}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="card-header"><h3 className="card-title">Historique récent</h3></div>
+        {loading ? <StateLoading /> : retraits.length === 0 ? <StateEmpty /> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8 }}>
+            {retraits.slice(0, 20).map(r => (
+              <div key={r.id} style={{ background: 'var(--color-surface-alt)', padding: 12, borderRadius: 12, border: '1px solid var(--color-border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <span style={{ fontWeight: 700, fontSize: 13 }}>{r.lot_description}</span>
+                  <span style={{ fontWeight: 800, color: 'var(--color-text)' }}>{r.quantite} {r.unite}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                   <span style={{ fontSize: 10, background: 'var(--color-surface)', padding: '2px 6px', borderRadius: 4, color: 'var(--color-text-muted)' }}>
+                     {new Date(r.date_retrait).toLocaleDateString()} · {TYPE_RETRAIT_LABELS[r.type_retrait]?.label}
+                   </span>
+                   <span style={{ fontSize: 11, fontWeight: 600 }}>{r.utilisateur}</span>
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
-{/* Modal solde insuffisant */}
-{soldeInsuffisant && (
-  <Modal onClose={() => setSoldeInsuffisant(null)}>
-    <h3 style={{ margin: '0 0 16px', color: 'var(--color-danger)' }}>⚠️ Solde insuffisant</h3>
-    <div style={{ background: '#fef2f2', borderRadius: 'var(--radius-sm)', padding: '12px 16px', marginBottom: 16 }}>
-      <p style={{ margin: '0 0 6px', fontSize: 13 }}>
-        Solde disponible : <strong>{soldeInsuffisant.solde.toLocaleString('fr-FR')} FCFA</strong>
-      </p>
-      <p style={{ margin: 0, fontSize: 13 }}>
-        Montant requis : <strong>{soldeInsuffisant.requis.toLocaleString('fr-FR')} FCFA</strong>
-      </p>
-    </div>
-    <p style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 16 }}>
-      Que souhaitez-vous faire ?
-    </p>
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <button
-        className="btn btn-primary"
-        onClick={() => {
-          setSoldeInsuffisant(null);
-          setShowDepotModal(true);
-        }}
-      >
-        💵 Encaisser un dépôt espèces du producteur
-      </button>
-      <button
-        className="btn btn-ghost"
-        onClick={() => {
-          // Ajuster la quantité au maximum payable
-          const qteMax = Math.floor(soldeInsuffisant.solde / parseFloat(formData.prix_ref));
-          set('quantite')({ target: { value: qteMax } });
-          setSoldeInsuffisant(null);
-        }}
-      >
-        ✂️ Ajuster la quantité ({Math.floor(soldeInsuffisant.solde / parseFloat(formData.prix_ref) * 100) / 100} {formData.unite})
-      </button>
-      <button className="btn btn-ghost" style={{ color: 'var(--color-danger)' }} onClick={() => setSoldeInsuffisant(null)}>
-        ✕ Annuler l'opération
-      </button>
-    </div>
-  </Modal>
-)}
 
-{showDepotModal && (
-  <Modal onClose={() => setShowDepotModal(false)}>
-    <h3 style={{ margin: '0 0 16px' }}>💵 Dépôt espèces producteur</h3>
-    <div className="form-group">
-      <label className="form-label">Montant déposé (FCFA) *</label>
-      <input className="form-control" type="number" min="1" step="1"
-        value={montantDepot} onChange={e => setMontantDepot(e.target.value)} autoFocus />
-    </div>
-    <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-      <button
-        className="btn btn-primary"
-        style={{ flex: 1 }}
-        onClick={async () => {
-          if (!montantDepot || parseFloat(montantDepot) <= 0) return;
-          try {
-            // Créditer le solde producteur
-            await api.request(`/producteurs?id=${formData.destination_producteur_id}`, {
-              method: 'PATCH',
-              body: JSON.stringify({ solde_increment: parseFloat(montantDepot) }),
-            });
-            setSoldeProd(prev => (prev || 0) + parseFloat(montantDepot));
-            setShowDepotModal(false);
-            setMontantDepot('');
-            showAlert('✅ Solde crédité — relancez la vente', 'success');
-          } catch (err) {
-            showAlert(`❌ ${err.message}`, 'error');
-          }
-        }}
-      >
-        ✅ Confirmer le dépôt
-      </button>
-      <button className="btn btn-ghost" onClick={() => setShowDepotModal(false)}>Annuler</button>
-    </div>
-  </Modal>
-)}
+      {/* ── PORTAL BOTTOM SHEET ── */}
+      {typeof document !== 'undefined' && createPortal(
+        <>
+          <div className={`sheet-overlay ${showSheet ? 'active' : ''}`} onClick={() => setShowSheet(false)} />
+          <div className={`bottom-sheet ${showSheet ? 'active' : ''}`} style={{ transform: showSheet ? 'translateY(0)' : 'translateY(100%)' }}>
+            
+            <div className="sheet-header">
+              <div className="sheet-handle" />
+              <h3 style={{ margin: 0 }}>
+                {sheetMode === 'form' && 'Nouveau Retrait'}
+                {sheetMode === 'insuffisant' && '⚠️ Solde Insuffisant'}
+                {sheetMode === 'depot' && '💵 Dépôt Espèces'}
+              </h3>
+            </div>
+
+            <div className="sheet-content">
+              {sheetMode === 'form' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  <div className="form-group">
+                    <label className="form-label">Type de sortie</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {Object.entries(TYPE_RETRAIT_LABELS).map(([key, cfg]) => (
+                        <button key={key} onClick={() => setForm({...form, type_retrait: key})} 
+                          style={{ flex: 1, padding: '10px 4px', borderRadius: 8, border: '2px solid', fontSize: 11, fontWeight: 700,
+                            borderColor: form.type_retrait === key ? cfg.color : 'var(--color-border)',
+                            background: form.type_retrait === key ? cfg.color : 'transparent',
+                            color: form.type_retrait === key ? '#fff' : 'var(--color-text)' }}>
+                          {cfg.icon} <br/> {cfg.label.split(' ')[1] || cfg.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Lot disponible</label>
+                    <select className="form-control" value={form.lot_id} onChange={e => handleLotChange(e.target.value)}>
+                      <option value="">-- Choisir un lot --</option>
+                      {stocks.map(s => <option key={s.lot_id} value={s.lot_id}>{s.description} ({s.stock_actuel} {s.unite})</option>)}
+                    </select>
+                  </div>
+
+                  <div className="grid-2" style={{ gap: 12 }}>
+                    <div className="form-group">
+                      <label className="form-label">Quantité</label>
+                      <input type="number" className="form-control" value={form.quantite} onChange={e => setForm({...form, quantite: e.target.value})} />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Prix Unitaire</label>
+                      <input type="number" className="form-control" value={form.prix_ref} onChange={e => setForm({...form, prix_ref: e.target.value})} />
+                    </div>
+                  </div>
+
+                  {form.type_retrait === 'vente' && (
+                    <div className="form-group">
+                      <label className="form-label">Niveau de fraîcheur</label>
+                      <select className="form-control" value={form.fraicheur} onChange={e => setForm({...form, fraicheur: e.target.value})}>
+                        <option value="tres_frais">🌟 Très frais (+15%)</option>
+                        <option value="frais">✅ Frais (+12%)</option>
+                        <option value="normal">🔶 Normal (+9%)</option>
+                        <option value="vieux">⚠️ Vieux (+7%)</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {form.type_retrait === 'producteur' && (
+                    <div className="form-group">
+                      <label className="form-label">Producteur destinataire</label>
+                      <select className="form-control" value={form.destination_producteur_id} onChange={e => setForm({...form, destination_producteur_id: e.target.value})}>
+                        <option value="">-- Choisir --</option>
+                        {producteurs.map(p => <option key={p.id} value={p.id}>{p.nom_producteur}</option>)}
+                      </select>
+                      {soldeProd !== null && <p style={{ fontSize: 11, marginTop: 4, color: soldeProd < 0 ? 'red' : 'green' }}>Solde : {soldeProd.toLocaleString()} FCFA</p>}
+                    </div>
+                  )}
+
+                  {form.quantite && form.prix_ref && (
+                    <div style={{ background: 'var(--color-primary-light)', padding: 12, borderRadius: 12, textAlign: 'center' }}>
+                      <p style={{ margin: 0, fontSize: 12, color: 'var(--color-primary)' }}>VALEUR TOTALE</p>
+                      <p style={{ margin: 0, fontSize: 20, fontWeight: 900 }}>{(form.quantite * form.prix_ref).toLocaleString()} FCFA</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {sheetMode === 'insuffisant' && errorDetails && (
+                <div style={{ textAlign: 'center' }}>
+                   <p>Le solde du producteur est insuffisant.</p>
+                   <div style={{ background: '#fef2f2', padding: 12, borderRadius: 12, marginBottom: 20 }}>
+                      <p style={{ margin: 0 }}>Disponible : <strong>{errorDetails.solde.toLocaleString()} FCFA</strong></p>
+                      <p style={{ margin: 0 }}>Requis : <strong style={{color:'red'}}>{errorDetails.requis.toLocaleString()} FCFA</strong></p>
+                   </div>
+                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <button className="btn btn-primary" onClick={() => setSheetMode('depot')}>💵 Encaisser un dépôt espèces</button>
+                      <button className="btn btn-ghost" style={{border:'1px solid #ccc'}} onClick={() => {
+                        const qteAjustee = Math.floor(errorDetails.solde / form.prix_ref);
+                        setForm({...form, quantite: qteAjustee});
+                        setSheetMode('form');
+                      }}>✂️ Ajuster la quantité au solde</button>
+                   </div>
+                </div>
+              )}
+
+              {sheetMode === 'depot' && (
+                <div className="form-group">
+                   <label className="form-label">Montant déposé par le producteur</label>
+                   <input type="number" className="form-control" value={form.montantDepot} onChange={e => setForm({...form, montantDepot: e.target.value})} autoFocus />
+                </div>
+              )}
+            </div>
+
+            <div className="sheet-footer">
+              {sheetMode === 'form' && (
+                <button onClick={handleSubmit} disabled={submitting || !form.lot_id} className="btn btn-primary btn-lg" style={{ width: '100%' }}>
+                  {submitting ? '⏳ ENREGISTREMENT...' : 'CONFIRMER LA SORTIE'}
+                </button>
+              )}
+              {sheetMode === 'depot' && (
+                <button onClick={handleDepotEspeces} disabled={submitting} className="btn btn-primary btn-lg" style={{ width: '100%' }}>
+                  VALIDER LE DÉPÔT
+                </button>
+              )}
+              {sheetMode === 'insuffisant' && (
+                <button onClick={() => setShowSheet(false)} className="btn btn-ghost" style={{ width: '100%' }}>ANNULER</button>
+              )}
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
     </PageLayout>
   );
 }
