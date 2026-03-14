@@ -1011,25 +1011,28 @@ function PanneauDemandes({ onSuccess }) {
 }
 
 
-/ ─── COMPOSANT STATS (STYLE TABLEAU DE BORD) ──────────────────────────────────
+// --- COMPOSANT STATS (STYLE TABLEAU DE BORD) ---
 
 function StatsRow({ section, data, demandesCount }) {
+  // Calculs sécurisés pour éviter les erreurs sur les données nulles
+  const safeData = Array.isArray(data) ? data : [];
+  
   const stats = {
     magasins: [
-      { label: "Total Magasins", value: data.length, icon: "🏪", color: "var(--color-primary)" },
-      { label: "Régions couvertes", value: [...new Set(data.map(m => m.region_id))].length, icon: "🌍", color: "#6366f1" }
+      { label: "Total Magasins", value: safeData.length, icon: "🏪", color: "var(--color-primary)" },
+      { label: "Régions couvertes", value: [...new Set(safeData.map(m => m.region_id))].length, icon: "🌍", color: "#6366f1" }
     ],
     users: [
-      { label: "Utilisateurs", value: data.length, icon: "👥", color: "#f59e0b" },
-      { label: "Actifs", value: data.filter(u => u.statut === 'actif').length, icon: "✅", color: "var(--color-success)" }
+      { label: "Utilisateurs", value: safeData.length, icon: "👥", color: "#f59e0b" },
+      { label: "Actifs", value: safeData.filter(u => u.statut === 'actif').length, icon: "✅", color: "var(--color-success)" }
     ],
     producteurs: [
-      { label: "Total Producteurs", value: data.length, icon: "🌾", color: "#10b981" },
-      { label: "Solde Global", value: data.reduce((acc, p) => acc + parseFloat(p.solde || 0), 0).toLocaleString() + " F", icon: "💰", color: "#059669" }
+      { label: "Total Producteurs", value: safeData.length, icon: "🌾", color: "#10b981" },
+      { label: "Solde Global", value: safeData.reduce((acc, p) => acc + parseFloat(p.solde || 0), 0).toLocaleString() + " F", icon: "💰", color: "#059669" }
     ],
     lots: [
-      { label: "Articles Référencés", value: data.length, icon: "📦", color: "#8b5cf6" },
-      { label: "Catégories", value: [...new Set(data.map(l => l.categorie))].length, icon: "🏷️", color: "#ec4899" }
+      { label: "Articles Référencés", value: safeData.length, icon: "📦", color: "#8b5cf6" },
+      { label: "Catégories", value: [...new Set(safeData.map(l => l.categorie))].length, icon: "🏷️", color: "#ec4899" }
     ],
     demandes: [
       { label: "En attente", value: demandesCount, icon: "⏳", color: "#f59e0b" }
@@ -1047,8 +1050,8 @@ function StatsRow({ section, data, demandesCount }) {
             {s.icon}
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 600 }}>{s.label}</p>
-            <p style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--color-text)" }}>{s.value}</p>
+            <p style={{ margin: 0, fontSize: 11, color: "var(--color-text-muted)", textTransform: "uppercase", fontWeight: 700 }}>{s.label}</p>
+            <p style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "var(--color-text)" }}>{s.value}</p>
           </div>
         </div>
       ))}
@@ -1056,7 +1059,7 @@ function StatsRow({ section, data, demandesCount }) {
   );
 }
 
-// ─── COMPOSANT PRINCIPAL (VERSION HARMONISÉE) ────────────────────────────────
+// --- COMPOSANT PRINCIPAL ---
 
 export default function Administration() {
   const [section, setSection] = useState("magasins");
@@ -1066,7 +1069,6 @@ export default function Administration() {
   const [errorMsg, setErrorMsg] = useState("");
   const [showForm, setShowForm] = useState(false);
 
-  // Liste des sections organisées par groupes pour la clarté
   const sections = [
     { id: 'magasins',    label: 'Magasins',    icon: '🏪' },
     { id: 'users',       label: 'Utilisateurs', icon: '👥' },
@@ -1079,7 +1081,17 @@ export default function Administration() {
   const loadSection = useCallback(async (sec) => {
     setSection(sec);
     setShowForm(false);
-    if (["caisse", "validations", "demandes"].includes(sec)) { setStatus("ready"); return; }
+    if (["caisse", "validations", "demandes"].includes(sec)) {
+      setStatus("ready");
+      // Pour les demandes, on charge quand même pour les stats
+      if (sec === "demandes") {
+        try {
+          const res = await apiFetch("/auth/demandes");
+          setData(res);
+        } catch (e) { console.error(e); }
+      }
+      return;
+    }
 
     const cfg = SECTIONS_CONFIG[sec];
     if (!cfg?.endpoint) return;
@@ -1111,8 +1123,7 @@ export default function Administration() {
 
   return (
     <PageLayout title="Administration" icon="⚙️" subtitle="Gestion globale du système NFBO">
-      
-      {/* ── SYSTÈME D'ONGLETS (Style Admissions/Caisse) ── */}
+
       <div className="tabs-container" style={{ marginBottom: 24, overflowX: 'auto', display: 'flex', gap: 8, paddingBottom: 8 }}>
         {sections.map(s => (
           <button
@@ -1140,8 +1151,6 @@ export default function Administration() {
       </div>
 
       <div style={{ width: "100%", minWidth: 0 }}>
-       
-        {/* AJOUT DES STATS ICI */}
         {!showForm && status === "ready" && (
             <StatsRow 
                 section={section} 
@@ -1149,7 +1158,7 @@ export default function Administration() {
                 demandesCount={section === 'demandes' ? data.length : 0} 
             />
         )} 
-        {/* Header de la section active */}
+
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 700 }}>
              {SECTIONS_CONFIG[section]?.label}
@@ -1161,7 +1170,6 @@ export default function Administration() {
           )}
         </div>
 
-        {/* Affichage des Formulaires ou des Données */}
         {showForm && FormComponent ? (
           <div className="animate-fade-in">
             <FormComponent
