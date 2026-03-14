@@ -6,10 +6,9 @@ const routes = {
   '/api/audit':             () => require('./_handlers/audit'),
 '/api/caisse':            () => require('./_handlers/caisse'),
   '/api/geo':               () => require('./_handlers/geo'),
-'/api/lots/stock':        () => require('./lots/index'),
-
-  'api/lots':              () => require('./lots/index'),
-'/api/stocks':            () => require('./lots/index'),
+'/api/lots/stock': () => require('./lots/index'),
+'/api/lots':       () => require('./lots/index'),
+'/api/stocks':     () => require('./lots/index'),
   '/api/magasins':          () => require('./_handlers/magasins'),
   '/api/messages':          () => require('./_handlers/messages'),
   '/api/operations_caisse': () => require('./_handlers/operations_caisse'),
