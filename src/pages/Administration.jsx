@@ -602,14 +602,38 @@ function FormLot({ onCancel, onSuccess }) {
         </div>
       </FormGrid>
 
-      {/* Unités */}
+            {/* Unités */}
       <div style={{ marginTop: 20 }}>
-        <label className="form-label" style={{ marginBottom: 10, display: "block" }}>Unités de mesure admises *</label>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px,1fr))", gap: 8, background: "var(--color-surface-alt)", padding: 14, borderRadius: "var(--radius-md)", border: "1px solid var(--color-border)" }}>
+        <label className="form-label" style={{ marginBottom: 10, display: "block", color: "var(--color-text)", fontWeight: 600 }}>
+          Unités de mesure admises *
+        </label>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: "repeat(auto-fit, minmax(130px,1fr))", 
+          gap: 8, 
+          background: "var(--color-surface-alt)", 
+          padding: 14, 
+          borderRadius: "var(--radius-md)", 
+          border: "1px solid var(--color-border)" 
+        }}>
           {unitesDisponibles.map(u => (
-            <label key={u} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
-              <input type="checkbox" checked={unites.includes(u)} onChange={() => toggleUnite(u)} />
-              {u === "unites" ? "Unités (pièces)" : u.charAt(0).toUpperCase() + u.slice(1)}
+            <label key={u} style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: 8, 
+              cursor: "pointer", 
+              fontSize: 13,
+              color: "var(--color-text)" /* Assure la visibilité du texte */
+            }}>
+              <input 
+                type="checkbox" 
+                checked={unites.includes(u)} 
+                onChange={() => toggleUnite(u)} 
+                style={{ cursor: "pointer" }}
+              />
+              <span style={{ color: "var(--color-text)" }}>
+                {u === "unites" ? "Unités (pièces)" : u.charAt(0).toUpperCase() + u.slice(1)}
+              </span>
             </label>
           ))}
         </div>
