@@ -10,28 +10,31 @@ if (REDIS_URL) {
   redis = global.__REDIS;
 }
 
+const PREFIX = process.env.SESSION_KEY_PREFIX || 'sess:';
 const MEMORY = new Map();
 const DEFAULT_TTL = Number(process.env.SESSION_TTL_SECONDS || 60 * 60 * 24 * 30);
 
 async function setSession(sessionId, data, ttlSeconds = DEFAULT_TTL) {
   const payload = JSON.stringify(data);
+  const key = PREFIX + sessionId;
   if (redis) {
-    await redis.set(sessionId, payload, 'EX', ttlSeconds);
+    await redis.set(key, payload, 'EX', ttlSeconds);
   } else {
-    MEMORY.set(sessionId, { payload, expiresAt: Date.now() + ttlSeconds * 1000 });
+    MEMORY.set(key, { payload, expiresAt: Date.now() + ttlSeconds * 1000 });
   }
 }
 
 async function getSession(sessionId) {
   if (!sessionId) return null;
+  const key = PREFIX + sessionId;
   if (redis) {
-    const v = await redis.get(sessionId);
+    const v = await redis.get(key);
     return v ? JSON.parse(v) : null;
   } else {
-    const entry = MEMORY.get(sessionId);
+    const entry = MEMORY.get(key);
     if (!entry) return null;
     if (Date.now() > entry.expiresAt) {
-      MEMORY.delete(sessionId);
+      MEMORY.delete(key);
       return null;
     }
     return JSON.parse(entry.payload);
@@ -40,10 +43,11 @@ async function getSession(sessionId) {
 
 async function deleteSession(sessionId) {
   if (!sessionId) return;
+  const key = PREFIX + sessionId;
   if (redis) {
-    await redis.del(sessionId);
+    await redis.del(key);
   } else {
-    MEMORY.delete(sessionId);
+    MEMORY.delete(key);
   }
 }
 
