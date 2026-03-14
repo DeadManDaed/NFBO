@@ -344,8 +344,20 @@ function FormUser({ onCancel, onSuccess }) {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   useEffect(() => {
-    fetch("/api/magasins").then(r => r.json()).then(setMagasins).catch(() => {});
-  }, []);
+  fetch("/api/magasins")
+    .then(r => r.json())
+    .then(data => {
+      // On vérifie si c'est bien un tableau. 
+      // Si c'est un objet type {data: [...]}, on prend data.
+      const liste = Array.isArray(data) ? data : (data.data || []);
+      setMagasins(liste);
+    })
+    .catch((err) => {
+      console.error("Erreur fetch magasins:", err);
+      setMagasins([]); // On remet à vide en cas d'erreur
+    });
+}, []);
+
 
   const handleSubmit = async e => {
     e.preventDefault();
