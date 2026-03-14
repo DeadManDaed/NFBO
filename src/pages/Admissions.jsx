@@ -31,7 +31,7 @@ const BottomSheetStyles = () => (
       bottom: 0;
       left: 0;
       right: 0;
-      height: 90vh; /* Hauteur du panneau */
+      max-height: 80vh; /* Hauteur du panneau */
       background: var(--color-surface, #ffffff);
       border-radius: 24px 24px 0 0;
       z-index: 1001;
