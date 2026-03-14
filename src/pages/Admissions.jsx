@@ -9,73 +9,42 @@ import PageLayout from '../components/PageLayout';
 
 // ─── STYLES DU BOTTOM SHEET ───
 const BottomSheetStyles = () => (
-  <style>{`
-    .sheet-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(2px);
-      z-index: 1000;
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.3s ease;
-    }
-    .sheet-overlay.active {
-      opacity: 1;
-      visibility: visible;
-    }
-    .bottom-sheet {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 85vh; /* 4/5 de la hauteur environ */
-      background: var(--color-surface);
-      border-radius: 24px 24px 0 0;
-      z-index: 1001;
-      transform: translateY(100%);
-      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      flex-direction: column;
-      box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
-    }
-    .bottom-sheet.active {
-      transform: translateY(0);
-    }
-    .sheet-header {
-      padding: 12px 20px 20px;
-      border-bottom: 1px solid var(--color-border);
-      flex-shrink: 0;
-      text-align: center;
-      position: relative;
-    }
-    .sheet-handle {
-      width: 40px;
-      height: 4px;
-      background: var(--color-border);
-      border-radius: 2px;
-      margin: 0 auto 12px;
-    }
-    .sheet-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      padding-bottom: 100px; /* Espace pour le bouton valider */
-      -webkit-overflow-scrolling: touch;
-    }
-    .sheet-footer {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      padding: 16px 20px;
-      background: linear-gradient(to top, var(--color-surface) 80%, transparent);
-      z-index: 2;
-    }
-    body.sheet-open {
-      overflow: hidden;
-    }
-  `}</style>
+  /* Dans BottomSheetStyles */
+<style>{`
+  .bottom-sheet {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 85vh;
+    background: var(--color-surface);
+    border-radius: 24px 24px 0 0;
+    z-index: 1001;
+    /* transition avec effet rebond (cubic-bezier) */
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
+    touch-action: none; /* Empêche le scroll natif pendant le drag sur le header */
+  }
+
+  /* Quand on drague, on enlève la transition pour que ça colle au doigt */
+  .bottom-sheet.dragging {
+    transition: none;
+  }
+
+  .sheet-header {
+    padding: 12px 20px 20px;
+    cursor: grab;
+    flex-shrink: 0;
+  }
+  
+  .sheet-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    touch-action: pan-y; /* Autorise le scroll normal à l'intérieur */
+  }
+`}</style>
+
 );
 
 // ─── CONFIG & HELPERS (Identiques à ton code) ─────────────────────────────────
@@ -282,16 +251,31 @@ export default function Admissions({ onBack }) {
 
       {/* ── BOTTOM SHEET (LE FORMULAIRE) ── */}
       <div className={`sheet-overlay ${showForm ? 'active' : ''}`} onClick={() => setShowForm(false)} />
-      <div className={`bottom-sheet ${showForm ? 'active' : ''}`}>
-        <div className="sheet-header">
-          <div className="sheet-handle" />
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>📥 Nouvelle Réception</h3>
-            <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: 20 }}>✕</button>
-          </div>
-        </div>
+      {/* La div principale du panneau */}
+<div 
+  className={`bottom-sheet ${showForm ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
+  style={{ 
+    transform: showForm 
+      ? `translateY(${dragY}px)` 
+      : `translateY(100%)` 
+  }}
+>
+  {/* On place les écouteurs sur le header (la zone de saisie) */}
+  <div 
+    className="sheet-header"
+    onTouchStart={handleTouchStart}
+    onTouchMove={handleTouchMove}
+    onTouchEnd={handleTouchEnd}
+  >
+    <div className="sheet-handle" />
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>📥 Nouvelle Réception</h3>
+      <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', fontSize: 20 }}>✕</button>
+    </div>
+  </div>
 
-        <div className="sheet-content">
+  <div className="sheet-content">
+    
           <form id="admission-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             
             <div className="form-group">
