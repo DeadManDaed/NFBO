@@ -1,3 +1,4 @@
+//src/hooks/useAuth.js
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
