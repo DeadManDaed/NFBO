@@ -37,18 +37,25 @@ export function getToken() {
 }
 
 // ─── Charger les données métier depuis public.users ───────────────────────────
-async function loadUserProfile(authId, retries = 3) {
+async function loadUserProfile(authId, retries = 2) { // On réduit à 2 pour économiser la data
   for (let i = 0; i < retries; i++) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 secondes max
+
     try {
       const { data, error } = await supabase
         .from('users')
         .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
         .eq('auth_id', authId)
-        .single();
+        .single()
+        .abortSignal(controller.signal); // On passe le signal à Supabase
+
+      clearTimeout(timeoutId);
 
       if (error || !data) return null;
       if (data.statut !== 'actif') return null;
 
+      // Récupération du nom du magasin
       let magasin_nom = null;
       if (data.magasin_id) {
         const { data: mag } = await supabase
@@ -61,40 +68,79 @@ async function loadUserProfile(authId, retries = 3) {
 
       return { ...data, magasin_nom };
 
-    } catch {
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') console.warn("Tentative de profil chronométrée (timeout)");
+      
       if (i < retries - 1) {
-        await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+        await new Promise(r => setTimeout(r, 500)); // Pause courte avant retry
       }
     }
   }
   return null;
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
-export function AuthProvider({ children }) {
-  const [user,    setUser]    = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  const resolveProfile = useCallback(async (supabaseUser) => {
-    if (!supabaseUser) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
-    try {
-      const profile = await loadUserProfile(supabaseUser.id);
-      setUser(profile);
-    } catch {
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+// ─── Provider mis à jour ──────────────────────────────────────────────────────
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  // On commence à true pour éviter que le Login ne clignote avant de savoir si on est connecté
+  const [loading, setLoading] = useState(true); 
+
+  // Dans ton AuthProvider
+const resolveProfile = useCallback(async (supabaseUser) => {
+  if (!supabaseUser) {
+    setUser(null);
+    setLoading(false);
+    return;
+  }
+  
+  // On se donne une chance de charger, mais on ne bloque pas l'utilisateur éternellement
+  const profile = await loadUserProfile(supabaseUser.id);
+  
+  if (profile) {
+    setUser(profile);
+  } else {
+    // Si on n'arrive pas à charger le profil (erreur ou timeout)
+    // On déconnecte pour éviter de rester dans un état instable
+    await supabase.auth.signOut();
+    setUser(null);
+  }
+  setLoading(false); // QUOI QU'IL ARRIVE, on arrête le chargement ici
+}, []);
+
 
   useEffect(() => {
     let mounted = true;
 
-    // Déconnexion à la perte du focus
+    // 🛡️ DISJONCTEUR DE SÉCURITÉ
+    // Si après 7s le sablier tourne encore, on force la main.
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && loading) {
+        console.warn("Auth check trop long : débrayage forcé.");
+        setLoading(false);
+      }
+    }, 7000);
+
+    // 1. Vérification immédiate au chargement (Mount)
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted) {
+          if (session?.user) {
+            await resolveProfile(session.user);
+          } else {
+            setLoading(false);
+          }
+        }
+      } catch (e) {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    initSession();
+
+    // 2. Gestion de la visibilité (Ta sécurité actuelle)
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         supabase.auth.signOut();
@@ -103,27 +149,39 @@ export function AuthProvider({ children }) {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
+    // 3. Écouteur de changements (On retire l'exclusion du INITIAL_SESSION)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        if (event === 'INITIAL_SESSION') return;
-        if (event === 'SIGNED_OUT') { setUser(null); return; }
-        if (event === 'TOKEN_REFRESHED') return;
+        
+        console.log("Auth Event:", event);
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
 
         if (session?.user) {
           await resolveProfile(session.user);
         } else {
-          setUser(null);
+          setLoading(false);
         }
       }
     );
 
     return () => {
       mounted = false;
+      clearTimeout(safetyTimeout);
       document.removeEventListener('visibilitychange', handleVisibility);
       subscription.unsubscribe();
     };
-  }, [resolveProfile]);
+  }, [resolveProfile]); // Retiré loading des dépendances pour éviter les boucles
+
+  // ... (reste du code login/logout identique)
+
+
+  
 
   const login = async ({ username, password }) => {
     let email = username;
