@@ -46,10 +46,20 @@ export function AuthProvider({ children }) {
       }
     }, 8000); // 8 secondes max pour décider
 
-    const initAuth = async () => {
+        const initAuth = async () => {
       try {
-        // getSession est parfois celui qui pend indéfiniment sur mobile
-        const { data: { session } } = await supabase.auth.getSession();
+        // ⏱️ TON IDÉE EN ACTION : La course de vitesse (Promise.race)
+        // Si Supabase ne répond pas en 3 secondes, cette promesse "explose" exprès.
+        const supabaseTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('TIMEOUT_SUPABASE_GETSESSION')), 3000)
+        );
+
+        // On lance getSession() et le chronomètre en même temps. Le premier qui finit gagne.
+        const { data: { session } } = await Promise.race([
+          supabase.auth.getSession(),
+          supabaseTimeout
+        ]);
+
         if (mounted && !hasResolved.current) {
           if (session?.user) {
             await resolveProfile(session.user);
@@ -59,7 +69,15 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (e) {
-        if (mounted) setLoading(false);
+        console.warn("⚠️ Déconnexion forcée suite à un blocage ou une erreur :", e.message);
+        if (mounted) {
+          // Si Supabase plante ou si le jeton est corrompu, on fait le ménage sans attendre
+          // On utilise catch() pour ne pas recréer un blocage si le signOut plante aussi
+          await supabase.auth.signOut().catch(() => console.log("SignOut silencieux")); 
+          setUser(null);
+          setLoading(false);
+          hasResolved.current = true;
+        }
       }
     };
 
