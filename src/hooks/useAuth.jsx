@@ -1,4 +1,6 @@
 // src/hooks/useAuth.jsx
+ 
+
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -32,15 +34,11 @@ export async function authFetch(url, options = {}) {
   return res.json();
 }
 
-export function getToken() {
-  return null;
-}
-
-// ─── Charger les données métier depuis public.users ───────────────────────────
-async function loadUserProfile(authId, retries = 2) { // On réduit à 2 pour économiser la data
+// ─── Charger les données métier avec Timeout Agressif ──────────────────────────
+async function loadUserProfile(authId, retries = 2) {
   for (let i = 0; i < retries; i++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4 secondes max
+    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s max par tentative
 
     try {
       const { data, error } = await supabase
@@ -48,14 +46,13 @@ async function loadUserProfile(authId, retries = 2) { // On réduit à 2 pour é
         .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
         .eq('auth_id', authId)
         .single()
-        .abortSignal(controller.signal); // On passe le signal à Supabase
+        .abortSignal(controller.signal);
 
       clearTimeout(timeoutId);
 
       if (error || !data) return null;
       if (data.statut !== 'actif') return null;
 
-      // Récupération du nom du magasin
       let magasin_nom = null;
       if (data.magasin_id) {
         const { data: mag } = await supabase
@@ -70,59 +67,57 @@ async function loadUserProfile(authId, retries = 2) { // On réduit à 2 pour é
 
     } catch (err) {
       clearTimeout(timeoutId);
-      if (err.name === 'AbortError') console.warn("Tentative de profil chronométrée (timeout)");
+      console.warn(`Tentative profil ${i + 1}/${retries} échouée ou chronométrée.`);
       
       if (i < retries - 1) {
-        await new Promise(r => setTimeout(r, 500)); // Pause courte avant retry
+        await new Promise(r => setTimeout(r, 500));
       }
     }
   }
   return null;
 }
 
-
-// ─── Provider mis à jour ──────────────────────────────────────────────────────
+// ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  // On commence à true pour éviter que le Login ne clignote avant de savoir si on est connecté
-  const [loading, setLoading] = useState(true); 
+  const [loading, setLoading] = useState(true); // On commence en mode chargement
 
-  // Dans ton AuthProvider
-const resolveProfile = useCallback(async (supabaseUser) => {
-  if (!supabaseUser) {
-    setUser(null);
-    setLoading(false);
-    return;
-  }
-  
-  // On se donne une chance de charger, mais on ne bloque pas l'utilisateur éternellement
-  const profile = await loadUserProfile(supabaseUser.id);
-  
-  if (profile) {
-    setUser(profile);
-  } else {
-    // Si on n'arrive pas à charger le profil (erreur ou timeout)
-    // On déconnecte pour éviter de rester dans un état instable
-    await supabase.auth.signOut();
-    setUser(null);
-  }
-  setLoading(false); // QUOI QU'IL ARRIVE, on arrête le chargement ici
-}, []);
+  const resolveProfile = useCallback(async (supabaseUser) => {
+    if (!supabaseUser) {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
 
+    try {
+      const profile = await loadUserProfile(supabaseUser.id);
+      if (profile) {
+        setUser(profile);
+      } else {
+        // En cas d'échec de profil (timeout ou inactif), on nettoie la session
+        await supabase.auth.signOut();
+        setUser(null);
+      }
+    } catch (err) {
+      console.error("Erreur critique resolveProfile:", err);
+      setUser(null);
+    } finally {
+      setLoading(false); // Libère l'UI quoi qu'il arrive
+    }
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    // 🛡️ DISJONCTEUR DE SÉCURITÉ
-    // Si après 7s le sablier tourne encore, on force la main.
+    // 🛡️ DISJONCTEUR : Évite le sablier infini si Supabase ne répond jamais
     const safetyTimeout = setTimeout(() => {
       if (mounted && loading) {
-        console.warn("Auth check trop long : débrayage forcé.");
+        console.warn("Safety Timeout : Libération forcée de l'interface.");
         setLoading(false);
       }
-    }, 7000);
+    }, 7000); // 7 secondes de battement maximum
 
-    // 1. Vérification immédiate au chargement (Mount)
+    // 1. Init Session au montage
     const initSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -140,7 +135,7 @@ const resolveProfile = useCallback(async (supabaseUser) => {
 
     initSession();
 
-    // 2. Gestion de la visibilité (Ta sécurité actuelle)
+    // 2. Ta sécurité : Déconnexion à la perte du focus
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         supabase.auth.signOut();
@@ -149,12 +144,10 @@ const resolveProfile = useCallback(async (supabaseUser) => {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // 3. Écouteur de changements (On retire l'exclusion du INITIAL_SESSION)
+    // 3. Écouteur d'événements Auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
-        
-        console.log("Auth Event:", event);
 
         if (event === 'SIGNED_OUT') {
           setUser(null);
@@ -176,12 +169,7 @@ const resolveProfile = useCallback(async (supabaseUser) => {
       document.removeEventListener('visibilitychange', handleVisibility);
       subscription.unsubscribe();
     };
-  }, [resolveProfile]); // Retiré loading des dépendances pour éviter les boucles
-
-  // ... (reste du code login/logout identique)
-
-
-  
+  }, [resolveProfile]);
 
   const login = async ({ username, password }) => {
     let email = username;
@@ -197,21 +185,20 @@ const resolveProfile = useCallback(async (supabaseUser) => {
     }
 
     setLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      setLoading(false);
-      throw new Error(error.message || 'Identifiants incorrects');
-    }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
 
-    const profile = await loadUserProfile(data.user.id);
-    if (!profile) {
-      setLoading(false);
-      throw new Error('Profil utilisateur introuvable ou inactif');
-    }
+      const profile = await loadUserProfile(data.user.id);
+      if (!profile) throw new Error('Profil utilisateur introuvable ou inactif');
 
-    setUser(profile);
-    setLoading(false);
-    return profile;
+      setUser(profile);
+      return profile;
+    } catch (err) {
+      throw new Error(err.message || 'Identifiants incorrects');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = async () => {
