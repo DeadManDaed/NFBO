@@ -4,6 +4,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
+
 const AuthContext = createContext(null);
 
 // ─── Helper fetch authentifié ─────────────────────────────────────────────────
@@ -38,7 +39,7 @@ export async function authFetch(url, options = {}) {
 async function loadUserProfile(authId, retries = 2) {
   for (let i = 0; i < retries; i++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s max par tentative
+    const timeoutId = setTimeout(() => controller.abort(), 4000); 
 
     try {
       const { data, error } = await supabase
@@ -67,7 +68,7 @@ async function loadUserProfile(authId, retries = 2) {
 
     } catch (err) {
       clearTimeout(timeoutId);
-      console.warn(`Tentative profil ${i + 1}/${retries} échouée ou chronométrée.`);
+      console.warn(`Tentative profil ${i + 1}/${retries} : ${err.name === 'AbortError' ? 'Timeout' : 'Erreur'}`);
       
       if (i < retries - 1) {
         await new Promise(r => setTimeout(r, 500));
@@ -80,7 +81,7 @@ async function loadUserProfile(authId, retries = 2) {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // On commence en mode chargement
+  const [loading, setLoading] = useState(true); 
 
   const resolveProfile = useCallback(async (supabaseUser) => {
     if (!supabaseUser) {
@@ -94,30 +95,30 @@ export function AuthProvider({ children }) {
       if (profile) {
         setUser(profile);
       } else {
-        // En cas d'échec de profil (timeout ou inactif), on nettoie la session
+        // Nettoyage si le profil est introuvable/inactif malgré une auth valide
         await supabase.auth.signOut();
         setUser(null);
       }
     } catch (err) {
-      console.error("Erreur critique resolveProfile:", err);
+      console.error("Erreur resolveProfile:", err);
       setUser(null);
     } finally {
-      setLoading(false); // Libère l'UI quoi qu'il arrive
+      setLoading(false); 
     }
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    // 🛡️ DISJONCTEUR : Évite le sablier infini si Supabase ne répond jamais
+    // 🛡️ DISJONCTEUR : Force la fin du chargement après 7s
     const safetyTimeout = setTimeout(() => {
       if (mounted && loading) {
-        console.warn("Safety Timeout : Libération forcée de l'interface.");
+        console.warn("Safety Timeout : Déblocage forcé de l'UI");
         setLoading(false);
       }
-    }, 7000); // 7 secondes de battement maximum
+    }, 7000);
 
-    // 1. Init Session au montage
+    // 1. Initialisation de la session au montage
     const initSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -135,16 +136,7 @@ export function AuthProvider({ children }) {
 
     initSession();
 
-    // 2. Ta sécurité : Déconnexion à la perte du focus
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        supabase.auth.signOut();
-        setUser(null);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-
-    // 3. Écouteur d'événements Auth
+    // 2. Écouteur de changements d'état (on a retiré le visibilitychange ici)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
@@ -166,7 +158,6 @@ export function AuthProvider({ children }) {
     return () => {
       mounted = false;
       clearTimeout(safetyTimeout);
-      document.removeEventListener('visibilitychange', handleVisibility);
       subscription.unsubscribe();
     };
   }, [resolveProfile]);
@@ -186,6 +177,9 @@ export function AuthProvider({ children }) {
 
     setLoading(true);
     try {
+      // 🛡️ SÉCURITÉ : Nettoyage préventif pour éviter les conflits de session
+      await supabase.auth.signOut();
+
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
@@ -195,15 +189,23 @@ export function AuthProvider({ children }) {
       setUser(profile);
       return profile;
     } catch (err) {
+      // On s'assure que loading repasse à false pour que l'utilisateur puisse récliquer
+      setLoading(false);
       throw new Error(err.message || 'Identifiants incorrects');
     } finally {
+      // Normalement déjà géré, mais par précaution :
       setLoading(false);
     }
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
+    setLoading(true);
+    try {
+      await supabase.auth.signOut();
+    } finally {
+      setUser(null);
+      setLoading(false);
+    }
   };
 
   return (
