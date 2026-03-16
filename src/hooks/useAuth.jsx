@@ -72,6 +72,22 @@ async function loadUserProfile(authId, retries = 1) {
   return null;
 }
 
+const refreshProfile = useCallback(async () => {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const profile = await loadUserProfile(session.user.id);
+      if (profile) {
+        setUser(profile);
+      } else {
+        await supabase.auth.signOut().catch(() => {});
+        setUser(null);
+      }
+    }
+  } catch (err) {
+    console.error("Erreur dans refreshProfile:", err);
+  }
+}, []);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
