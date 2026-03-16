@@ -1,48 +1,53 @@
-//src/hooks/useLots.js
-
-import { useState, useEffect } from 'react';
+// src/hooks/useLots.js
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 
 export function useLots() {
-  const [lots, setLots] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  const fetchLots = async () => {
-    try {
-      setLoading(true);
-      const data = await api.getLots();
-      setLots(data);
-      setError(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Récupération des lots avec React Query
+  const {
+    data: lots = [],
+    isLoading,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ['lots'],
+    queryFn: () => api.getLots(),
+  });
 
-  useEffect(() => {
-    fetchLots();
-  }, []);
+  // Mutation pour créer un lot
+  const createLotMutation = useMutation({
+    mutationFn: (lotData) => api.createLot(lotData),
+    onSuccess: () => {
+      // Invalider le cache pour forcer un rechargement
+      queryClient.invalidateQueries(['lots']);
+    },
+  });
 
+  // Mutation pour supprimer un lot
+  const deleteLotMutation = useMutation({
+    mutationFn: (id) => api.deleteLot(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['lots']);
+    },
+  });
+
+  // Fonctions exposées (compatibles avec l'ancien hook)
   const createLot = async (lotData) => {
-    try {
-      const newLot = await api.createLot(lotData);
-      setLots([newLot, ...lots]);
-      return newLot;
-    } catch (err) {
-      throw err;
-    }
+    return createLotMutation.mutateAsync(lotData);
   };
 
   const deleteLot = async (id) => {
-    try {
-      await api.deleteLot(id);
-      setLots(lots.filter(lot => lot.id !== id));
-    } catch (err) {
-      throw err;
-    }
+    return deleteLotMutation.mutateAsync(id);
   };
 
-  return { lots, loading, error, fetchLots, createLot, deleteLot };
+  return {
+    lots,
+    loading: isLoading,
+    error: error?.message || null,
+    fetchLots: refetch,      // permet de recharger manuellement si besoin
+    createLot,
+    deleteLot,
+  };
 }
