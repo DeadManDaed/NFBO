@@ -1,3 +1,5 @@
+// src/hooks/useAuth.js
+
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
@@ -38,36 +40,40 @@ export async function authFetch(url, options = {}) {
 async function loadUserProfile(authId, retries = 1) {
   for (let i = 0; i <= retries; i++) {
     try {
-      // Timeout manuel sans AbortController
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Timeout')), LOAD_PROFILE_TIMEOUT)
-      );
-
-      const profilePromise = supabase
+      console.log(`[loadUserProfile] Tentative ${i+1} pour authId ${authId}`);
+      const { data, error } = await supabase
         .from('users')
         .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
         .eq('auth_id', authId)
         .single();
 
-      const { data, error } = await Promise.race([profilePromise, timeoutPromise]);
-
-      if (error || !data) return null;
-      if (data.statut !== 'actif') return null;
+      if (error) {
+        console.error('[loadUserProfile] Supabase error:', error);
+        return null;
+      }
+      if (!data) {
+        console.warn('[loadUserProfile] Aucune donnée trouvée');
+        return null;
+      }
+      if (data.statut !== 'actif') {
+        console.warn('[loadUserProfile] Compte inactif');
+        return null;
+      }
 
       let magasin_nom = null;
       if (data.magasin_id) {
-        const { data: mag } = await supabase
+        const { data: mag, error: magError } = await supabase
           .from('magasins')
           .select('nom')
           .eq('id', data.magasin_id)
           .single();
+        if (magError) console.warn('[loadUserProfile] Erreur chargement magasin:', magError);
         magasin_nom = mag?.nom || null;
       }
 
       return { ...data, magasin_nom };
-
     } catch (err) {
-      console.warn(`Tentative profil ${i + 1} : ${err.message}`);
+      console.error(`[loadUserProfile] Exception lors de la tentative ${i+1}:`, err);
       if (i < retries) await new Promise(r => setTimeout(r, 500));
     }
   }
@@ -82,7 +88,6 @@ export function AuthProvider({ children }) {
   const lastRefresh = useRef(0);
 
   const refreshProfile = useCallback(async () => {
-    // Anti-bouncing : au moins 2 secondes entre deux rafraîchissements
     const now = Date.now();
     if (now - lastRefresh.current < 2000) return;
     lastRefresh.current = now;
@@ -93,16 +98,19 @@ export function AuthProvider({ children }) {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
+          console.log('[refreshProfile] Chargement du profil...');
           const profile = await loadUserProfile(session.user.id);
           if (profile) {
+            console.log('[refreshProfile] Profil chargé:', profile.username);
             setUser(profile);
           } else {
+            console.warn('[refreshProfile] Profil non trouvé, déconnexion');
             await supabase.auth.signOut().catch(() => {});
             setUser(null);
           }
         }
       } catch (err) {
-        console.error("Erreur dans refreshProfile:", err);
+        console.error("[refreshProfile] Erreur:", err);
       } finally {
         refreshPromise.current = null;
       }
@@ -122,15 +130,18 @@ export function AuthProvider({ children }) {
     }
 
     try {
+      console.log('[resolveProfile] Chargement du profil pour', supabaseUser.id);
       const profile = await loadUserProfile(supabaseUser.id);
       if (profile) {
+        console.log('[resolveProfile] Profil chargé');
         setUser(profile);
       } else {
+        console.warn('[resolveProfile] Profil non trouvé, déconnexion');
         await supabase.auth.signOut().catch(() => {});
         setUser(null);
       }
     } catch (err) {
-      console.error("Erreur critique resolveProfile:", err);
+      console.error("[resolveProfile] Erreur:", err);
       setUser(null);
     } finally {
       setLoading(false);
@@ -177,6 +188,8 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         if (!mounted) return;
 
+        console.log('[onAuthStateChange] Event:', event);
+
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setLoading(false);
@@ -189,7 +202,7 @@ export function AuthProvider({ children }) {
           try {
             await resolveProfile(session.user);
           } catch (err) {
-            console.error("Erreur onAuthStateChange:", err);
+            console.error("[onAuthStateChange] Erreur:", err);
           }
         }
       }
