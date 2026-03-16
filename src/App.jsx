@@ -1,5 +1,6 @@
 // src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth, AuthProvider } from './hooks/useAuth';
 import { CapacitorProvider } from './components/CapacitorProvider';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -14,6 +15,17 @@ import Stock from './pages/Stock';
 import Audit from './pages/Audit';
 import Administration from './pages/Administration';
 import React, { useEffect } from 'react';
+
+// ─── Configuration de React Query ────────────────────────────────────────────
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: true,   // Rafraîchit les données quand l'onglet redevient visible
+      staleTime: 1000 * 60 * 5,     // Données considérées comme fraîches pendant 5 minutes
+      retry: 1,                     // Nombre de tentatives en cas d'échec
+    },
+  },
+});
 
 // ─── Composant de Chargement (évite l'écran noir) ─────────────────────────────
 function LoadingScreen() {
@@ -73,9 +85,9 @@ function RootRedirect() {
 function LoginRoute() {
   const { isAuthenticated, loading } = useAuth();
   const location = useLocation();
-  
+
   if (loading) return <LoadingScreen />;
-  
+
   if (isAuthenticated) {
     const from = location.state?.from || '/dashboard';
     return <Navigate to={from} state={null} replace />;
@@ -87,73 +99,75 @@ function LoginRoute() {
 function App() {
   return (
     <ErrorBoundary>
-      <Router>
-        <AuthProvider>
-          <CapacitorProvider>
-            <Routes>
-              {/* ── Page de connexion ── */}
-              <Route path="/login" element={<LoginRoute />} />
+      <QueryClientProvider client={queryClient}>   {/* 🔥 React Query provider ajouté ici */}
+        <Router>
+          <AuthProvider>
+            <CapacitorProvider>
+              <Routes>
+                {/* ── Page de connexion ── */}
+                <Route path="/login" element={<LoginRoute />} />
 
-              {/* ── Dashboard principal (Route directe) ── */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } />
+                {/* ── Dashboard principal (Route directe) ── */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                } />
 
-              {/* ── Routes secondaires avec layout ── */}
-              <Route path="/" element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }>
-                <Route index element={<RootRedirect />} />
-                <Route path="lots" element={
-                  <ProtectedRoute roles={['superadmin', 'admin', 'stock']}>
-                    <DefinitionLots />
+                {/* ── Routes secondaires avec layout ── */}
+                <Route path="/" element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
                   </ProtectedRoute>
-                } />
-                <Route path="admissions" element={
-                  <ProtectedRoute roles={['superadmin', 'admin', 'stock']}>
-                    <Admissions />
-                  </ProtectedRoute>
-                } />
-                <Route path="retraits" element={
-                  <ProtectedRoute roles={['superadmin', 'admin', 'stock']}>
-                    <Retraits />
-                  </ProtectedRoute>
-                } />
-                <Route path="transferts" element={
-                  <ProtectedRoute roles={['superadmin', 'admin']}>
-                    <Transferts />
-                  </ProtectedRoute>
-                } />
-                <Route path="stock" element={
-                  <ProtectedRoute roles={['superadmin', 'admin', 'stock', 'caisse']}>
-                    <Stock />
-                  </ProtectedRoute>
-                } />
-                <Route path="audit" element={
-                  <ProtectedRoute roles={['superadmin', 'auditeur']}>
-                    <Audit />
-                  </ProtectedRoute>
-                } />
-                <Route path="administration" element={
-                  <ProtectedRoute roles={['superadmin']}>
-                    <Administration />
-                  </ProtectedRoute>
-                } />
-              </Route>
+                }>
+                  <Route index element={<RootRedirect />} />
+                  <Route path="lots" element={
+                    <ProtectedRoute roles={['superadmin', 'admin', 'stock']}>
+                      <DefinitionLots />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="admissions" element={
+                    <ProtectedRoute roles={['superadmin', 'admin', 'stock']}>
+                      <Admissions />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="retraits" element={
+                    <ProtectedRoute roles={['superadmin', 'admin', 'stock']}>
+                      <Retraits />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="transferts" element={
+                    <ProtectedRoute roles={['superadmin', 'admin']}>
+                      <Transferts />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="stock" element={
+                    <ProtectedRoute roles={['superadmin', 'admin', 'stock', 'caisse']}>
+                      <Stock />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="audit" element={
+                    <ProtectedRoute roles={['superadmin', 'auditeur']}>
+                      <Audit />
+                    </ProtectedRoute>
+                  } />
+                  <Route path="administration" element={
+                    <ProtectedRoute roles={['superadmin']}>
+                      <Administration />
+                    </ProtectedRoute>
+                  } />
+                </Route>
 
-              {/* ── Confirmation email ── */}
-              <Route path="/confirmed" element={<ConfirmedPage />} />
+                {/* ── Confirmation email ── */}
+                <Route path="/confirmed" element={<ConfirmedPage />} />
 
-              {/* ── Fallback ── */}
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
-          </CapacitorProvider>
-        </AuthProvider>
-      </Router>
+                {/* ── Fallback ── */}
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Routes>
+            </CapacitorProvider>
+          </AuthProvider>
+        </Router>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
