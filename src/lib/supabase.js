@@ -8,6 +8,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: false,
+    multiTab: false,
     // 🔑 LA NOUVELLE SERRURE : On change la clé pour repartir de zéro, 
     // ignorant ainsi tout jeton corrompu stocké précédemment.
     storageKey: 'nfbo-secure-auth-v2',
