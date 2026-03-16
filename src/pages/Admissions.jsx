@@ -2,6 +2,7 @@
 // Port complet de admission.js : grille d'audit qualité, sliders, calcul financier temps réel + Bottom Sheet
 
 import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../hooks/useAlert';
 import { useLots } from '../hooks/useLots';
@@ -9,7 +10,7 @@ import api from '../services/api';
 import Alert from '../components/Alert';
 import PageLayout from '../components/PageLayout';
 
-// ─── STYLES DU BOTTOM SHEET ────────────────────────────────────────────────────
+// ─── STYLES DU BOTTOM SHEET (inchangés) ────────────────────────────────────────
 const BottomSheetStyles = () => (
   <style>{`
     .sheet-overlay {
@@ -31,19 +32,18 @@ const BottomSheetStyles = () => (
       bottom: 0;
       left: 0;
       right: 0;
-      max-height: 80vh; /* Hauteur du panneau */
+      max-height: 80vh;
       background: var(--color-surface, #ffffff);
       border-radius: 24px 24px 0 0;
       z-index: 1001;
-      /* Animation de montée avec rebond */
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15);
       display: flex;
       flex-direction: column;
       box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
-      touch-action: none; /* Empêche le scroll natif pendant le drag sur le header */
+      touch-action: none;
     }
     .bottom-sheet.dragging {
-      transition: none; /* Coupe l'animation pour coller au doigt */
+      transition: none;
     }
     .sheet-header {
       padding: 12px 20px 20px;
@@ -66,8 +66,8 @@ const BottomSheetStyles = () => (
       flex: 1;
       overflow-y: auto;
       padding: 20px;
-      padding-bottom: 120px; /* Espace pour ne pas cacher le bas du form sous le bouton */
-      touch-action: pan-y; /* Autorise le scroll normal à l'intérieur */
+      padding-bottom: 120px;
+      touch-action: pan-y;
       -webkit-overflow-scrolling: touch;
     }
     .sheet-footer {
@@ -109,7 +109,7 @@ function getGrade(moyenne) {
   return 'D';
 }
 
-// ─── Grille d'audit qualité (Ton code original intact) ─────────────────────────
+// ─── Grille d'audit qualité (inchangée) ─────────────────────────────────────────
 function AuditQualite({ categorie, onGradeChange }) {
   const criteres = COOP_CRITERIA[categorie] || [];
   const [notes, setNotes] = useState(() => (COOP_CRITERIA[categorie] || []).map(() => 10));
@@ -125,7 +125,7 @@ function AuditQualite({ categorie, onGradeChange }) {
     const newNotes = (COOP_CRITERIA[categorie] || []).map(() => 10);
     setNotes(newNotes);
     notifyParent(newNotes);
-  }, [categorie]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [categorie, notifyParent]);
 
   const handleSlider = (index, value) => {
     const updated = [...notes];
@@ -186,7 +186,7 @@ function AuditQualite({ categorie, onGradeChange }) {
   );
 }
 
-// ─── Aperçu financier (Ton code original intact) ───────────────────────────────
+// ─── Aperçu financier (inchangé) ───────────────────────────────────────────────
 function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpiration }) {
   const qty  = parseFloat(quantite)    || 0;
   const prix = parseFloat(prixRef)     || 0;
@@ -224,7 +224,7 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
   );
 }
 
-// ─── Carte admission fold/unfold (Ton code original intact avec export PDF) ────
+// ─── Carte admission fold/unfold (inchangée avec export PDF) ────────────────────
 function AdmissionCard({ admission: a }) {
   const [open, setOpen] = useState(false);
 
@@ -401,15 +401,12 @@ function AdmissionCard({ admission: a }) {
 export default function Admissions({ onBack }) {
   const { user, magasinId } = useAuth();
   const { alert, showAlert, hideAlert } = useAlert();
-  const { lots } = useLots();
+  const queryClient = useQueryClient();
+  const { lots } = useLots(); // on suppose que ce hook utilise React Query
 
-  // Les states originaux
-  const [admissions,  setAdmissions]  = useState([]);
-  const [producteurs, setProducteurs] = useState([]);
-  const [magasins,    setMagasins]    = useState([]);
-  const [activeLot,   setActiveLot]   = useState(null);
-  const [gradeInfo,   setGradeInfo]   = useState({ grade: null, coef: 1.0 });
-  const [submitting,  setSubmitting]  = useState(false);
+  // États locaux pour le formulaire et l'UI
+  const [activeLot, setActiveLot] = useState(null);
+  const [gradeInfo, setGradeInfo] = useState({ grade: null, coef: 1.0 });
   const [formData, setFormData] = useState({
     lot_id: '', producteur_id: '', quantite: '', unite: '',
     prix_ref: '', date_expiration: '',
@@ -417,19 +414,50 @@ export default function Admissions({ onBack }) {
   });
   const [showForm, setShowForm] = useState(false);
 
-  // ─── NOUVEAUX STATES POUR LE GLISSEMENT (DRAG) ───
+  // États pour le drag du sheet
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startY, setStartY] = useState(0);
-  // ─────────────────────────────────────────────────
 
-  const unitesDisponibles = activeLot
-    ? (Array.isArray(activeLot.unites_admises)
-        ? activeLot.unites_admises
-        : JSON.parse(activeLot.unites_admises || '[]'))
-    : [];
+  // ─── REQUÊTES AVEC REACT QUERY ───────────────────────────────────────────────
 
-  // ─── GESTION DES TOUCHES POUR LE SWIPE ───
+  // Admissions (filtrées par magasin si non superadmin)
+  const { data: admissions = [], refetch: refetchAdmissions } = useQuery({
+    queryKey: ['admissions', magasinId],
+    queryFn: () => api.getAdmissions(magasinId || null),
+  });
+
+  // Producteurs
+  const { data: producteurs = [] } = useQuery({
+    queryKey: ['producteurs'],
+    queryFn: () => api.getProducteurs(),
+  });
+
+  // Magasins
+  const { data: magasins = [] } = useQuery({
+    queryKey: ['magasins'],
+    queryFn: () => api.getMagasins(),
+  });
+
+  // Mutation pour créer une admission
+  const createAdmissionMutation = useMutation({
+    mutationFn: (payload) => api.createAdmission(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['admissions']);
+      showAlert('✅ Admission validée avec succès !', 'success');
+      setFormData({
+        lot_id: '', producteur_id: '', quantite: '', unite: '',
+        prix_ref: '', date_expiration: '',
+        magasin_id: 1, mode_paiement: 'especes', source: 'achat_direct',
+      });
+      setActiveLot(null);
+      setGradeInfo({ grade: null, coef: 1.0 });
+      setShowForm(false);
+    },
+    onError: (err) => showAlert(`❌ Erreur : ${err.message}`, 'error'),
+  });
+
+  // ─── GESTION DES TOUCHES POUR LE SWIPE ───────────────────────────────────────
   const handleTouchStart = (e) => {
     if (e.touches && e.touches.length > 0) {
       setStartY(e.touches[0].clientY);
@@ -441,49 +469,31 @@ export default function Admissions({ onBack }) {
     if (!isDragging || !e.touches || e.touches.length === 0) return;
     const currentY = e.touches[0].clientY;
     const deltaY = currentY - startY;
-    
-    if (deltaY > 0) { // On ne permet de glisser que vers le bas
+    if (deltaY > 0) {
       setDragY(deltaY);
     }
   };
 
   const handleTouchEnd = () => {
     setIsDragging(false);
-    if (dragY > 150) { // Si on a tiré plus de 150px vers le bas, on ferme
+    if (dragY > 150) {
       setShowForm(false);
     } else {
-      setDragY(0); // Sinon on remet à 0 (effet rebond)
+      setDragY(0);
     }
   };
-  // ─────────────────────────────────────────
 
-  // Gestion du body.sheet-open pour empêcher le scroll derrière
   useEffect(() => {
     if (showForm) {
       document.body.classList.add('sheet-open');
     } else {
       document.body.classList.remove('sheet-open');
-      setDragY(0); // On s'assure que le drag revient à 0 quand c'est fermé
+      setDragY(0);
     }
     return () => document.body.classList.remove('sheet-open');
   }, [showForm]);
 
-  useEffect(() => { loadData(); }, []);
-
-  const loadData = async () => {
-    try {
-      const [admData, prodData, magData] = await Promise.all([
-        api.getAdmissions(magasinId || null).catch(() => []),
-        api.getProducteurs().catch(() => []),
-        api.getMagasins().catch(() => []),
-      ]);
-      setAdmissions(admData);
-      setProducteurs(prodData);
-      setMagasins(magData);
-    } catch (err) {
-      console.error('Erreur chargement données:', err);
-    }
-  };
+  // ─── HANDLERS ───────────────────────────────────────────────────────────────
 
   const handleLotChange = async (lotId) => {
     setFormData(f => ({ ...f, lot_id: lotId, unite: '', prix_ref: '' }));
@@ -509,46 +519,34 @@ export default function Admissions({ onBack }) {
 
   const handleGradeChange = useCallback((info) => setGradeInfo(info), []);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
-    setSubmitting(true);
 
     const payload = {
-      lot_id:          parseInt(formData.lot_id),
-      producteur_id:   formData.source === 'achat_direct' ? null : parseInt(formData.producteur_id),
-      quantite:        parseFloat(formData.quantite),
-      unite:           formData.unite,
-      prix_ref:        parseFloat(formData.prix_ref),
-      coef_qualite:    gradeInfo.coef ?? 1.0,
-      grade_qualite:   gradeInfo.grade || null,
+      lot_id: parseInt(formData.lot_id),
+      producteur_id: formData.source === 'achat_direct' ? null : parseInt(formData.producteur_id),
+      quantite: parseFloat(formData.quantite),
+      unite: formData.unite,
+      prix_ref: parseFloat(formData.prix_ref),
+      coef_qualite: gradeInfo.coef ?? 1.0,
+      grade_qualite: gradeInfo.grade || null,
       date_expiration: formData.date_expiration || null,
-      magasin_id:      1,  // verrouillé
-      mode_paiement:   formData.source === 'achat_direct' ? 'especes' : formData.mode_paiement,
-      utilisateur:     user?.username || 'system',
-      source:          formData.source,
+      magasin_id: 1,  // verrouillé
+      mode_paiement: formData.source === 'achat_direct' ? 'especes' : formData.mode_paiement,
+      utilisateur: user?.username || 'system',
+      source: formData.source,
     };
 
-    try {
-      console.log('[admission] payload envoyé:', JSON.stringify(payload));
-      await api.createAdmission(payload);
-      showAlert('✅ Admission validée avec succès !', 'success');
-      setFormData({
-        lot_id: '', producteur_id: '', quantite: '', unite: '',
-        prix_ref: '', date_expiration: '',
-        magasin_id: 1, mode_paiement: 'especes', source: 'achat_direct',
-      });
-      setActiveLot(null);
-      setGradeInfo({ grade: null, coef: 1.0 });
-      loadData();
-      setShowForm(false); // On ferme le panneau après succès
-    } catch (err) {
-      showAlert(`❌ Erreur : ${err.message}`, 'error');
-    } finally {
-      setSubmitting(false);
-    }
+    createAdmissionMutation.mutate(payload);
   };
 
   const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
+
+  const unitesDisponibles = activeLot
+    ? (Array.isArray(activeLot.unites_admises)
+        ? activeLot.unites_admises
+        : JSON.parse(activeLot.unites_admises || '[]'))
+    : [];
 
   const colStyle = {
     display: 'flex', flexDirection: 'column', gap: 16,
@@ -567,7 +565,6 @@ export default function Admissions({ onBack }) {
       icon="📥" onBack={onBack}
       subtitle="Admission avec audit qualité automatique"
     >
-      {/* Insertion dynamique des styles du Bottom Sheet */}
       <BottomSheetStyles />
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
 
@@ -589,7 +586,7 @@ export default function Admissions({ onBack }) {
         className={`sheet-overlay ${showForm ? 'active' : ''}`} 
         onClick={() => setShowForm(false)} 
       />
-      
+
       <div 
         className={`bottom-sheet ${showForm ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
         style={{ 
@@ -612,7 +609,7 @@ export default function Admissions({ onBack }) {
           </div>
         </div>
 
-        {/* Le Contenu Scrollable (Ton formulaire intact) */}
+        {/* Le Contenu Scrollable */}
         <div className="sheet-content">
           <form id="form-admission-mobile" onSubmit={handleSubmit}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
@@ -753,11 +750,11 @@ export default function Admissions({ onBack }) {
           <button 
             type="submit" 
             form="form-admission-mobile" 
-            disabled={submitting} 
+            disabled={createAdmissionMutation.isLoading} 
             className="btn btn-primary btn-lg" 
             style={{ width: '100%', boxShadow: '0 4px 12px rgba(22, 101, 52, 0.2)' }}
           >
-            {submitting ? '⏳ Enregistrement...' : "✅ VALIDER L'ADMISSION"}
+            {createAdmissionMutation.isLoading ? '⏳ Enregistrement...' : "✅ VALIDER L'ADMISSION"}
           </button>
         </div>
       </div>
