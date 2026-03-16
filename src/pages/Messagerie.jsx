@@ -2,12 +2,12 @@
 // Messagerie interne NFBO — inbox, envoi, détail, notifications
 // Polling unread-count toutes les 60s — s'intègre dans Dashboard via TabBar
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 
-
-const API_BASE  = '/api';
+const API_BASE = '/api';
 
 // ─── Fetch authentifié local ──────────────────────────────────────────────────
 async function mFetch(url, options = {}) {
@@ -238,19 +238,27 @@ function MessageRow({ msg, selected, onSelect }) {
 
 // ─── Vue : Détail d'un message ────────────────────────────────────────────────
 function MessageDetail({ msgId, onBack, onDelete }) {
-  const [msg, setMsg]     = useState(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!msgId) return;
-    setLoading(true);
-    mFetch(`${API_BASE}/messages?id=${msgId}`)
-      .then(setMsg)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, [msgId]);
+  const { data: msg, isLoading } = useQuery({
+    queryKey: ['message', msgId],
+    queryFn: () => mFetch(`${API_BASE}/messages?id=${msgId}`),
+    enabled: !!msgId,
+  });
 
-  if (loading) return (
+  const deleteMutation = useMutation({
+    mutationFn: (id) => mFetch(`${API_BASE}/messages?id=${id}`, { method: 'DELETE' }),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries(['messages', 'inbox']);
+      onDelete(id);
+    },
+    onError: (err) => {
+      console.error(err);
+      // Could show a toast here, but we'll leave that to parent
+    },
+  });
+
+  if (isLoading) return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
       {[1,2,3].map(i => <div key={i} style={{ height: 60, borderRadius: 14, background: '#1e293b' }} />)}
     </div>
@@ -272,10 +280,11 @@ function MessageDetail({ msgId, onBack, onDelete }) {
           <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{fmtDate(msg.inserted_at || msg.date)}</div>
         </div>
         <button
-          onClick={() => onDelete(msg.id)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 18, padding: 4 }}
+          onClick={() => deleteMutation.mutate(msg.id)}
+          disabled={deleteMutation.isLoading}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: deleteMutation.isLoading ? '#64748b' : '#ef4444', fontSize: 18, padding: 4 }}
           title="Supprimer"
-        >🗑</button>
+        >{deleteMutation.isLoading ? '⌛' : '🗑'}</button>
       </div>
 
       {/* Expéditeur */}
@@ -322,17 +331,12 @@ function MessageDetail({ msgId, onBack, onDelete }) {
 
 // ─── Vue : Envoyés ────────────────────────────────────────────────────────────
 function SentList({ onSelect }) {
-  const [messages, setMessages] = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const { data: messages = [], isLoading } = useQuery({
+    queryKey: ['messages', 'sent'],
+    queryFn: () => mFetch(`${API_BASE}/messages?action=sent`),
+  });
 
-  useEffect(() => {
-    mFetch(`${API_BASE}/messages?action=sent`)
-      .then(setMessages)
-      .catch(console.error)
-      .finally(() => setLoading(false));
-  }, []);
-
-  if (loading) return (
+  if (isLoading) return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 12 }}>
       {[1,2,3].map(i => <div key={i} style={{ height: 70, borderRadius: 14, background: '#1e293b' }} />)}
     </div>
@@ -383,20 +387,33 @@ function SentList({ onSelect }) {
 // ─── Formulaire de composition ────────────────────────────────────────────────
 function ComposeForm({ onSent, onCancel }) {
   const { user } = useAuth();
-  const [destinataires, setDestinataires] = useState({ grouped: {}, flat: [] });
+  const queryClient = useQueryClient();
+
   const [selected, setSelected]   = useState([]);
   const [objet, setObjet]         = useState('');
   const [contenu, setContenu]     = useState('');
-  const [sending, setSending]     = useState(false);
   const [error, setError]         = useState('');
   const [search, setSearch]       = useState('');
   const [showPicker, setShowPicker] = useState(false);
 
-  useEffect(() => {
-    mFetch(`${API_BASE}/messages?action=destinataires&role=${user?.role}&magasin_id=${user?.magasin_id || ''}`)
-      .then(setDestinataires)
-      .catch(console.error);
-  }, [user]);
+  const { data: destinataires = { grouped: {}, flat: [] } } = useQuery({
+    queryKey: ['destinataires', user?.role, user?.magasin_id],
+    queryFn: () => mFetch(`${API_BASE}/messages?action=destinataires&role=${user?.role}&magasin_id=${user?.magasin_id || ''}`),
+    enabled: !!user,
+  });
+
+  const sendMutation = useMutation({
+    mutationFn: (payload) => mFetch(`${API_BASE}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['messages', 'inbox']);
+      queryClient.invalidateQueries(['messages', 'sent']);
+      onSent({ title: 'Message envoyé', body: `À ${selected.length} destinataire${selected.length > 1 ? 's' : ''}`, icon: '✉️' });
+    },
+    onError: (err) => setError(err.message),
+  });
 
   const toggleDest = (u) => {
     setSelected(prev =>
@@ -411,29 +428,17 @@ function ComposeForm({ onSent, onCancel }) {
     return label.includes(search.toLowerCase());
   });
 
-  const handleSend = async () => {
+  const handleSend = () => {
     if (!selected.length) return setError('Choisissez au moins un destinataire');
     if (!objet.trim())    return setError('L\'objet est requis');
     if (!contenu.trim())  return setError('Le message est vide');
-    setSending(true);
-    setError('');
-    try {
-      await mFetch(`${API_BASE}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({
-          destinataires: selected.map(u => u.id),
-          objet: objet.trim(),
-          contenu: contenu.trim(),
-          topic: 'direct',
-          type_notification: 'interne',
-        }),
-      });
-      onSent({ title: 'Message envoyé', body: `À ${selected.length} destinataire${selected.length > 1 ? 's' : ''}`, icon: '✉️' });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSending(false);
-    }
+    sendMutation.mutate({
+      destinataires: selected.map(u => u.id),
+      objet: objet.trim(),
+      contenu: contenu.trim(),
+      topic: 'direct',
+      type_notification: 'interne',
+    });
   };
 
   return (
@@ -444,15 +449,15 @@ function ComposeForm({ onSent, onCancel }) {
         <h3 style={{ fontFamily: 'Sora, sans-serif', fontSize: 15, fontWeight: 700, color: '#f8fafc', flex: 1, margin: 0 }}>Nouveau message</h3>
         <button
           onClick={handleSend}
-          disabled={sending}
+          disabled={sendMutation.isLoading}
           style={{
-            padding: '8px 18px', borderRadius: 12, border: 'none', cursor: sending ? 'default' : 'pointer',
-            background: sending ? '#1e293b' : 'linear-gradient(135deg,#0891b2,#0e7490)',
+            padding: '8px 18px', borderRadius: 12, border: 'none', cursor: sendMutation.isLoading ? 'default' : 'pointer',
+            background: sendMutation.isLoading ? '#1e293b' : 'linear-gradient(135deg,#0891b2,#0e7490)',
             color: '#fff', fontFamily: 'Sora, sans-serif', fontSize: 13, fontWeight: 700,
-            opacity: sending ? .6 : 1, transition: 'all .15s',
+            opacity: sendMutation.isLoading ? .6 : 1, transition: 'all .15s',
           }}
         >
-          {sending ? 'Envoi…' : 'Envoyer'}
+          {sendMutation.isLoading ? 'Envoi…' : 'Envoyer'}
         </button>
       </div>
 
@@ -594,61 +599,46 @@ function ComposeForm({ onSent, onCancel }) {
 
 // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────────────────────
 export default function Messagerie({ onUnreadChange }) {
-  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  const [inbox,   setInbox]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [view,    setView]    = useState('inbox'); // inbox | sent | detail | compose
+  const [view, setView] = useState('inbox'); // inbox | sent | detail | compose
   const [selectedMsg, setSelectedMsg] = useState(null);
-  const [filter,  setFilter]  = useState('all');
-  const [toast,   setToast]   = useState(null);
+  const [filter, setFilter] = useState('all');
+  const [toast, setToast] = useState(null);
 
-  const pollRef = useRef(null);
+  // ─── Inbox avec polling ─────────────────────────────────────────────────────
+  const { data: inbox = [], isLoading: inboxLoading } = useQuery({
+    queryKey: ['messages', 'inbox'],
+    queryFn: () => mFetch(`${API_BASE}/messages`),
+    refetchInterval: 60000, // polling toutes les 60s
+  });
 
-  // ─── Chargement inbox ──────────────────────────────────────────────────────
-  const loadInbox = useCallback(async () => {
-    try {
-      const data = await mFetch(`${API_BASE}/messages`);
-      setInbox(data);
-      const unread = data.filter(m => !m.lu).length;
-      onUnreadChange?.(unread);
-    } catch (e) {
-      console.error('[Messagerie] loadInbox:', e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [onUnreadChange]);
-
+  // Notifier le parent du nombre de non lus
   useEffect(() => {
-    loadInbox();
-    // Polling toutes les 60s
-    pollRef.current = setInterval(loadInbox, 60_000);
-    return () => clearInterval(pollRef.current);
-  }, [loadInbox]);
+    if (inbox) {
+      const unread = inbox.filter(m => !m.lu).length;
+      onUnreadChange?.(unread);
+    }
+  }, [inbox, onUnreadChange]);
 
   // ─── Actions ───────────────────────────────────────────────────────────────
   const handleSelect = (msg) => {
     setSelectedMsg(msg);
     setView('detail');
-    // Marquer lu localement immédiatement
-    setInbox(prev => prev.map(m => m.id === msg.id ? { ...m, lu: true } : m));
-    onUnreadChange?.(inbox.filter(m => !m.lu && m.id !== msg.id).length);
+    // Marquer lu localement immédiatement (optimistic update)
+    queryClient.setQueryData(['messages', 'inbox'], (old = []) =>
+      old.map(m => m.id === msg.id ? { ...m, lu: true } : m)
+    );
   };
 
-  const handleDelete = async (id) => {
-    try {
-      await mFetch(`${API_BASE}/messages?id=${id}`, { method: 'DELETE' });
-      setInbox(prev => prev.filter(m => m.id !== id));
-      setView('inbox');
-    } catch (e) {
-      setToast({ title: 'Erreur', body: e.message, icon: '❌' });
-    }
+  const handleDelete = (id) => {
+    setView('inbox');
+    setSelectedMsg(null);
   };
 
   const handleSent = (toastData) => {
     setToast(toastData);
     setView('inbox');
-    loadInbox();
   };
 
   // ─── Tab switcher interne ──────────────────────────────────────────────────
@@ -708,7 +698,7 @@ export default function Messagerie({ onUnreadChange }) {
             messages={inbox}
             onSelect={handleSelect}
             selectedId={selectedMsg?.id}
-            loading={loading}
+            loading={inboxLoading}
             filter={filter}
             onFilterChange={setFilter}
           />
