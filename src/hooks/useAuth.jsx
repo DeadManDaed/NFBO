@@ -158,6 +158,24 @@ export function AuthProvider({ children }) {
       async (event, session) => {
         if (!mounted) return;
 
+if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+  hasResolved.current = false;
+  setLoading(true);
+
+  const safetyTimeout = setTimeout(() => {
+    console.warn("⏰ Safety timeout dans onAuthStateChange – libération forcée");
+    setLoading(false);
+    hasResolved.current = true;
+  }, 6000); // 10 secondes
+
+  try {
+    await resolveProfile(session.user);
+  } catch (err) {
+    console.error("Erreur dans onAuthStateChange:", err);
+  } finally {
+    clearTimeout(safetyTimeout);
+  }
+}
         if (event === 'SIGNED_OUT') {
           setUser(null);
           setLoading(false);
