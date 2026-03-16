@@ -1,5 +1,6 @@
 // src/pages/Administration.jsx
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import PageLayout, { StateLoading, StateEmpty, StateError } from '../components/PageLayout';
 import { useAuth } from '../hooks/useAuth';
 import apiService from '../services/api';
@@ -59,18 +60,14 @@ const CATEGORIES_MAPPING = {
   ],
 };
 
-//_______________
-
 const SECTIONS_CONFIG = {
   magasins:    { label: "Gestion des Magasins",       icon: "🏪", endpoint: "/api/magasins" },
-  users:     { label: "Utilisateurs Système", icon: "👥", endpoint: "/api/users?resource=users" },
-
-  employers: { label: "Employés & Staff",     icon: "🪪", endpoint: "/api/employers?resource=employers" },
-  producteurs: { label: "Gestion des Producteurs",     icon: "🌾", endpoint: "/api/producteurs" },
-  lots:        { label: "Référentiel des Lots",        icon: "🏷️", endpoint: "/api/lots" },
-  validations: { label: "Validations & Transferts",    icon: "✅", endpoint: "/api/validations" },
-  caisse:      { label: "Caisse Centrale & Paiements", icon: "💰", endpoint: null },
-demandes: { label: "Demandes d'inscription", icon: "📝", endpoint: "/auth/demandes" },
+  users:       { label: "Utilisateurs Système",       icon: "👥", endpoint: "/api/users?resource=users" },
+  producteurs: { label: "Gestion des Producteurs",    icon: "🌾", endpoint: "/api/producteurs" },
+  lots:        { label: "Référentiel des Lots",       icon: "🏷️", endpoint: "/api/lots" },
+  validations: { label: "Validations & Transferts",   icon: "✅", endpoint: null },
+  caisse:      { label: "Caisse Centrale & Paiements",icon: "💰", endpoint: null },
+  demandes:    { label: "Demandes d'inscription",     icon: "📝", endpoint: "/auth/demandes" },
 };
 
 const COLUMNS_CONFIG = {
@@ -79,6 +76,7 @@ const COLUMNS_CONFIG = {
     { key: "username", label: "Login" },
     { key: "role",     label: "Rôle",   type: "badge" },
     { key: "prenom",   label: "Prénom" },
+    { key: "nom",      label: "Nom" },
     { key: "statut",   label: "Statut", type: "badge" },
   ],
   lots: [
@@ -113,8 +111,6 @@ function formatCellValue(value, type) {
   return String(value);
 }
 
-
-
 const apiFetch = (url, options = {}) => {
   const endpoint = url.replace('/api', '');
   if (options.method === 'POST')   return apiService.request(endpoint, { ...options, method: 'POST' });
@@ -137,6 +133,7 @@ function NavButton({ section, currentSection, onClick }) {
     </button>
   );
 }
+
 // ─── TABLEAU GÉNÉRIQUE ─────────────────────────────────────────────────────────
 
 function AdminTable({ data, section, onDelete }) {
@@ -200,7 +197,7 @@ function ProducteursFilter({ data, onFilter }) {
   const [solde,  setSolde]  = useState("all");
   const [sort,   setSort]   = useState("nom");
 
-  useEffect(() => {
+  const applyFilter = useCallback(() => {
     let filtered = data.filter(p => {
       const matchSearch =
         (p.nom_producteur || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -219,7 +216,11 @@ function ProducteursFilter({ data, onFilter }) {
       return (a.nom_producteur || "").localeCompare(b.nom_producteur || "");
     });
     onFilter(filtered);
-  }, [search, solde, sort, data]);
+  }, [search, solde, sort, data, onFilter]);
+
+  useEffect(() => {
+    applyFilter();
+  }, [applyFilter]);
 
   return (
     <div style={{ display: "flex", gap: 10, marginBottom: 14, background: "var(--color-surface-alt)", padding: 10, borderRadius: 8, flexWrap: "wrap" }}>
@@ -275,11 +276,9 @@ function FormField({ label, children }) {
   return (
     <div className="form-group">
       <label className="form-label">{label}</label>
-      {/* Applique form-control à l'enfant direct via cloneElement */}
       {(() => {
         const child = children;
         if (!child) return null;
-        // Fusionne className form-control sur l'input/select/textarea enfant
         try {
           return { ...child, props: { ...child.props, className: [child.props.className, 'form-control'].filter(Boolean).join(' ') } };
         } catch {
@@ -292,24 +291,29 @@ function FormField({ label, children }) {
 
 // ─── FORMULAIRES ───────────────────────────────────────────────────────────────
 
-//+++++++Magasins+++++++
-
 function FormMagasin({ onCancel, onSuccess }) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({ nom: "", code: "", region_id: "" });
-  const [regions, setRegions] = useState([]);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  useEffect(() => {
-    apiFetch("/api/geo?type=regions").then(setRegions).catch(() => {});
-  }, []);
+  const { data: regions = [] } = useQuery({
+    queryKey: ['regions'],
+    queryFn: () => apiFetch("/api/geo?type=regions"),
+  });
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    try {
-      await apiFetch("/api/magasins", { method: "POST", body: JSON.stringify({ ...form, code: form.code.toUpperCase(), region_id: form.region_id || null }) });
+  const mutation = useMutation({
+    mutationFn: (payload) => apiFetch("/api/magasins", { method: "POST", body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['magasins']);
       alert("✅ Magasin enregistré !");
       onSuccess();
-    } catch (err) { alert("❌ " + err.message); }
+    },
+    onError: (err) => alert("❌ " + err.message),
+  });
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    mutation.mutate({ ...form, code: form.code.toUpperCase(), region_id: form.region_id || null });
   };
 
   return (
@@ -335,37 +339,29 @@ function FormMagasin({ onCancel, onSuccess }) {
   );
 }
 
-
-//++++++++++++Users+++++++++++++
-
 function FormUser({ onCancel, onSuccess }) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({ username: "", password: "", role: "stock", magasin_id: "", prenom: "", nom: "", email: "", telephone: "", statut: "actif" });
-  const [magasins, setMagasins] = useState([]);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  useEffect(() => {
-  fetch("/api/magasins")
-    .then(r => r.json())
-    .then(data => {
-      // On vérifie si c'est bien un tableau. 
-      // Si c'est un objet type {data: [...]}, on prend data.
-      const liste = Array.isArray(data) ? data : (data.data || []);
-      setMagasins(liste);
-    })
-    .catch((err) => {
-      console.error("Erreur fetch magasins:", err);
-      setMagasins([]); // On remet à vide en cas d'erreur
-    });
-}, []);
+  const { data: magasins = [] } = useQuery({
+    queryKey: ['magasins'],
+    queryFn: () => apiFetch("/api/magasins"),
+  });
 
-
-  const handleSubmit = async e => {
-    e.preventDefault();
-    try {
-      await apiFetch("/api/users", { method: "POST", body: JSON.stringify({ ...form, magasin_id: form.magasin_id || null }) });
+  const mutation = useMutation({
+    mutationFn: (payload) => apiFetch("/api/users", { method: "POST", body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['users']);
       alert("✅ Utilisateur créé !");
       onSuccess();
-    } catch (err) { alert("❌ " + err.message); }
+    },
+    onError: (err) => alert("❌ " + err.message),
+  });
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    mutation.mutate({ ...form, magasin_id: form.magasin_id || null });
   };
 
   return (
@@ -417,60 +413,61 @@ function FormUser({ onCancel, onSuccess }) {
   );
 }
 
-
-//++++++++++Producteurs+++++++++++
-
 function FormProducteur({ onCancel, onSuccess }) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({
     nom_producteur: "", tel_producteur: "", type_producteur: "individuel",
     carte_membre: false, region_id: "", departement_id: "", arrondissement_id: "",
     localite: "", statut: "actif",
   });
-  const [regions,         setRegions]         = useState([]);
-  const [departements,    setDepartements]    = useState([]);
-  const [arrondissements, setArrondissements] = useState([]);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  useEffect(() => {
-     apiFetch("/api/geo?type=regions").then(setRegions).catch(() => {});
-  }, []);
+  const { data: regions = [] } = useQuery({
+    queryKey: ['regions'],
+    queryFn: () => apiFetch("/api/geo?type=regions"),
+  });
 
-  const onRegionChange = async e => {
-    const id = e.target.value;
-    setForm(f => ({ ...f, region_id: id, departement_id: "", arrondissement_id: "" }));
-    setDepartements([]); setArrondissements([]);
-    if (id) {
-      const data = await apiFetch(`/api/geo?type=departements&region_id=${id}`).catch(() => []);
-      setDepartements(data);
-    }
-  };
+  const { data: departements = [] } = useQuery({
+    queryKey: ['departements', form.region_id],
+    queryFn: () => apiFetch(`/api/geo?type=departements&region_id=${form.region_id}`),
+    enabled: !!form.region_id,
+  });
 
-  const onDeptChange = async e => {
-    const id = e.target.value;
-    setForm(f => ({ ...f, departement_id: id, arrondissement_id: "" }));
-    setArrondissements([]);
-    if (id) {
-      const data = await apiFetch(`/api/geo?type=arrondissements&departement_id=${id}`).catch(() => []);
-      setArrondissements(data);
-    }
-  };
+  const { data: arrondissements = [] } = useQuery({
+    queryKey: ['arrondissements', form.departement_id],
+    queryFn: () => apiFetch(`/api/geo?type=arrondissements&departement_id=${form.departement_id}`),
+    enabled: !!form.departement_id,
+  });
 
-  const handleSubmit = async e => {
-    e.preventDefault();
-    try {
-      await apiFetch("/api/producteurs", {
-        method: "POST",
-        body: JSON.stringify({
-          ...form,
-          carte_membre:        form.carte_membre === "true" || form.carte_membre === true,
-          region_id:           parseInt(form.region_id)           || null,
-          departement_id:      parseInt(form.departement_id)      || null,
-          arrondissement_id:   parseInt(form.arrondissement_id)   || null,
-        }),
-      });
+  const mutation = useMutation({
+    mutationFn: (payload) => apiFetch("/api/producteurs", { method: "POST", body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['producteurs']);
       alert("✅ Producteur enregistré !");
       onSuccess();
-    } catch (err) { alert("❌ " + err.message); }
+    },
+    onError: (err) => alert("❌ " + err.message),
+  });
+
+  const handleSubmit = e => {
+    e.preventDefault();
+    mutation.mutate({
+      ...form,
+      carte_membre: form.carte_membre === "true" || form.carte_membre === true,
+      region_id: parseInt(form.region_id) || null,
+      departement_id: parseInt(form.departement_id) || null,
+      arrondissement_id: parseInt(form.arrondissement_id) || null,
+    });
+  };
+
+  const onRegionChange = e => {
+    const id = e.target.value;
+    setForm(f => ({ ...f, region_id: id, departement_id: "", arrondissement_id: "" }));
+  };
+
+  const onDeptChange = e => {
+    const id = e.target.value;
+    setForm(f => ({ ...f, departement_id: id, arrondissement_id: "" }));
   };
 
   return (
@@ -484,7 +481,8 @@ function FormProducteur({ onCancel, onSuccess }) {
           <label className="form-label">Téléphone *</label>
           <input className="form-control" required type="tel" value={form.tel_producteur} onChange={set("tel_producteur")} placeholder="6XXXXXXXX" />
         </div>
-        <div className="form-group">
+        
+          <div className="form-group">
           <label className="form-label">Type *</label>
           <select className="form-control" required value={form.type_producteur} onChange={set("type_producteur")}>
             {["individuel","agriculteur","éleveur","pêcheur","artisan","coopérative"].map(t => (
@@ -534,15 +532,15 @@ function FormProducteur({ onCancel, onSuccess }) {
     </FormWrapper>
   );
 }
-
 function FormLot({ onCancel, onSuccess }) {
+  const queryClient = useQueryClient();
   const [form, setForm] = useState({ categorie: "", description: "", prix_ref: "", notes: "" });
-  const [unites,        setUnites]        = useState([]);
-  const [criteresAuto,  setCriteresAuto]  = useState([]);
+  const [unites, setUnites] = useState([]);
+  const [criteresAuto, setCriteresAuto] = useState([]);
   const [criteresPerso, setCriteresPerso] = useState([]);
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const toggleUnite   = u => setUnites(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u]);
+  const toggleUnite = u => setUnites(prev => prev.includes(u) ? prev.filter(x => x !== u) : [...prev, u]);
   const toggleCritere = c => setCriteresAuto(prev => prev.includes(c) ? prev.filter(x => x !== c) : [...prev, c]);
 
   const onCatChange = e => {
@@ -551,11 +549,21 @@ function FormLot({ onCancel, onSuccess }) {
     setCriteresAuto(CATEGORIES_MAPPING[cat] ? [...CATEGORIES_MAPPING[cat]] : []);
   };
 
-  const addCriterePerso  = () => setCriteresPerso(prev => [...prev, { critere: "", obligatoire: "obligatoire" }]);
+  const addCriterePerso = () => setCriteresPerso(prev => [...prev, { critere: "", obligatoire: "obligatoire" }]);
   const updatePerso = (i, k, v) => setCriteresPerso(prev => prev.map((c, idx) => idx === i ? { ...c, [k]: v } : c));
   const removePerso = i => setCriteresPerso(prev => prev.filter((_, idx) => idx !== i));
 
-  const handleSubmit = async e => {
+  const mutation = useMutation({
+    mutationFn: (payload) => apiFetch("/api/lots", { method: "POST", body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['lots']);
+      alert("✅ Lot enregistré !");
+      onSuccess();
+    },
+    onError: (err) => alert("❌ " + err.message),
+  });
+
+  const handleSubmit = e => {
     e.preventDefault();
     if (unites.length === 0) return alert("❌ Sélectionnez au moins une unité.");
     const payload = {
@@ -567,11 +575,7 @@ function FormLot({ onCancel, onSuccess }) {
         ...criteresPerso.filter(c => c.critere.trim()).map(c => ({ type: "personnalise", critere: c.critere, obligatoire: c.obligatoire === "obligatoire" })),
       ],
     };
-    try {
-      await apiFetch("/api/lots", { method: "POST", body: JSON.stringify(payload) });
-      alert("✅ Lot enregistré !");
-      onSuccess();
-    } catch (err) { alert("❌ " + err.message); }
+    mutation.mutate(payload);
   };
 
   const unitesDisponibles = ["kg","gr","litres","unites","sacs","caisses","bottes","plateaux"];
@@ -614,7 +618,7 @@ function FormLot({ onCancel, onSuccess }) {
         </div>
       </FormGrid>
 
-            {/* Unités */}
+      {/* Unités */}
       <div style={{ marginTop: 20 }}>
         <label className="form-label" style={{ marginBottom: 10, display: "block", color: "var(--color-text)", fontWeight: 600 }}>
           Unités de mesure admises *
@@ -635,7 +639,7 @@ function FormLot({ onCancel, onSuccess }) {
               gap: 8, 
               cursor: "pointer", 
               fontSize: 13,
-              color: "var(--color-text)" /* Assure la visibilité du texte */
+              color: "var(--color-text)"
             }}>
               <input 
                 type="checkbox" 
@@ -700,82 +704,65 @@ function FormLot({ onCancel, onSuccess }) {
     </FormWrapper>
   );
 }
-
 // ─── MODULE CAISSE ─────────────────────────────────────────────────────────────
 
 function ModuleCaisse() {
-const { user } = useAuth(); 
-  const [producteurs,  setProducteurs]  = useState([]);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const [selectedProd, setSelectedProd] = useState("");
-  const [solde,        setSolde]        = useState(0);
-  const [montant,      setMontant]      = useState("");
-  const [mode,         setMode]         = useState("especes");
-  const [logs,         setLogs]         = useState([]);
-  const [loading,      setLoading]      = useState(false);
-  const [logsLoading,  setLogsLoading]  = useState(true);
+  const [montant, setMontant] = useState("");
+  const [mode, setMode] = useState("especes");
 
-  const loadData = useCallback(async () => {
-    try {
-      const [prods, history] = await Promise.all([
-        apiFetch("/api/producteurs"),
-        apiFetch("/api/operations_caisse?type=debit&limit=10").catch(() => []),
-      ]);
-      setProducteurs(prods);
-      setLogs(history);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLogsLoading(false);
-    }
-  }, []);
+  const { data: producteurs = [], isLoading: prodLoading } = useQuery({
+    queryKey: ['producteurs'],
+    queryFn: () => apiFetch("/api/producteurs"),
+  });
 
-  useEffect(() => { loadData(); }, [loadData]);
+  const { data: logs = [], isLoading: logsLoading } = useQuery({
+    queryKey: ['operations_caisse'],
+    queryFn: () => apiFetch("/api/operations_caisse?type=debit&limit=10"),
+  });
 
-  const onProdChange = e => {
-    const id = e.target.value;
-    setSelectedProd(id);
-    const p = producteurs.find(p => String(p.id) === id);
-    setSolde(p ? parseFloat(p.solde || 0) : 0);
-    setMontant("");
-  };
+  const selectedProducteur = producteurs.find(p => String(p.id) === selectedProd);
+  const solde = selectedProducteur ? parseFloat(selectedProducteur.solde || 0) : 0;
 
-  const handleSubmit = async e => {
+  const mutation = useMutation({
+    mutationFn: (payload) => apiFetch("/api/operations_caisse", { method: "POST", body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['producteurs']);
+      queryClient.invalidateQueries(['operations_caisse']);
+      alert("✅ Paiement effectué avec succès !");
+      setSelectedProd("");
+      setMontant("");
+    },
+    onError: (err) => alert("❌ " + err.message),
+  });
+
+  const handleSubmit = e => {
     e.preventDefault();
     const m = parseFloat(montant);
     if (m > solde) return alert(`❌ Montant (${m.toLocaleString()}) dépasse le solde disponible (${solde.toLocaleString()}).`);
     if (!confirm(`Confirmer le paiement de ${m.toLocaleString("fr-FR")} FCFA ?`)) return;
-    setLoading(true);
-    try {
-      await apiFetch("/api/operations_caisse", {
-        method: "POST",
-        body: JSON.stringify({
-          producteur_id:  parseInt(selectedProd),
-          montant:        m,
-          type_operation: "debit",
-          description:    `Paiement Admin via ${mode}`,
-          utilisateur:    user.username || "admin",
-          caisse_id:      1,
-        }),
-      });
-      alert("✅ Paiement effectué avec succès !");
-      setSelectedProd(""); setSolde(0); setMontant(""); setMode("especes");
-      loadData();
-    } catch (err) {
-      alert("❌ " + err.message);
-    } finally {
-      setLoading(false);
-    }
+    mutation.mutate({
+      producteur_id: parseInt(selectedProd),
+      montant: m,
+      type_operation: "debit",
+      description: `Paiement Admin via ${mode}`,
+      utilisateur: user.username || "admin",
+      caisse_id: 1,
+    });
   };
 
   return (
-<div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 16 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 16 }}>
       {/* Panneau paiement */}
       <div className="card">
         <h4 style={{ marginTop: 0, marginBottom: 16, color: "var(--color-text)" }}>Nouveau Paiement</h4>
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div className="form-group">
             <label className="form-label">Bénéficiaire (Producteur)</label>
-            <select className="form-control" required value={selectedProd} onChange={onProdChange}>
+            <select className="form-control" required value={selectedProd} onChange={e => setSelectedProd(e.target.value)}>
               <option value="">-- Choisir un producteur --</option>
               {producteurs.map(p => <option key={p.id} value={p.id}>{p.nom_producteur} ({p.matricule})</option>)}
             </select>
@@ -802,8 +789,8 @@ const { user } = useAuth();
             </select>
           </div>
 
-          <button type="submit" disabled={loading} className="btn btn-primary btn-full">
-            {loading ? "⏳ En cours..." : "✔ VALIDER LE PAIEMENT"}
+          <button type="submit" disabled={mutation.isLoading} className="btn btn-primary btn-full">
+            {mutation.isLoading ? "⏳ En cours..." : "✔ VALIDER LE PAIEMENT"}
           </button>
         </form>
       </div>
@@ -812,7 +799,7 @@ const { user } = useAuth();
       <div className="card">
         <div className="card-header">
           <h4 style={{ margin: 0 }}>Historique des Sorties de Caisse</h4>
-          <button onClick={loadData} className="btn btn-ghost btn-sm">🔄 Actualiser</button>
+          <button onClick={() => queryClient.invalidateQueries(['operations_caisse'])} className="btn btn-ghost btn-sm">🔄 Actualiser</button>
         </div>
 
         {logsLoading ? (
@@ -851,66 +838,52 @@ const { user } = useAuth();
 }
 
 function PanneauDemandes({ onSuccess }) {
-  const [demandes,      setDemandes]      = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [selected,      setSelected]      = useState(null);
-  const [magasins,      setMagasins]      = useState([]);
-  const [formApprob,    setFormApprob]    = useState({ role: 'stock', magasin_id: '' });
-  const [submitting,    setSubmitting]    = useState(false);
-  const [erreur,        setErreur]        = useState('');
+  const queryClient = useQueryClient();
+  const [selected, setSelected] = useState(null);
+  const [formApprob, setFormApprob] = useState({ role: 'stock', magasin_id: '' });
+  const [erreur, setErreur] = useState('');
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [d, m] = await Promise.all([
-        apiFetch('/auth/demandes'),
-        apiFetch('/api/magasins'),
-      ]);
-      setDemandes(d);
-      setMagasins(m);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data: demandes = [], isLoading } = useQuery({
+    queryKey: ['demandes'],
+    queryFn: () => apiFetch('/auth/demandes'),
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const { data: magasins = [] } = useQuery({
+    queryKey: ['magasins'],
+    queryFn: () => apiFetch('/api/magasins'),
+  });
 
-  const handleApprouver = async () => {
+  const approuverMutation = useMutation({
+    mutationFn: (payload) => apiFetch('/auth/approuver', { method: 'POST', body: JSON.stringify(payload) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['demandes']);
+      setSelected(null);
+      onSuccess?.('✅ Compte créé avec succès');
+    },
+    onError: (err) => setErreur(err.message),
+  });
+
+  const rejeterMutation = useMutation({
+    mutationFn: (demande_id) => apiFetch('/auth/rejeter', { method: 'POST', body: JSON.stringify({ demande_id }) }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['demandes']);
+    },
+    onError: (err) => alert('❌ ' + err.message),
+  });
+
+  const handleApprouver = () => {
     setErreur('');
     if (!formApprob.role) { setErreur('Rôle requis'); return; }
-    setSubmitting(true);
-    try {
-      await apiFetch('/auth/approuver', {
-        method: 'POST',
-        body: JSON.stringify({
-          demande_id: selected.id,
-          role:       formApprob.role,
-          magasin_id: formApprob.magasin_id || null,
-        }),
-      });
-      setSelected(null);
-      load();
-      onSuccess?.('✅ Compte créé avec succès');
-    } catch (err) {
-      setErreur(err.message);
-    } finally {
-      setSubmitting(false);
-    }
+    approuverMutation.mutate({
+      demande_id: selected.id,
+      role: formApprob.role,
+      magasin_id: formApprob.magasin_id || null,
+    });
   };
 
-  const handleRejeter = async (id) => {
+  const handleRejeter = (id) => {
     if (!confirm('Rejeter cette demande ?')) return;
-    try {
-      await apiFetch('/auth/rejeter', {
-        method: 'POST',
-        body: JSON.stringify({ demande_id: id }),
-      });
-      load();
-    } catch (err) {
-      alert('❌ ' + err.message);
-    }
+    rejeterMutation.mutate(id);
   };
 
   const BADGE_STATUT = {
@@ -919,11 +892,10 @@ function PanneauDemandes({ onSuccess }) {
     rejetée:    { bg: '#fef2f2', color: '#dc2626', label: '❌ Rejetée' },
   };
 
-  if (loading) return <StateLoading />;
+  if (isLoading) return <StateLoading />;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
       {demandes.length === 0 && (
         <StateEmpty icon="📝" message="Aucune demande d'inscription." />
       )}
@@ -933,7 +905,6 @@ function PanneauDemandes({ onSuccess }) {
         const isOpen = selected?.id === d.id;
         return (
           <div key={d.id} style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', overflow: 'hidden' }}>
-
             {/* ── En-tête ── */}
             <div
               onClick={() => setSelected(isOpen ? null : d)}
@@ -959,7 +930,6 @@ function PanneauDemandes({ onSuccess }) {
             {/* ── Détails + formulaire approbation ── */}
             {isOpen && (
               <div style={{ borderTop: '1px solid var(--color-border)', padding: '16px' }}>
-
                 {/* Infos demandeur */}
                 <div className="grid-2" style={{ gap: 8, marginBottom: 16 }}>
                   {[
@@ -1022,17 +992,18 @@ function PanneauDemandes({ onSuccess }) {
                     <div style={{ display: 'flex', gap: 10 }}>
                       <button
                         onClick={handleApprouver}
-                        disabled={submitting}
+                        disabled={approuverMutation.isLoading}
                         className="btn btn-primary"
                         style={{ flex: 1 }}
                       >
-                        {submitting ? '⏳...' : '✅ Approuver et créer le compte'}
+                        {approuverMutation.isLoading ? '⏳...' : '✅ Approuver et créer le compte'}
                       </button>
                       <button
                         onClick={() => handleRejeter(d.id)}
+                        disabled={rejeterMutation.isLoading}
                         className="btn btn-danger"
                       >
-                        ❌ Rejeter
+                        {rejeterMutation.isLoading ? '⏳' : '❌ Rejeter'}
                       </button>
                     </div>
                   </>
@@ -1046,13 +1017,9 @@ function PanneauDemandes({ onSuccess }) {
   );
 }
 
-
-// --- COMPOSANT STATS (STYLE TABLEAU DE BORD) ---
-
 function StatsRow({ section, data, demandesCount }) {
-  // Calculs sécurisés pour éviter les erreurs sur les données nulles
   const safeData = Array.isArray(data) ? data : [];
-  
+
   const stats = {
     magasins: [
       { label: "Total Magasins", value: safeData.length, icon: "🏪", color: "var(--color-primary)" },
@@ -1094,16 +1061,13 @@ function StatsRow({ section, data, demandesCount }) {
     </div>
   );
 }
-
 // --- COMPOSANT PRINCIPAL ---
 
 export default function Administration() {
   const [section, setSection] = useState("magasins");
-  const [data, setData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [status, setStatus] = useState("loading");
-  const [errorMsg, setErrorMsg] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const queryClient = useQueryClient();
 
   const sections = [
     { id: 'magasins',    label: 'Magasins',    icon: '🏪' },
@@ -1114,57 +1078,51 @@ export default function Administration() {
     { id: 'demandes',    label: 'Demandes',     icon: '📝' },
   ];
 
-  const loadSection = useCallback(async (sec) => {
-    setSection(sec);
-    setShowForm(false);
-    if (["caisse", "validations", "demandes"].includes(sec)) {
-      setStatus("ready");
-      // Pour les demandes, on charge quand même pour les stats
-      if (sec === "demandes") {
-        try {
-          const res = await apiFetch("/auth/demandes");
-          setData(res);
-        } catch (e) { console.error(e); }
-      }
-      return;
-    }
+  const cfg = SECTIONS_CONFIG[section];
 
-    const cfg = SECTIONS_CONFIG[sec];
-    if (!cfg?.endpoint) return;
+  const { data = [], isLoading, error, refetch } = useQuery({
+    queryKey: [section],
+    queryFn: () => {
+      if (!cfg?.endpoint) return Promise.resolve([]);
+      return apiFetch(cfg.endpoint);
+    },
+    enabled: !!cfg?.endpoint || section === 'demandes' || section === 'caisse', // demandes a son propre endpoint, caisse géré dans ModuleCaisse
+  });
 
-    setStatus("loading");
-    try {
-      const result = await apiFetch(cfg.endpoint);
-      setData(result);
-      setFilteredData(result);
-      setStatus("ready");
-    } catch (err) {
-      setErrorMsg(err.message);
-      setStatus("error");
-    }
-  }, []);
+  // Pour la section 'demandes', on a besoin des données pour les stats
+  const { data: demandes = [] } = useQuery({
+    queryKey: ['demandes'],
+    queryFn: () => apiFetch('/auth/demandes'),
+    enabled: section === 'demandes', // on ne charge que si nécessaire
+  });
 
-  useEffect(() => { loadSection("magasins"); }, [loadSection]);
+  // Appliquer le filtre producteurs
+  const displayData = section === 'producteurs' ? filteredData : data;
 
-  const handleDelete = async (sec, id) => {
+  const handleDelete = useCallback(async (sec, id) => {
     if (!confirm("⚠️ Confirmer la suppression ?")) return;
-    try { 
+    try {
       await apiFetch(`/api/${sec}?id=${id}`, { method: "DELETE" });
-      loadSection(sec);
-    } catch (err) { alert("Erreur: " + err.message); }
-  };
+      queryClient.invalidateQueries([sec]);
+    } catch (err) {
+      alert("Erreur: " + err.message);
+    }
+  }, [queryClient]);
 
   const FORMS = { magasins: FormMagasin, users: FormUser, producteurs: FormProducteur, lots: FormLot };
   const FormComponent = FORMS[section];
 
   return (
     <PageLayout title="Administration" icon="⚙️" subtitle="Gestion globale du système NFBO">
-
       <div className="tabs-container" style={{ marginBottom: 24, overflowX: 'auto', display: 'flex', gap: 8, paddingBottom: 8 }}>
         {sections.map(s => (
           <button
             key={s.id}
-            onClick={() => loadSection(s.id)}
+            onClick={() => {
+              setSection(s.id);
+              setShowForm(false);
+              setFilteredData([]);
+            }}
             className={`tab-btn ${section === s.id ? 'active' : ''}`}
             style={{
               padding: '10px 18px',
@@ -1187,17 +1145,17 @@ export default function Administration() {
       </div>
 
       <div style={{ width: "100%", minWidth: 0 }}>
-        {!showForm && status === "ready" && (
-            <StatsRow 
-                section={section} 
-                data={data} 
-                demandesCount={section === 'demandes' ? data.length : 0} 
-            />
-        )} 
+        {!showForm && !isLoading && !error && (
+          <StatsRow 
+            section={section} 
+            data={section === 'demandes' ? demandes : data} 
+            demandesCount={demandes.filter(d => d.statut === 'en_attente').length} 
+          />
+        )}
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: "1.4rem", fontWeight: 700 }}>
-             {SECTIONS_CONFIG[section]?.label}
+            {cfg?.label}
           </h2>
           {!["caisse", "demandes", "validations"].includes(section) && !showForm && (
             <button onClick={() => setShowForm(true)} className="btn btn-primary">
@@ -1210,7 +1168,7 @@ export default function Administration() {
           <div className="animate-fade-in">
             <FormComponent
               onCancel={() => setShowForm(false)}
-              onSuccess={() => { setShowForm(false); loadSection(section); }}
+              onSuccess={() => { setShowForm(false); queryClient.invalidateQueries([section]); }}
             />
           </div>
         ) : (
@@ -1219,15 +1177,15 @@ export default function Administration() {
               <ModuleCaisse />
             ) : section === "demandes" ? (
               <PanneauDemandes onSuccess={msg => alert(msg)} />
-            ) : status === "loading" ? (
+            ) : isLoading ? (
               <StateLoading />
-            ) : status === "error" ? (
-              <StateError message={errorMsg} onRetry={() => loadSection(section)} />
+            ) : error ? (
+              <StateError message={error.message} onRetry={() => refetch()} />
             ) : (
               <>
                 {section === "producteurs" && <ProducteursFilter data={data} onFilter={setFilteredData} />}
                 <div className="card" style={{ padding: 0, overflow: "hidden", border: '1px solid var(--color-border)' }}>
-                  <AdminTable data={filteredData} section={section} onDelete={handleDelete} />
+                  <AdminTable data={displayData} section={section} onDelete={handleDelete} />
                 </div>
               </>
             )}
