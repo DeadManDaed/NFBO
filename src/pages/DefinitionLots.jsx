@@ -1,9 +1,11 @@
+
 // src/pages/DefinitionLots.jsx
 import { useState } from 'react';
-import { useLots } from '../hooks/useLots';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAlert } from '../hooks/useAlert';
 import Alert from '../components/Alert';
 import PageLayout from '../components/PageLayout';
+import api from '../services/api';
 
 const DEFAULT_CRITERIA = {
   frais:    ["Fraîcheur", "Calibre minimum", "Absence de pesticides", "Présentation propre"],
@@ -15,7 +17,7 @@ const DEFAULT_CRITERIA = {
 };
 
 export default function DefinitionLots() {
-  const { lots, createLot } = useLots();
+  const queryClient = useQueryClient();
   const { alert, showAlert, hideAlert } = useAlert();
 
   const [formData, setFormData] = useState({
@@ -26,6 +28,24 @@ export default function DefinitionLots() {
   });
   const [criteria, setCriteria] = useState([]);
 
+  // ─── REQUÊTES ──────────────────────────────────────────────────────────────
+  const { data: lots = [] } = useQuery({
+    queryKey: ['lots'],
+    queryFn: () => api.getLots(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: (payload) => api.createLot(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['lots']);
+      showAlert('Lot créé avec succès ✅', 'success');
+      setFormData({ categorie: '', description: '', prix_ref: '', unites_admises: [] });
+      setCriteria([]);
+    },
+    onError: () => showAlert('Erreur lors de la création du lot ❌', 'error'),
+  });
+
+  // ─── HANDLERS ───────────────────────────────────────────────────────────────
   const handleCategoryChange = (e) => {
     const cat = e.target.value;
     setFormData(f => ({ ...f, categorie: cat }));
@@ -46,19 +66,12 @@ export default function DefinitionLots() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      await createLot({
-        ...formData,
-        prix_ref:           parseFloat(formData.prix_ref),
-        criteres_admission: criteria,
-        stock_disponible:   0,
-      });
-      showAlert('Lot créé avec succès ✅', 'success');
-      setFormData({ categorie: '', description: '', prix_ref: '', unites_admises: [] });
-      setCriteria([]);
-    } catch {
-      showAlert('Erreur lors de la création du lot ❌', 'error');
-    }
+    createMutation.mutate({
+      ...formData,
+      prix_ref: parseFloat(formData.prix_ref),
+      criteres_admission: criteria,
+      stock_disponible: 0,
+    });
   };
 
   const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
@@ -162,8 +175,12 @@ export default function DefinitionLots() {
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="btn btn-primary btn-lg">
-              ✅ Créer le lot
+            <button
+              type="submit"
+              disabled={createMutation.isLoading}
+              className="btn btn-primary btn-lg"
+            >
+              {createMutation.isLoading ? '⏳ Création...' : '✅ Créer le lot'}
             </button>
           </div>
         </form>
