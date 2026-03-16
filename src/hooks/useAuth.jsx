@@ -96,10 +96,12 @@ export function AuthProvider({ children }) {
       const profile = await loadUserProfile(supabaseUser.id);
       if (profile) {
         setUser(profile);
-      } else {
-        await supabase.auth.signOut().catch(() => {});
-        setUser(null);
-      }
+} else {
+  // Profil non chargé (erreur réseau transitoire ou compte inactif).
+  // On ne déconnecte PAS Supabase — on garde la session intacte
+  // pour que le prochain regain de focus puisse réessayer.
+  setUser(null);
+}
     } catch {
       setUser(null);
     } finally {
@@ -197,8 +199,6 @@ export function AuthProvider({ children }) {
     }
 
     // Nettoyage préventif
-    await supabase.auth.signOut().catch(() => {});
-    resolving.current = false;
 
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message || 'Identifiants incorrects');
