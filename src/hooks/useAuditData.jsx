@@ -1,4 +1,5 @@
 // src/hooks/useAuditData.jsx
+
 import { useMemo, useState } from 'react';
 import { useQuery, useQueries, useQueryClient } from '@tanstack/react-query';
 import { useAlert } from './useAlert';
@@ -8,37 +9,67 @@ export function useAuditData() {
   const queryClient = useQueryClient();
   const { alert, showAlert, hideAlert } = useAlert();
 
-  // ─── Requêtes principales (toutes lancées en parallèle) ─────────────────────
+  // ─── Requêtes principales ─────────────────────────────────────────────────
   const results = useQueries({
     queries: [
       {
         queryKey: ['audit', 'pending'],
-        queryFn: () => api.getAuditPending().catch(() => []),
+        queryFn: async () => {
+          console.log('[useAuditData] Chargement transferts en attente...');
+          const data = await api.getAuditPending();
+          console.log('[useAuditData] transfertsPending:', data);
+          return data;
+        },
         initialData: [],
       },
       {
         queryKey: ['audit', 'validated'],
-        queryFn: () => api.request('/audit?action=validated-transfers').catch(() => []),
+        queryFn: async () => {
+          console.log('[useAuditData] Chargement transferts validés...');
+          const data = await api.request('/audit?action=validated-transfers');
+          console.log('[useAuditData] transfertsValidated:', data);
+          return data;
+        },
         initialData: [],
       },
       {
         queryKey: ['audit', 'performance'],
-        queryFn: () => api.getAuditPerformance().catch(() => []),
+        queryFn: async () => {
+          console.log('[useAuditData] Chargement performance...');
+          const data = await api.getAuditPerformance();
+          console.log('[useAuditData] performanceData:', data);
+          return data;
+        },
         initialData: [],
       },
       {
         queryKey: ['admissions'],
-        queryFn: () => api.getAdmissions(null).catch(() => []),
+        queryFn: async () => {
+          console.log('[useAuditData] Chargement admissions...');
+          const data = await api.getAdmissions(null);
+          console.log('[useAuditData] admissions:', data);
+          return data;
+        },
         initialData: [],
       },
       {
         queryKey: ['retraits'],
-        queryFn: () => api.getRetraits(null).catch(() => []),
+        queryFn: async () => {
+          console.log('[useAuditData] Chargement retraits...');
+          const data = await api.getRetraits(null);
+          console.log('[useAuditData] retraits:', data);
+          return data;
+        },
         initialData: [],
       },
       {
         queryKey: ['lots-stock'],
-        queryFn: () => api.request('/lots/stock').catch(() => []),
+        queryFn: async () => {
+          console.log('[useAuditData] Chargement stocks...');
+          const data = await api.request('/lots/stock');
+          console.log('[useAuditData] stocks:', data);
+          return data;
+        },
         initialData: [],
       },
     ],
@@ -63,13 +94,24 @@ export function useAuditData() {
 
   // ─── État de chargement global ────────────────────────────────────────────
   const loading = results.some(q => q.isLoading);
+  const errors = results.filter(q => q.error).map(q => q.error);
+
+  // Afficher les erreurs dans la console
+  if (errors.length > 0) {
+    console.error('[useAuditData] Erreurs de requête:', errors);
+  }
 
   // ─── Gestion des logs d'un magasin (requête dépendante) ────────────────────
   const [selectedMagasin, setSelectedMagasin] = useState(null);
 
   const logsQuery = useQuery({
     queryKey: ['audit', 'logs', selectedMagasin?.magasin_id],
-    queryFn: () => api.getAuditLogsByStore(selectedMagasin.magasin_id),
+    queryFn: async () => {
+      console.log('[useAuditData] Chargement logs pour magasin', selectedMagasin?.magasin_id);
+      const data = await api.getAuditLogsByStore(selectedMagasin.magasin_id);
+      console.log('[useAuditData] magasinLogs:', data);
+      return data;
+    },
     enabled: !!selectedMagasin,
     initialData: [],
   });
@@ -77,9 +119,8 @@ export function useAuditData() {
   const magasinLogs = logsQuery.data;
   const loadingLogs = logsQuery.isLoading;
 
-  // ─── Fonctions d'action (pour compatibilité) ───────────────────────────────
+  // ─── Fonctions d'action ───────────────────────────────────────────────────
   const loadAll = () => {
-    // Invalide toutes les requêtes principales pour les recharger
     queryClient.invalidateQueries({ queryKey: ['audit'] });
     queryClient.invalidateQueries({ queryKey: ['admissions'] });
     queryClient.invalidateQueries({ queryKey: ['retraits'] });
@@ -88,12 +129,10 @@ export function useAuditData() {
 
   const loadMagasinLogs = async (magasin) => {
     setSelectedMagasin(magasin);
-    // La query s'exécutera automatiquement car enabled devient true
   };
 
   const clearMagasin = () => {
     setSelectedMagasin(null);
-    // Optionnel : on peut aussi invalider pour nettoyer le cache
     queryClient.removeQueries({ queryKey: ['audit', 'logs'] });
   };
 
@@ -101,7 +140,6 @@ export function useAuditData() {
   const total = transfertsPending.length + transfertsValidated.length;
   const tauxValid = total > 0 ? Math.round((transfertsValidated.length / total) * 100) : 0;
 
-  // ─── Retour (même interface que l'ancien hook) ─────────────────────────────
   return {
     transfertsPending,
     transfertsValidated,
