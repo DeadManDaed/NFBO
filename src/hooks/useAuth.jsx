@@ -1,11 +1,12 @@
+// src/hooks/useAuth.js
+
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
-// ─── CONSTANTES DE TIMEOUT (harmonisées) ─────────────────────────────────────
-const LOAD_PROFILE_TIMEOUT = 4000;        // Chargement du profil utilisateur
-const AUTH_EVENT_TIMEOUT   = 8000;        // Traitement des événements auth (SIGNED_IN, TOKEN_REFRESHED)
-const SAFETY_TIMEOUT_PROD  = 15000;        // Sécurité globale en production
-const SAFETY_TIMEOUT_DEV   = 30000;        // Sécurité globale en développement
+// ─── CONSTANTES DE TIMEOUT ─────────────────────────────────────────────────────
+const LOAD_PROFILE_TIMEOUT = 4000;
+const SAFETY_TIMEOUT_PROD  = 15000;
+const SAFETY_TIMEOUT_DEV   = 30000;
 const SAFETY_TIMEOUT = import.meta.env.DEV ? SAFETY_TIMEOUT_DEV : SAFETY_TIMEOUT_PROD;
 
 const AuthContext = createContext(null);
@@ -38,7 +39,7 @@ export async function authFetch(url, options = {}) {
   return res.json();
 }
 
-// ─── Charger les données métier avec Timeout (AbortController) ────────────────
+// ─── Charger les données métier avec Timeout ────────────────────────────────
 async function loadUserProfile(authId, retries = 1) {
   for (let i = 0; i <= retries; i++) {
     const controller = new AbortController();
@@ -83,34 +84,40 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const hasResolved = useRef(false);
-  const isRefreshing = useRef(false);
 
-  // Rafraîchir le profil sans changer l'état loading (pour événements de focus/online)
+  // Verrou pour éviter les appels concurrents à refreshProfile
+  let refreshPromise = null;
+
   const refreshProfile = useCallback(async () => {
-  if (isRefreshing.current) return;
-  isRefreshing.current = true;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const profile = await loadUserProfile(session.user.id);
-      if (profile) {
-        setUser(profile);
-      } else {
-        await supabase.auth.signOut().catch(() => {});
-        setUser(null);
+    // Si un rafraîchissement est déjà en cours, on retourne la même promesse
+    if (refreshPromise) return refreshPromise;
+
+    refreshPromise = (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const profile = await loadUserProfile(session.user.id);
+          if (profile) {
+            setUser(profile);
+          } else {
+            await supabase.auth.signOut().catch(() => {});
+            setUser(null);
+          }
+        }
+      } catch (err) {
+        // Ignorer les AbortError (conflits de verrouillage)
+        if (err.name === 'AbortError' || err instanceof DOMException) {
+          console.debug('refreshProfile annulé (requête concurrente)');
+        } else {
+          console.error("Erreur dans refreshProfile:", err);
+        }
+      } finally {
+        refreshPromise = null;
       }
-    }
-  } catch (err) {
-    // Ignorer les AbortError liés aux requêtes concurrentes
-    if (err.name === 'AbortError' || err instanceof DOMException) {
-      console.debug('refreshProfile annulé (requête concurrente)');
-    } else {
-      console.error("Erreur dans refreshProfile:", err);
-    }
-  } finally {
-    isRefreshing.current = false;
-  }
-}, []);
+    })();
+
+    return refreshPromise;
+  }, []);
 
   const resolveProfile = useCallback(async (supabaseUser) => {
     if (hasResolved.current) return;
@@ -142,7 +149,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    // 🛡️ Safety timeout global (si l'initialisation ou un événement bloque trop longtemps)
+    // Safety timeout global
     const safetyTimeout = setTimeout(() => {
       if (mounted && !hasResolved.current) {
         console.warn(`🔥 Safety timeout (${SAFETY_TIMEOUT}ms) – libération forcée de l'UI.`);
@@ -151,7 +158,6 @@ export function AuthProvider({ children }) {
       }
     }, SAFETY_TIMEOUT);
 
-    // Initialisation simple
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -176,7 +182,6 @@ export function AuthProvider({ children }) {
 
     initAuth();
 
-    // Écouteur des changements d'auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
@@ -187,29 +192,20 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        // Pour SIGNED_IN et TOKEN_REFRESHED, on recharge le profil avec un timeout de sécurité
+        // Pour SIGNED_IN et TOKEN_REFRESHED, on recharge le profil (pas de timeout spécifique)
         if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
           hasResolved.current = false;
           setLoading(true);
-
-          const eventTimeout = setTimeout(() => {
-            console.warn(`⏰ Timeout de ${AUTH_EVENT_TIMEOUT}ms dans onAuthStateChange – libération forcée`);
-            setLoading(false);
-            hasResolved.current = true;
-          }, AUTH_EVENT_TIMEOUT);
 
           try {
             await resolveProfile(session.user);
           } catch (err) {
             console.error("Erreur dans onAuthStateChange:", err);
-          } finally {
-            clearTimeout(eventTimeout);
           }
         }
       }
     );
 
-    // Gestion du regain de focus
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log('🌐 Onglet visible, rafraîchissement de la session');
@@ -219,7 +215,6 @@ export function AuthProvider({ children }) {
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    // Gestion du retour en ligne
     const handleOnline = () => {
       console.log('📡 Connexion rétablie, rafraîchissement de la session');
       supabase.auth.refreshSession().catch(console.warn);
@@ -254,9 +249,7 @@ export function AuthProvider({ children }) {
     hasResolved.current = false;
 
     try {
-      // Nettoyage de toute session fantôme
       await supabase.auth.signOut().catch(() => {});
-
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
