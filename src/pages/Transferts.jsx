@@ -1,6 +1,7 @@
 // src/pages/Transferts.jsx
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../hooks/useAlert';
 import api from '../services/api';
@@ -40,6 +41,7 @@ const STATUT_LOT_CONFIG = {
 export default function Transferts() {
   const { user, magasinId, isSuperAdmin } = useAuth();
   const { alert, showAlert, hideAlert }   = useAlert();
+  const queryClient = useQueryClient();
   const isAdmin = user?.role === 'admin';
   const isStock = user?.role === 'stock';
 
@@ -47,17 +49,7 @@ export default function Transferts() {
   const [showSheet, setShowSheet] = useState(false);
   const [sheetMode, setSheetMode] = useState(''); // 'demande', 'proposition', 'approbation'
   const [submitting, setSubmitting] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
-
-  // Data States
-  const [magasins, setMagasins] = useState([]);
-  const [lots, setLots] = useState([]);
-  const [stocks, setStocks] = useState([]);
-  const [sources, setSources] = useState([]);
-  const [chauffeurs, setChauffeurs] = useState([]);
-  const [transferts, setTransferts] = useState([]);
-  const [unitesDisponibles, setUnitesDisponibles] = useState([]);
 
   // Formulaires
   const [demande, setDemande] = useState({ lot_id: '', quantite_min: '', quantite_max: '', unite: '', motif: '' });
@@ -65,133 +57,179 @@ export default function Transferts() {
     magasin_depart: magasinId || '', magasin_destination: '', lot_id: '', quantite: '',
     quantite_min: '', quantite_max: '', unite: '', chauffeur_id: '', motif: ''
   });
-  
+
   const [approbationData, setApprobationData] = useState(null);
   const [selectedSourceApprobation, setSelectedSourceApprobation] = useState('');
 
-  useEffect(() => {
-    loadMagasins();
-    loadTransferts();
-    if (isStock) loadLots();
-    else if (magasinId || isSuperAdmin) {
-      if (magasinId) loadStocksForMagasin(magasinId);
-    }
-  }, [magasinId]);
+  // ─── REQUÊTES AVEC REACT QUERY ───────────────────────────────────────────────
 
-  const loadMagasins = async () => { try { setMagasins(await api.getMagasins()); } catch {} };
-  const loadLots = async () => { try { setLots(await api.getLots()); } catch {} };
-  const loadTransferts = async () => {
-    setLoading(true);
-    try { setTransferts(await api.getTransferts()); }
-    catch (err) { showAlert(`❌ ${err.message}`, 'error'); }
-    finally { setLoading(false); }
-  };
-  const loadStocksForMagasin = async (magId) => { try { setStocks(await api.getStockDisponible(magId)); } catch {} };
-  const loadSourcesForLot = async (lotId) => {
-    try { setSources(await api.request(`/transferts/sources?lot_id=${lotId}`)); } catch { setSources([]); }
-  };
-  const loadChauffeurs = async (magSourceId, magDestId = null) => {
-    try {
-      const all = await api.getChauffeurs();
-      setChauffeurs(all.filter(c => c.magasin_id === parseInt(magSourceId) || (magDestId && c.magasin_id === parseInt(magDestId)))
-        .map(c => ({ ...c, label: c.magasin_id === parseInt(magSourceId) ? '🟢 Source' : '🔵 Dest' })));
-    } catch {}
-  };
+  // Magasins
+  const { data: magasins = [] } = useQuery({
+    queryKey: ['magasins'],
+    queryFn: () => api.getMagasins(),
+  });
+
+  // Lots (pour stock ou superadmin)
+  const { data: lots = [] } = useQuery({
+    queryKey: ['lots'],
+    queryFn: () => api.getLots(),
+    enabled: isStock || isSuperAdmin, // seulement nécessaire pour ces rôles
+  });
+
+  // Transferts (historique)
+  const { data: transferts = [], isLoading: loadingTransferts, refetch: refetchTransferts } = useQuery({
+    queryKey: ['transferts'],
+    queryFn: () => api.getTransferts(),
+  });
+
+  // Stocks pour un magasin donné (utilisé dans proposition admin)
+  const sourceId = proposition.magasin_depart || (isSuperAdmin ? null : magasinId);
+  const { data: stocks = [] } = useQuery({
+    queryKey: ['stocks', sourceId],
+    queryFn: () => api.getStockDisponible(sourceId),
+    enabled: !!sourceId && (sheetMode === 'proposition' || isAdmin), // charger seulement si nécessaire
+  });
+
+  // Sources disponibles pour un lot (superadmin)
+  const { data: sources = [], refetch: refetchSources } = useQuery({
+    queryKey: ['sources', proposition.lot_id],
+    queryFn: () => api.request(`/transferts/sources?lot_id=${proposition.lot_id}`),
+    enabled: !!proposition.lot_id && isSuperAdmin && sheetMode === 'proposition',
+  });
+
+  // Chauffeurs (tous)
+  const { data: allChauffeurs = [] } = useQuery({
+    queryKey: ['chauffeurs'],
+    queryFn: () => api.getChauffeurs(),
+  });
+
+  // Filtrer les chauffeurs selon la source et destination pour l'affichage
+  const chauffeurs = allChauffeurs.filter(c => {
+    const src = parseInt(proposition.magasin_depart);
+    const dest = parseInt(proposition.magasin_destination);
+    return c.magasin_id === src || (dest && c.magasin_id === dest);
+  }).map(c => ({
+    ...c,
+    label: c.magasin_id === parseInt(proposition.magasin_depart) ? '🟢 Source' : '🔵 Dest'
+  }));
+
+  // ─── MUTATIONS ───────────────────────────────────────────────────────────────
+
+  const createTransfertMutation = useMutation({
+    mutationFn: (data) => api.createTransfert(data),
+    onSuccess: (_, variables) => {
+      showAlert(
+        variables.ordonne ? '⚡ Transfert ordonné' : 
+        sheetMode === 'demande' ? '✅ Demande soumise' : '✅ Proposition soumise',
+        'success'
+      );
+      setShowSheet(false);
+      queryClient.invalidateQueries(['transferts']);
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+    onSettled: () => setSubmitting(false),
+  });
+
+  const doActionMutation = useMutation({
+    mutationFn: ({ id, action, extra }) => api.request(`/transferts?id=${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ action, ...extra })
+    }),
+    onSuccess: () => {
+      showAlert('✅ Opération effectuée', 'success');
+      queryClient.invalidateQueries(['transferts']);
+      setExpanded(null);
+      setShowSheet(false);
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  // ─── HANDLERS (inchangés, sauf utilisation des mutations) ─────────────────
 
   const handleOpenSheet = (mode) => {
     setSheetMode(mode);
     setShowSheet(true);
-    setUnitesDisponibles([]);
     // Reset forms
     if (mode === 'demande') setDemande({ lot_id: '', quantite_min: '', quantite_max: '', unite: '', motif: '' });
     if (mode === 'proposition') setProposition({ ...proposition, lot_id: '', quantite: '', magasin_destination: '' });
+    if (mode === 'approbation') setSelectedSourceApprobation('');
   };
 
-  // ── Handlers (Demande Stock) ──
+  // Demande
   const handleLotDemande = (lotId) => {
     const lot = lots.find(l => l.id === parseInt(lotId));
     setDemande(f => ({ ...f, lot_id: lotId, unite: lot?.unite || lot?.unites_admises?.[0] || '' }));
-    setUnitesDisponibles(lot?.unites_admises || (lot?.unite ? [lot.unite] : []));
+    // unitesDisponibles dérivé directement du lot sélectionné
   };
 
-  const handleSubmitDemande = async () => {
-    if (parseFloat(demande.quantite_min) > parseFloat(demande.quantite_max)) return showAlert('❌ Min > Max impossible', 'error');
+  const handleSubmitDemande = () => {
+    if (parseFloat(demande.quantite_min) > parseFloat(demande.quantite_max)) {
+      return showAlert('❌ Min > Max impossible', 'error');
+    }
     setSubmitting(true);
-    try {
-      await api.createTransfert({
-        lot_id: parseInt(demande.lot_id), magasin_destination: magasinId,
-        quantite_min: parseFloat(demande.quantite_min), quantite_max: parseFloat(demande.quantite_max),
-        unite: demande.unite, motif: demande.motif,
-      });
-      showAlert('✅ Demande soumise', 'success');
-      setShowSheet(false);
-      loadTransferts();
-    } catch (err) { showAlert(`❌ ${err.message}`, 'error'); }
-    finally { setSubmitting(false); }
+    createTransfertMutation.mutate({
+      lot_id: parseInt(demande.lot_id),
+      magasin_destination: magasinId,
+      quantite_min: parseFloat(demande.quantite_min),
+      quantite_max: parseFloat(demande.quantite_max),
+      unite: demande.unite,
+      motif: demande.motif,
+    });
   };
 
-  // ── Handlers (Proposition / Ordre) ──
+  // Proposition
   const handleMagasinSourceChange = (magId) => {
     setProposition(f => ({ ...f, magasin_depart: magId, lot_id: '', quantite: '' }));
-    loadStocksForMagasin(magId); loadChauffeurs(magId, proposition.magasin_destination); setSources([]);
+    // Les stocks se rechargent automatiquement via la requête avec enabled
   };
 
   const handleLotProposition = (lotId) => {
-    const stock = stocks.find(s => s.lot_id === parseInt(lotId));
-    if (stock) {
-      setUnitesDisponibles(stock.unites_admises || []);
-      setProposition(f => ({ ...f, lot_id: lotId, unite: stock.unite || stock.unites_admises?.[0] || '' }));
-    }
-    if (isSuperAdmin && lotId) loadSourcesForLot(lotId);
+    setProposition(f => ({ ...f, lot_id: lotId }));
+    // l'unite sera prise du stock via le lot sélectionné (on peut la déduire)
   };
 
+  // Pour superadmin
   const handleLotSuperAdmin = (lotId) => {
-    const lot = lots.find(l => l.id === parseInt(lotId));
-    setProposition(f => ({ ...f, lot_id: lotId, unite: lot?.unite || lot?.unites_admises?.[0] || '', magasin_depart: '' }));
-    setUnitesDisponibles(lot?.unites_admises || (lot?.unite ? [lot.unite] : []));
-    if (lotId) loadSourcesForLot(lotId);
+    setProposition(f => ({ ...f, lot_id: lotId, magasin_depart: '' }));
+    // Les sources se rechargent via la requête enabled
   };
 
-  const handleSubmitProposition = async () => {
-    if (proposition.magasin_depart === proposition.magasin_destination) return showAlert('❌ Source = Destination', 'error');
+  const handleSubmitProposition = () => {
+    if (proposition.magasin_depart && proposition.magasin_depart === proposition.magasin_destination) {
+      return showAlert('❌ Source = Destination', 'error');
+    }
     setSubmitting(true);
-    try {
-      await api.createTransfert({
-        lot_id: parseInt(proposition.lot_id), quantite: parseFloat(proposition.quantite),
-        quantite_min: proposition.quantite_min ? parseFloat(proposition.quantite_min) : null,
-        quantite_max: proposition.quantite_max ? parseFloat(proposition.quantite_max) : null,
-        unite: proposition.unite, magasin_depart: parseInt(proposition.magasin_depart),
-        magasin_destination: parseInt(proposition.magasin_destination), chauffeur_id: proposition.chauffeur_id || null,
-        motif: proposition.motif || null, ordonne: isSuperAdmin,
-      });
-      showAlert(isSuperAdmin ? '⚡ Transfert ordonné' : '✅ Proposition soumise', 'success');
-      setShowSheet(false);
-      loadTransferts();
-    } catch (err) { showAlert(`❌ ${err.message}`, 'error'); }
-    finally { setSubmitting(false); }
+    createTransfertMutation.mutate({
+      lot_id: parseInt(proposition.lot_id),
+      quantite: proposition.quantite ? parseFloat(proposition.quantite) : null,
+      quantite_min: proposition.quantite_min ? parseFloat(proposition.quantite_min) : null,
+      quantite_max: proposition.quantite_max ? parseFloat(proposition.quantite_max) : null,
+      unite: proposition.unite,
+      magasin_depart: proposition.magasin_depart ? parseInt(proposition.magasin_depart) : null,
+      magasin_destination: parseInt(proposition.magasin_destination),
+      chauffeur_id: proposition.chauffeur_id || null,
+      motif: proposition.motif || null,
+      ordonne: isSuperAdmin,
+    });
   };
 
-  // ── Actions de cycle de vie ──
-  const doAction = async (id, action, extra = {}) => {
-    try {
-      await api.request(`/transferts?id=${id}`, { method: 'PUT', body: JSON.stringify({ action, ...extra }) });
-      showAlert('✅ Opération effectuée', 'success');
-      loadTransferts();
-      setExpanded(null);
-      setShowSheet(false);
-    } catch (err) { showAlert(`❌ ${err.message}`, 'error'); }
+  // Actions
+  const doAction = (id, action, extra = {}) => {
+    doActionMutation.mutate({ id, action, extra });
   };
 
   const handleApprouver = async (t) => {
     if (!t.magasin_depart) {
       try {
-        const token = await api.getToken();
-        const res = await fetch(`/api/transferts?sources=1&lot_id=${t.lot_id}`, { headers: { Authorization: `Bearer ${token}` } });
-        const srcs = await res.json();
-        setApprobationData({ transfert: t, sources: srcs });
+        // On pourrait utiliser une requête ici, mais on va faire un fetch direct pour rester simple
+        const sourcesData = await api.request(`/transferts/sources?lot_id=${t.lot_id}`);
+        setApprobationData({ transfert: t, sources: sourcesData });
         setSelectedSourceApprobation('');
         handleOpenSheet('approbation');
-      } catch { setApprobationData({ transfert: t, sources: [] }); handleOpenSheet('approbation'); }
+      } catch {
+        setApprobationData({ transfert: t, sources: [] });
+        handleOpenSheet('approbation');
+      }
     } else {
       if (confirm('Approuver ce transfert ?')) doAction(t.id, 'approuver');
     }
@@ -210,17 +248,20 @@ export default function Transferts() {
     const boutons = [];
     const estSource = t.magasin_depart === magasinId;
     const estDest = t.magasin_destination === magasinId;
-
     if (t.statut === 'proposé' && isSuperAdmin) boutons.push({ label: '👍 Approuver', action: () => handleApprouver(t), cls: 'btn-primary' });
     if (t.statut === 'approuvé' && (isSuperAdmin || (isAdmin && estSource))) boutons.push({ label: '🚚 Expédier', action: () => handleExpedier(t), cls: 'btn-primary' });
     if (t.statut === 'en_transit' && (isSuperAdmin || (isAdmin && estDest))) boutons.push({ label: '📬 Confirmer réception', action: () => { if(confirm('Confirmer ?')) doAction(t.id, 'recevoir')} , cls: 'btn-primary' });
     if (t.statut === 'reçu' && isSuperAdmin) boutons.push({ label: '✅ Valider', action: () => { if(confirm('Valider définitivement ?')) doAction(t.id, 'valider')}, cls: 'btn-primary' });
-    
+
     if ((isSuperAdmin || (isAdmin && (estSource || estDest))) && ['proposé', 'approuvé', 'en_transit', 'reçu'].includes(t.statut)) {
       boutons.push({ label: '❌ Rejeter', action: () => { const m = prompt('Motif :'); if(m) doAction(t.id, 'rejeter', { observations: m }); }, cls: 'btn-danger' });
     }
     return boutons;
   };
+
+  // Unité disponible dérivée du lot sélectionné
+  const selectedLot = lots.find(l => l.id === parseInt(demande.lot_id)) || lots.find(l => l.id === parseInt(proposition.lot_id));
+  const unitesDisponibles = selectedLot?.unites_admises || (selectedLot?.unite ? [selectedLot.unite] : []);
 
   return (
     <PageLayout
@@ -242,11 +283,11 @@ export default function Transferts() {
           <h3 className="card-title">Historique</h3>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span className="badge badge-neutral">{transferts.length}</span>
-            <button onClick={loadTransferts} className="btn btn-ghost btn-sm">🔄</button>
+            <button onClick={() => queryClient.invalidateQueries(['transferts'])} className="btn btn-ghost btn-sm">🔄</button>
           </div>
         </div>
 
-        {loading ? <StateLoading /> : transferts.length === 0 ? <StateEmpty message="Aucun transfert." /> : (
+        {loadingTransferts ? <StateLoading /> : transferts.length === 0 ? <StateEmpty message="Aucun transfert." /> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '8px 4px' }}>
             {transferts.map(t => {
               const cfg = STATUT_CONFIG[t.statut] || { label: t.statut, cls: 'badge-neutral' };
@@ -304,7 +345,7 @@ export default function Transferts() {
         <>
           <div className={`sheet-overlay ${showSheet ? 'active' : ''}`} onClick={() => !submitting && setShowSheet(false)} />
           <div className={`bottom-sheet ${showSheet ? 'active' : ''}`} style={{ transform: showSheet ? 'translateY(0)' : 'translateY(100%)' }}>
-            
+
             <div className="sheet-header">
               <div className="sheet-handle" />
               <h3 style={{ margin: 0 }}>
@@ -315,7 +356,7 @@ export default function Transferts() {
             </div>
 
             <div className="sheet-content">
-              
+
               {/* MODE: DEMANDE (STOCK) */}
               {sheetMode === 'demande' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -406,6 +447,14 @@ export default function Transferts() {
                         {unitesDisponibles.map(u => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Chauffeur (optionnel)</label>
+                    <select className="form-control" value={proposition.chauffeur_id} onChange={e => setProposition({...proposition, chauffeur_id: e.target.value})}>
+                      <option value="">-- Aucun --</option>
+                      {chauffeurs.map(c => <option key={c.id} value={c.id}>{c.prenom} {c.nom} ({c.label})</option>)}
+                    </select>
                   </div>
 
                   <div className="form-group">
