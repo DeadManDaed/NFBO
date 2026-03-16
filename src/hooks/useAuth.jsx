@@ -73,14 +73,18 @@ async function loadUserProfile(authId, retries = 3) {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
+
+  // loading ne vaut true QUE lors du chargement initial.
+  // Après, les refreshs de token sont silencieux.
   const [loading, setLoading] = useState(true);
 
-  // Ce ref protège contre les appels concurrents à resolveProfile.
-  // Un seul appel peut s'exécuter à la fois.
+  // Mutex : empêche deux appels concurrents à loadUserProfile
   const resolving = useRef(false);
 
+  // Flag : le chargement initial est-il terminé ?
+  const initialLoadDone = useRef(false);
+
   const resolveProfile = useCallback(async (supabaseUser) => {
-    // Si une résolution est déjà en cours, on ignore cet appel.
     if (resolving.current) return;
     resolving.current = true;
 
@@ -100,21 +104,27 @@ export function AuthProvider({ children }) {
       setUser(null);
     } finally {
       resolving.current = false;
-      setLoading(false);
+      // Ne remettre loading à false qu'une seule fois — au chargement initial.
+      // Les refreshs ultérieurs sont silencieux et ne doivent pas affecter loading.
+      if (!initialLoadDone.current) {
+        initialLoadDone.current = true;
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    // Timeout de sécurité — déblocage forcé si rien ne répond
+    // Safety timeout — déblocage forcé si initAuth ne répond pas
     const safetyTimeout = setTimeout(() => {
-      if (mounted && loading) {
+      if (mounted && !initialLoadDone.current) {
+        initialLoadDone.current = true;
         setLoading(false);
       }
     }, import.meta.env.DEV ? 30000 : 15000);
 
-    // Initialisation : tente de récupérer la session existante
+    // Chargement initial depuis la session stockée
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -124,35 +134,42 @@ export function AuthProvider({ children }) {
       } catch {
         if (mounted) {
           setUser(null);
-          setLoading(false);
+          if (!initialLoadDone.current) {
+            initialLoadDone.current = true;
+            setLoading(false);
+          }
         }
       }
     };
 
     initAuth();
 
-    // Listener auth — on ignore TOKEN_REFRESHED pour éviter le lock Supabase.
-    // TOKEN_REFRESHED ne change pas le profil métier, seulement le token JWT.
+    // Listener auth — silencieux après le premier chargement
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
 
         if (event === 'SIGNED_OUT') {
           setUser(null);
-          setLoading(false);
+          // Pas de setLoading(true) ici — on laisse ProtectedRoute gérer la redirection
           return;
         }
 
-        // TOKEN_REFRESHED : on met juste à jour le loading sans retoucher le profil.
-        // Le token est géré automatiquement par le client Supabase.
+        // TOKEN_REFRESHED : Supabase renouvelle le token silencieusement.
+        // On ne fait rien — le user est toujours connecté, pas besoin de recharger le profil.
         if (event === 'TOKEN_REFRESHED') {
-          setLoading(false);
           return;
         }
 
-        // SIGNED_IN depuis un autre onglet ou après expiration réelle
+        // INITIAL_SESSION : déjà géré par initAuth(), on ignore pour éviter le double appel.
+        if (event === 'INITIAL_SESSION') {
+          return;
+        }
+
+        // SIGNED_IN depuis un autre onglet ou après une vraie déconnexion/reconnexion
         if (event === 'SIGNED_IN' && session?.user) {
-          setLoading(true);
+          // Silencieux si l'utilisateur est déjà chargé (cas du TOKEN_REFRESHED mal typé)
+          if (user) return;
           await resolveProfile(session.user);
         }
       }
@@ -163,7 +180,7 @@ export function AuthProvider({ children }) {
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
     };
-  }, [resolveProfile]);
+  }, [resolveProfile, user]);
 
   // ─── Login ──────────────────────────────────────────────────────────────────
   const login = async ({ username, password }) => {
@@ -179,26 +196,18 @@ export function AuthProvider({ children }) {
       email = data.email;
     }
 
-    setLoading(true);
+    // Nettoyage préventif
+    await supabase.auth.signOut().catch(() => {});
+    resolving.current = false;
 
-    try {
-      // Nettoyage préventif pour éviter les locks résiduels
-      await supabase.auth.signOut().catch(() => {});
-      resolving.current = false;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'Identifiants incorrects');
 
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+    const profile = await loadUserProfile(data.user.id);
+    if (!profile) throw new Error('Profil utilisateur introuvable ou inactif');
 
-      const profile = await loadUserProfile(data.user.id);
-      if (!profile) throw new Error('Profil utilisateur introuvable ou inactif');
-
-      setUser(profile);
-      return profile;
-    } catch (err) {
-      throw new Error(err.message || 'Identifiants incorrects');
-    } finally {
-      setLoading(false);
-    }
+    setUser(profile);
+    return profile;
   };
 
   // ─── Logout ─────────────────────────────────────────────────────────────────
@@ -207,7 +216,6 @@ export function AuthProvider({ children }) {
       await supabase.auth.signOut().catch(() => {});
     } finally {
       setUser(null);
-      setLoading(false);
       resolving.current = false;
     }
   };
