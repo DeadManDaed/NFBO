@@ -1,4 +1,4 @@
-// src/hooks/useAuth.js
+//src/hooks/useAuth.js
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
@@ -45,10 +45,17 @@ async function loadUserProfile(authId, retries = 1) {
         .from('users')
         .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
         .eq('auth_id', authId)
-        .single();
+        .maybeSingle(); // Utilisation de maybeSingle pour éviter l'erreur "multiple rows"
 
       if (error) {
         console.error('[loadUserProfile] Supabase error:', error);
+        // Si erreur de lock, on considère que c'est temporaire et on retente
+        if (error.message?.includes('lock') || error.code === '20') {
+          if (i < retries) {
+            await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+            continue;
+          }
+        }
         return null;
       }
       if (!data) {
@@ -66,15 +73,15 @@ async function loadUserProfile(authId, retries = 1) {
           .from('magasins')
           .select('nom')
           .eq('id', data.magasin_id)
-          .single();
+          .maybeSingle();
         if (magError) console.warn('[loadUserProfile] Erreur chargement magasin:', magError);
         magasin_nom = mag?.nom || null;
       }
 
       return { ...data, magasin_nom };
     } catch (err) {
-      console.error(`[loadUserProfile] Exception lors de la tentative ${i+1}:`, err);
-      if (i < retries) await new Promise(r => setTimeout(r, 500));
+      console.error(`[loadUserProfile] Exception tentative ${i+1}:`, err);
+      if (i < retries) await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
     }
   }
   return null;
@@ -84,42 +91,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const hasResolved = useRef(false);
-  const refreshPromise = useRef(null);
-  const lastRefresh = useRef(0);
 
-  const refreshProfile = useCallback(async () => {
-    const now = Date.now();
-    if (now - lastRefresh.current < 2000) return;
-    lastRefresh.current = now;
-
-    if (refreshPromise.current) return refreshPromise.current;
-
-    refreshPromise.current = (async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          console.log('[refreshProfile] Chargement du profil...');
-          const profile = await loadUserProfile(session.user.id);
-          if (profile) {
-            console.log('[refreshProfile] Profil chargé:', profile.username);
-            setUser(profile);
-          } else {
-            console.warn('[refreshProfile] Profil non trouvé, déconnexion');
-            await supabase.auth.signOut().catch(() => {});
-            setUser(null);
-          }
-        }
-      } catch (err) {
-        console.error("[refreshProfile] Erreur:", err);
-      } finally {
-        refreshPromise.current = null;
-      }
-    })();
-
-    return refreshPromise.current;
-  }, []);
-
-  const resolveProfile = useCallback(async (supabaseUser) => {
+  const resolveProfile = useCallback(async (supabaseUser, retryCount = 0) => {
     if (hasResolved.current) return;
 
     if (!supabaseUser) {
@@ -135,15 +108,26 @@ export function AuthProvider({ children }) {
       if (profile) {
         console.log('[resolveProfile] Profil chargé');
         setUser(profile);
+        setLoading(false);
+        hasResolved.current = true;
       } else {
         console.warn('[resolveProfile] Profil non trouvé, déconnexion');
         await supabase.auth.signOut().catch(() => {});
         setUser(null);
+        setLoading(false);
+        hasResolved.current = true;
       }
     } catch (err) {
-      console.error("[resolveProfile] Erreur:", err);
+      console.error(`[resolveProfile] Erreur (tentative ${retryCount+1}):`, err);
+      // Si c'est une erreur de lock et qu'on a pas dépassé 3 tentatives, on réessaie
+      if ((err.name === 'AbortError' || err instanceof DOMException || err.message?.includes('Lock')) && retryCount < 3) {
+        const delay = 1000 * Math.pow(2, retryCount); // 1, 2, 4 secondes
+        console.log(`[resolveProfile] Nouvelle tentative dans ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
+        return resolveProfile(supabaseUser, retryCount + 1);
+      }
+      // Sinon on échoue définitivement
       setUser(null);
-    } finally {
       setLoading(false);
       hasResolved.current = true;
     }
@@ -211,16 +195,13 @@ export function AuthProvider({ children }) {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         console.log('🌐 Onglet visible');
-        supabase.auth.refreshSession().catch(console.warn);
-        refreshProfile();
+        // Ne pas forcer refreshSession, laisser Supabase gérer automatiquement
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const handleOnline = () => {
       console.log('📡 Connexion rétablie');
-      supabase.auth.refreshSession().catch(console.warn);
-      refreshProfile();
     };
     window.addEventListener('online', handleOnline);
 
@@ -231,7 +212,7 @@ export function AuthProvider({ children }) {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('online', handleOnline);
     };
-  }, [resolveProfile, refreshProfile]);
+  }, [resolveProfile]);
 
   const login = async ({ username, password }) => {
     let email = username;
@@ -240,7 +221,7 @@ export function AuthProvider({ children }) {
         .from('users')
         .select('email')
         .eq('username', username)
-        .single();
+        .maybeSingle();
       if (!data?.email) throw new Error('Utilisateur introuvable');
       email = data.email;
     }
