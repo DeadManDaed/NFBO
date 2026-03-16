@@ -1,6 +1,7 @@
 // src/pages/Caisse.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../hooks/useAuth';
 import { useAlert } from '../hooks/useAlert';
 import api from '../services/api';
@@ -8,7 +9,7 @@ import Alert from '../components/Alert';
 import QRCode from 'qrcode';
 import PageLayout, { StateLoading, StateEmpty } from '../components/PageLayout';
 
-// ─── STYLES DU BOTTOM SHEET ────────────────────────────────────────────────────
+// ─── STYLES DU BOTTOM SHEET (inchangé) ─────────────────────────────────────
 const BottomSheetStyles = () => (
   <style>{`
     .sheet-overlay {
@@ -30,7 +31,7 @@ const BottomSheetStyles = () => (
       bottom: 0;
       left: 0;
       right: 0;
-      max-height: 80vh; /* 👈 Limite demandée pour voir le haut */
+      max-height: 80vh;
       background: var(--color-surface, #ffffff);
       border-radius: 24px 24px 0 0;
       z-index: 99999;
@@ -88,7 +89,7 @@ const TYPE_CONFIG = {
   reception_transfert: { label: 'Transfert reçu',      color: '#8b5cf6', bg: '#f5f3ff', icon: '⬅️' },
 };
 
-// ─── SOUS-COMPOSANTS UI ────────────────────────────────────────────────────────
+// ─── SOUS-COMPOSANTS UI (inchangés) ────────────────────────────────────────
 
 function CarteCAisse({ caisse, selected, onClick }) {
   const solde = parseFloat(caisse.solde) || 0;
@@ -200,12 +201,9 @@ function CarteProducteur({ prod }) {
 export default function Caisse() {
   const { user, magasinId } = useAuth();
   const { alert, showAlert, hideAlert } = useAlert();
+  const queryClient = useQueryClient();
 
-  const [caisses, setCaisses] = useState([]);
-  const [operations, setOperations] = useState([]);
-  const [producteurs, setProducteurs] = useState([]);
   const [selectedCaisse, setSelectedCaisse] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [onglet, setOnglet] = useState('caisse');
 
   // États du Bottom Sheet
@@ -218,7 +216,6 @@ export default function Caisse() {
 
   // État spécifique pour les formulaires du sheet
   const [form, setForm] = useState({ montant: '', description: '', producteurId: '', caisseDestId: '', codeCheque: '', motifSignalement: '' });
-  const [submitting, setSubmitting] = useState(false);
   const [chequeEmis, setChequeEmis] = useState(null);
   const [qrUrl, setQrUrl] = useState('');
   const [chequeVerifie, setChequeVerifie] = useState(null);
@@ -227,29 +224,117 @@ export default function Caisse() {
   const isGlobal = ['superadmin', 'auditeur'].includes(user?.role);
   const canCaisse = ['superadmin', 'admin', 'caisse'].includes(user?.role);
 
-  // Chargement des données
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [c, o, p] = await Promise.all([
-        api.getCaisses(),
-        api.getOperationsCaisse(),
-        api.getProducteursSolde(),
-      ]);
-      setCaisses(c);
-      setOperations(o);
-      setProducteurs(p);
-      if (!selectedCaisse && c.length > 0) setSelectedCaisse(c[0]);
-    } catch (err) {
-      showAlert(`❌ ${err.message}`, 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedCaisse, showAlert]);
+  // ─── REQUÊTES AVEC REACT QUERY ───────────────────────────────────────────────
 
-  useEffect(() => { load(); }, []);
+  const {
+    data: caisses = [],
+    isLoading: caissesLoading,
+    refetch: refetchCaisses,
+  } = useQuery({
+    queryKey: ['caisses'],
+    queryFn: () => api.getCaisses(),
+    onSuccess: (data) => {
+      if (!selectedCaisse && data.length > 0) setSelectedCaisse(data[0]);
+    },
+  });
 
-  // Gestion du drag du sheet
+  const {
+    data: operations = [],
+    isLoading: operationsLoading,
+    refetch: refetchOperations,
+  } = useQuery({
+    queryKey: ['operations-caisse'],
+    queryFn: () => api.getOperationsCaisse(),
+  });
+
+  const {
+    data: producteurs = [],
+    isLoading: producteursLoading,
+    refetch: refetchProducteurs,
+  } = useQuery({
+    queryKey: ['producteurs-solde'],
+    queryFn: () => api.getProducteursSolde(),
+  });
+
+  const isLoading = caissesLoading || operationsLoading || producteursLoading;
+
+  // ─── MUTATIONS ───────────────────────────────────────────────────────────────
+
+  const depotMutation = useMutation({
+    mutationFn: (payload) => api.depotCaisse(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['caisses']);
+      queryClient.invalidateQueries(['operations-caisse']);
+      showAlert('✅ Dépôt effectué', 'success');
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  const retraitMutation = useMutation({
+    mutationFn: (payload) => api.retraitCaisse(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['caisses']);
+      queryClient.invalidateQueries(['operations-caisse']);
+      showAlert('✅ Retrait effectué', 'success');
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  const paiementMutation = useMutation({
+    mutationFn: (payload) => api.paiementProducteur(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['caisses']);
+      queryClient.invalidateQueries(['operations-caisse']);
+      queryClient.invalidateQueries(['producteurs-solde']);
+      showAlert('✅ Paiement effectué', 'success');
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  const transfertMutation = useMutation({
+    mutationFn: (payload) => api.transfertCaisse(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['caisses']);
+      queryClient.invalidateQueries(['operations-caisse']);
+      showAlert('✅ Transfert effectué', 'success');
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  const chequeMutation = useMutation({
+    mutationFn: (payload) => api.emettreChecque(payload),
+    onSuccess: async (res) => {
+      const url = await QRCode.toDataURL(res.code, { width: 200 });
+      setQrUrl(url);
+      setChequeEmis(res);
+      // On ne ferme pas le sheet, on affiche le QR
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  const scannerMutation = useMutation({
+    mutationFn: (code) => api.scannerCheque(code),
+    onSuccess: (res) => {
+      showAlert(`✅ Encaissé : ${res.montant} FCFA`, 'success');
+      queryClient.invalidateQueries(['caisses']);
+      queryClient.invalidateQueries(['operations-caisse']);
+      queryClient.invalidateQueries(['producteurs-solde']);
+      setShowSheet(false);
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  const signalementMutation = useMutation({
+    mutationFn: ({ operation_id, motif }) => api.signalerOperationCaisse({ operation_id, motif }),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['operations-caisse']);
+      showAlert('⚠️ Signalement envoyé', 'info');
+      setShowSheet(false);
+    },
+    onError: (err) => showAlert(`❌ ${err.message}`, 'error'),
+  });
+
+  // Gestion du drag du sheet (inchangé)
   const handleTouchStart = (e) => { setStartY(e.touches[0].clientY); setIsDragging(true); };
   const handleTouchMove = (e) => {
     if (!isDragging) return;
@@ -267,7 +352,6 @@ export default function Caisse() {
     else { document.body.classList.remove('sheet-open'); setDragY(0); }
   }, [showSheet]);
 
-  // Actions du formulaire
   const resetForm = () => {
     setForm({ montant: '', description: '', producteurId: '', caisseDestId: '', codeCheque: '', motifSignalement: '' });
     setChequeEmis(null); setQrUrl(''); setChequeVerifie(null);
@@ -281,38 +365,39 @@ export default function Caisse() {
   };
 
   const executeAction = async () => {
-    setSubmitting(true);
-    try {
-      if (sheetMode === 'operation') {
-        const payload = { montant: parseFloat(form.montant), caisse_id: selectedCaisse.id, description: form.description };
-        if (opType === 'paiement_producteur') payload.producteur_id = parseInt(form.producteurId);
-        if (opType === 'transfert') payload.caisse_destination_id = parseInt(form.caisseDestId);
+    const payload = {
+      montant: parseFloat(form.montant),
+      caisse_id: selectedCaisse.id,
+      description: form.description,
+    };
 
-        const methods = { depot: api.depotCaisse, retrait: api.retraitCaisse, paiement_producteur: api.paiementProducteur, transfert: api.transfertCaisse };
-        await methods[opType](payload);
-        showAlert('✅ Opération réussie', 'success');
-      } 
-      else if (sheetMode === 'cheque') {
-        const res = await api.emettreChecque({ producteur_id: parseInt(form.producteurId), montant: parseFloat(form.montant), date_expiration: new Date(Date.now() + 30*86400000).toISOString().split('T')[0] });
-        const url = await QRCode.toDataURL(res.code, { width: 200 });
-        setQrUrl(url); setChequeEmis(res);
-        return; // On ne ferme pas le sheet pour montrer le QR
+    if (sheetMode === 'operation') {
+      if (opType === 'depot') depotMutation.mutate(payload);
+      else if (opType === 'retrait') retraitMutation.mutate(payload);
+      else if (opType === 'paiement_producteur') {
+        if (!form.producteurId) return showAlert('❌ Sélectionnez un producteur', 'error');
+        paiementMutation.mutate({ ...payload, producteur_id: parseInt(form.producteurId) });
       }
-      else if (sheetMode === 'scanner') {
-        const res = await api.scannerCheque(form.codeCheque.trim());
-        showAlert(`✅ Encaissé : ${res.montant} FCFA`, 'success');
+      else if (opType === 'transfert') {
+        if (!form.caisseDestId) return showAlert('❌ Sélectionnez une caisse destination', 'error');
+        transfertMutation.mutate({ ...payload, caisse_destination_id: parseInt(form.caisseDestId) });
       }
-      else if (sheetMode === 'signalement') {
-        await api.signalerOperationCaisse({ operation_id: opASignaler.id, motif: form.motifSignalement });
-        showAlert('⚠️ Signalement envoyé', 'info');
-      }
-
-      setShowSheet(false);
-      load();
-    } catch (err) {
-      showAlert(`❌ ${err.message}`, 'error');
-    } finally {
-      setSubmitting(false);
+    }
+    else if (sheetMode === 'cheque') {
+      if (!form.producteurId) return showAlert('❌ Sélectionnez un producteur', 'error');
+      chequeMutation.mutate({
+        producteur_id: parseInt(form.producteurId),
+        montant: parseFloat(form.montant),
+        date_expiration: new Date(Date.now() + 30*86400000).toISOString().split('T')[0],
+      });
+    }
+    else if (sheetMode === 'scanner') {
+      if (!form.codeCheque.trim()) return showAlert('❌ Entrez un code', 'error');
+      scannerMutation.mutate(form.codeCheque.trim());
+    }
+    else if (sheetMode === 'signalement') {
+      if (!form.motifSignalement.trim()) return showAlert('❌ Entrez un motif', 'error');
+      signalementMutation.mutate({ operation_id: opASignaler.id, motif: form.motifSignalement });
     }
   };
 
@@ -326,6 +411,17 @@ export default function Caisse() {
   // Filtrage data
   const opsFiltrees = selectedCaisse ? operations.filter(o => o.caisse_id === selectedCaisse.id) : operations;
   const soldeGlobal = caisses.reduce((s, c) => s + parseFloat(c.solde||0), 0);
+
+  const anyMutationLoading = 
+    depotMutation.isLoading ||
+    retraitMutation.isLoading ||
+    paiementMutation.isLoading ||
+    transfertMutation.isLoading ||
+    chequeMutation.isLoading ||
+    scannerMutation.isLoading ||
+    signalementMutation.isLoading;
+
+  if (isLoading) return <PageLayout title="Caisse" icon="💰"><StateLoading /></PageLayout>;
 
   return (
     <PageLayout title="Caisse" icon="💰" subtitle={isGlobal ? 'Gestion des flux financiers' : `Caisse ${selectedCaisse?.magasin_nom || ''}`}>
@@ -361,7 +457,10 @@ export default function Caisse() {
           )}
 
           <div className="card">
-            <div className="card-header"><h3 className="card-title">Historique</h3></div>
+            <div className="card-header">
+              <h3 className="card-title">Historique</h3>
+              <button onClick={() => queryClient.invalidateQueries(['operations-caisse'])} className="btn btn-ghost btn-sm">🔄</button>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 8 }}>
               {opsFiltrees.slice(0, 20).map(op => (
                 <LigneOperation key={op.id} op={op} onSignaler={(o) => { setOpASignaler(o); handleOpenSheet('signalement'); }} />
@@ -420,7 +519,7 @@ export default function Caisse() {
                       <label className="form-label">Caisse destination</label>
                       <select className="form-control" value={form.caisseDestId} onChange={e => setForm({...form, caisseDestId: e.target.value})}>
                         <option value="">Sélectionner...</option>
-                        {caisses.filter(c => c.id !== selectedCaisse.id).map(c => <option key={c.id} value={c.id}>{c.magasin_nom || c.nom}</option>)}
+                        {caisses.filter(c => c.id !== selectedCaisse?.id).map(c => <option key={c.id} value={c.id}>{c.magasin_nom || c.nom}</option>)}
                       </select>
                     </div>
                   )}
@@ -489,11 +588,11 @@ export default function Caisse() {
               {!chequeEmis ? (
                 <button 
                   onClick={executeAction} 
-                  disabled={submitting} 
+                  disabled={anyMutationLoading} 
                   className="btn btn-primary btn-lg" 
                   style={{ width: '100%' }}
                 >
-                  {submitting ? '⏳ Traitement...' : 'CONFIRMER'}
+                  {anyMutationLoading ? '⏳ Traitement...' : 'CONFIRMER'}
                 </button>
               ) : (
                 <button onClick={() => setShowSheet(false)} className="btn btn-primary btn-lg" style={{ width: '100%' }}>TERMINER</button>
