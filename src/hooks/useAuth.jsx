@@ -83,24 +83,34 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const hasResolved = useRef(false);
+  const isRefreshing = useRef(false);
 
   // Rafraîchir le profil sans changer l'état loading (pour événements de focus/online)
   const refreshProfile = useCallback(async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const profile = await loadUserProfile(session.user.id);
-        if (profile) {
-          setUser(profile);
-        } else {
-          await supabase.auth.signOut().catch(() => {});
-          setUser(null);
-        }
+  if (isRefreshing.current) return;
+  isRefreshing.current = true;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const profile = await loadUserProfile(session.user.id);
+      if (profile) {
+        setUser(profile);
+      } else {
+        await supabase.auth.signOut().catch(() => {});
+        setUser(null);
       }
-    } catch (err) {
+    }
+  } catch (err) {
+    // Ignorer les AbortError liés aux requêtes concurrentes
+    if (err.name === 'AbortError' || err instanceof DOMException) {
+      console.debug('refreshProfile annulé (requête concurrente)');
+    } else {
       console.error("Erreur dans refreshProfile:", err);
     }
-  }, []);
+  } finally {
+    isRefreshing.current = false;
+  }
+}, []);
 
   const resolveProfile = useCallback(async (supabaseUser) => {
     if (hasResolved.current) return;
