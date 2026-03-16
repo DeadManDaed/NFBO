@@ -1,6 +1,12 @@
-//src/hooks/useAuth.js
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+
+// ─── CONSTANTES DE TIMEOUT (harmonisées) ─────────────────────────────────────
+const LOAD_PROFILE_TIMEOUT = 4000;        // Chargement du profil utilisateur
+const AUTH_EVENT_TIMEOUT   = 8000;        // Traitement des événements auth (SIGNED_IN, TOKEN_REFRESHED)
+const SAFETY_TIMEOUT_PROD  = 15000;        // Sécurité globale en production
+const SAFETY_TIMEOUT_DEV   = 30000;        // Sécurité globale en développement
+const SAFETY_TIMEOUT = import.meta.env.DEV ? SAFETY_TIMEOUT_DEV : SAFETY_TIMEOUT_PROD;
 
 const AuthContext = createContext(null);
 
@@ -32,11 +38,11 @@ export async function authFetch(url, options = {}) {
   return res.json();
 }
 
-// ─── Charger les données métier avec Timeout Agressif ──────────────────────────
+// ─── Charger les données métier avec Timeout (AbortController) ────────────────
 async function loadUserProfile(authId, retries = 1) {
   for (let i = 0; i <= retries; i++) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 4000); 
+    const timeoutId = setTimeout(() => controller.abort(), LOAD_PROFILE_TIMEOUT);
 
     try {
       const { data, error } = await supabase
@@ -72,27 +78,29 @@ async function loadUserProfile(authId, retries = 1) {
   return null;
 }
 
-const refreshProfile = useCallback(async () => {
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const profile = await loadUserProfile(session.user.id);
-      if (profile) {
-        setUser(profile);
-      } else {
-        await supabase.auth.signOut().catch(() => {});
-        setUser(null);
-      }
-    }
-  } catch (err) {
-    console.error("Erreur dans refreshProfile:", err);
-  }
-}, []);
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); 
-  const hasResolved = useRef(false); // Empêche les doubles exécutions
+  const [loading, setLoading] = useState(true);
+  const hasResolved = useRef(false);
+
+  // Rafraîchir le profil sans changer l'état loading (pour événements de focus/online)
+  const refreshProfile = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const profile = await loadUserProfile(session.user.id);
+        if (profile) {
+          setUser(profile);
+        } else {
+          await supabase.auth.signOut().catch(() => {});
+          setUser(null);
+        }
+      }
+    } catch (err) {
+      console.error("Erreur dans refreshProfile:", err);
+    }
+  }, []);
 
   const resolveProfile = useCallback(async (supabaseUser) => {
     if (hasResolved.current) return;
@@ -116,7 +124,7 @@ export function AuthProvider({ children }) {
       console.error("Erreur critique resolveProfile:", err);
       setUser(null);
     } finally {
-      setLoading(false); 
+      setLoading(false);
       hasResolved.current = true;
     }
   }, []);
@@ -124,29 +132,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    // 🛡️ DISJONCTEUR DE SÉCURITÉ ABSOLU (8s)
+    // 🛡️ Safety timeout global (si l'initialisation ou un événement bloque trop longtemps)
     const safetyTimeout = setTimeout(() => {
       if (mounted && !hasResolved.current) {
-        console.error("🔥 AUTH CRITICAL TIMEOUT : Libération forcée de l'UI.");
+        console.warn(`🔥 Safety timeout (${SAFETY_TIMEOUT}ms) – libération forcée de l'UI.`);
         setLoading(false);
         hasResolved.current = true;
       }
-    }, 8000);
+    }, SAFETY_TIMEOUT);
 
-    // ── L'INITIALISATION AVEC LA COURSE DE VITESSE (Promise.race) ──
+    // Initialisation simple
     const initAuth = async () => {
       try {
-        // Le chronomètre de 3 secondes
-        const supabaseTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('TIMEOUT_SUPABASE_GETSESSION')), 3000)
-        );
-
-        // La course : getSession VS supabaseTimeout
-        const { data: { session } } = await Promise.race([
-          supabase.auth.getSession(),
-          supabaseTimeout
-        ]);
-
+        const { data: { session } } = await supabase.auth.getSession();
         if (mounted && !hasResolved.current) {
           if (session?.user) {
             await resolveProfile(session.user);
@@ -156,10 +154,9 @@ export function AuthProvider({ children }) {
           }
         }
       } catch (e) {
-        console.warn("⚠️ Coupure forcée à l'initialisation :", e.message);
+        console.warn("⚠️ Erreur lors de getSession :", e.message);
         if (mounted) {
-          // Si on perd la course (Timeout ou Token corrompu), on nettoie tout de suite
-          await supabase.auth.signOut().catch(() => {}); 
+          await supabase.auth.signOut().catch(() => {});
           setUser(null);
           setLoading(false);
           hasResolved.current = true;
@@ -169,37 +166,66 @@ export function AuthProvider({ children }) {
 
     initAuth();
 
-    // ── ÉCOUTEUR D'ÉVÉNEMENTS AUTH ──
+    // Écouteur des changements d'auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-  async (event, session) => {
-    if (!mounted) return;
+      async (event, session) => {
+        if (!mounted) return;
 
-    if (event === 'SIGNED_OUT') {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+          return;
+        }
 
-    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
-      hasResolved.current = false;
-      setLoading(true);
+        // Pour SIGNED_IN et TOKEN_REFRESHED, on recharge le profil avec un timeout de sécurité
+        if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+          hasResolved.current = false;
+          setLoading(true);
 
-      const safetyTimeout = setTimeout(() => {
-        console.warn("⏰ Safety timeout dans onAuthStateChange – libération forcée");
-        setLoading(false);
-        hasResolved.current = true;
-      }, 10000);
+          const eventTimeout = setTimeout(() => {
+            console.warn(`⏰ Timeout de ${AUTH_EVENT_TIMEOUT}ms dans onAuthStateChange – libération forcée`);
+            setLoading(false);
+            hasResolved.current = true;
+          }, AUTH_EVENT_TIMEOUT);
 
-      try {
-        await resolveProfile(session.user);
-      } catch (err) {
-        console.error("Erreur dans onAuthStateChange:", err);
-      } finally {
-        clearTimeout(safetyTimeout);
+          try {
+            await resolveProfile(session.user);
+          } catch (err) {
+            console.error("Erreur dans onAuthStateChange:", err);
+          } finally {
+            clearTimeout(eventTimeout);
+          }
+        }
       }
-    }
-  }
-);
+    );
+
+    // Gestion du regain de focus
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🌐 Onglet visible, rafraîchissement de la session');
+        supabase.auth.refreshSession().catch(console.warn);
+        refreshProfile();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Gestion du retour en ligne
+    const handleOnline = () => {
+      console.log('📡 Connexion rétablie, rafraîchissement de la session');
+      supabase.auth.refreshSession().catch(console.warn);
+      refreshProfile();
+    };
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('online', handleOnline);
+    };
+  }, [resolveProfile, refreshProfile]);
+
   // ─── LOGIN ────────────────────────────────────────────────────────────────────
   const login = async ({ username, password }) => {
     let email = username;
@@ -215,10 +241,10 @@ export function AuthProvider({ children }) {
     }
 
     setLoading(true);
-    hasResolved.current = false; // On lève le verrou pour le nouveau cycle
+    hasResolved.current = false;
 
     try {
-      // Nettoyage impitoyable de toute session fantôme avant de commencer
+      // Nettoyage de toute session fantôme
       await supabase.auth.signOut().catch(() => {});
 
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
