@@ -155,51 +155,35 @@ export function AuthProvider({ children }) {
 
     // ── ÉCOUTEUR D'ÉVÉNEMENTS AUTH ──
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
+  async (event, session) => {
+    if (!mounted) return;
 
-if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
-  hasResolved.current = false;
-  setLoading(true);
+    if (event === 'SIGNED_OUT') {
+      setUser(null);
+      setLoading(false);
+      return;
+    }
 
-  const safetyTimeout = setTimeout(() => {
-    console.warn("⏰ Safety timeout dans onAuthStateChange – libération forcée");
-    setLoading(false);
-    hasResolved.current = true;
-  }, 6000); // 10 secondes
+    if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && session?.user) {
+      hasResolved.current = false;
+      setLoading(true);
 
-  try {
-    await resolveProfile(session.user);
-  } catch (err) {
-    console.error("Erreur dans onAuthStateChange:", err);
-  } finally {
-    clearTimeout(safetyTimeout);
-  }
-}
-        if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setLoading(false);
-          return;
-        }
+      const safetyTimeout = setTimeout(() => {
+        console.warn("⏰ Safety timeout dans onAuthStateChange – libération forcée");
+        setLoading(false);
+        hasResolved.current = true;
+      }, 10000);
 
-        // On ne relance le profil que si l'initialisation est terminée,
-        // pour éviter de court-circuiter le process de démarrage.
-        if (event === 'SIGNED_IN' && session?.user && hasResolved.current) {
-          // Réinitialise le verrou pour permettre un nouveau chargement
-          hasResolved.current = false; 
-          setLoading(true);
-          await resolveProfile(session.user);
-        }
+      try {
+        await resolveProfile(session.user);
+      } catch (err) {
+        console.error("Erreur dans onAuthStateChange:", err);
+      } finally {
+        clearTimeout(safetyTimeout);
       }
-    );
-
-    return () => {
-      mounted = false;
-      clearTimeout(safetyTimeout);
-      subscription.unsubscribe();
-    };
-  }, [resolveProfile]);
-
+    }
+  }
+);
   // ─── LOGIN ────────────────────────────────────────────────────────────────────
   const login = async ({ username, password }) => {
     let email = username;
