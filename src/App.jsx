@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useAuth, AuthProvider } from './hooks/useAuth';
+import SplashScreen from './components/SplashScreen';
 import { CapacitorProvider } from './components/CapacitorProvider';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
