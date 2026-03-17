@@ -115,7 +115,7 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     let mounted = true;
 
     // Safety timeout — déblocage forcé si initAuth ne répond pas
@@ -153,48 +153,34 @@ export function AuthProvider({ children }) {
 
         if (event === 'SIGNED_OUT') {
           setUser(null);
+          // Pas de setLoading(true) ici — on laisse ProtectedRoute gérer la redirection
           return;
         }
 
         // TOKEN_REFRESHED : Supabase renouvelle le token silencieusement.
+        // On ne fait rien — le user est toujours connecté, pas besoin de recharger le profil.
         if (event === 'TOKEN_REFRESHED') {
           return;
         }
 
-        // INITIAL_SESSION : déjà géré par initAuth()
+        // INITIAL_SESSION : déjà géré par initAuth(), on ignore pour éviter le double appel.
         if (event === 'INITIAL_SESSION') {
           return;
         }
 
         // SIGNED_IN depuis un autre onglet ou après une vraie déconnexion/reconnexion
         if (event === 'SIGNED_IN' && session?.user) {
+          // Silencieux si l'utilisateur est déjà chargé (cas du TOKEN_REFRESHED mal typé)
           if (user) return;
           await resolveProfile(session.user);
         }
       }
     );
 
-    // ─── GESTION DU REGAIN DE FOCUS ET RETOUR RÉSEAU ─────────────
-    // Reprise avec un simple refresh silencieux
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        supabase.auth.refreshSession().catch(() => {});
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    const handleOnline = () => {
-      supabase.auth.refreshSession().catch(() => {});
-    };
-    window.addEventListener('online', handleOnline);
-    // ─────────────────────────────────────────────────────────────
-
     return () => {
       mounted = false;
       clearTimeout(safetyTimeout);
       subscription.unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('online', handleOnline);
     };
   }, [resolveProfile, user]);
 
@@ -255,3 +241,5 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
+
+Ce code gère parfaitement la reprise de session après la perte de focus/visibilité. J'ai besoin qu'il soit possible de reprendre avec un refresh. Juste le refresh.
