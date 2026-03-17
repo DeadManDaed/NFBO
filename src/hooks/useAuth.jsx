@@ -1,118 +1,243 @@
 // src/hooks/useAuth.jsx
 
-import { createContext, useContext, useEffect, useState, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 
-const AuthContext = createContext({});
+const AuthContext = createContext(null);
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const isInitialMount = useRef(true);
+// ─── Helper fetch authentifié ─────────────────────────────────────────────────
+export async function authFetch(url, options = {}) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
 
-  // ─── L'AutoClean : Nettoyage chirurgical ────────────────────────
-  const autoClean = () => {
-    console.warn("AutoClean activé : Délai dépassé ou session corrompue.");
-    localStorage.removeItem('supabase.auth.token'); // Nom par défaut du jeton Supabase
-    setUser(null);
-  };
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
 
-  // ─── Chargement du Profil avec Timeout 3s ────────────────────────
-  const loadUserProfile = async (userId) => {
-    const timeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('timeout')), 3000)
-    );
+  if (res.status === 401) {
+    await supabase.auth.signOut().catch(() => {});
+    window.dispatchEvent(new Event('auth:expired'));
+    throw new Error('Session expirée');
+  }
 
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ message: `Erreur HTTP ${res.status}` }));
+    throw new Error(err.message || `Erreur HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// ─── Chargement du profil métier ──────────────────────────────────────────────
+async function loadUserProfile(authId, retries = 3) {
+  for (let i = 0; i < retries; i++) {
     try {
-      const fetchProfile = supabase
+      const { data, error } = await supabase
         .from('users')
-        .select('*')
-        .eq('id', userId)
+        .select('id, username, role, magasin_id, prenom, nom, email, statut, matricule')
+        .eq('auth_id', authId)
         .maybeSingle();
 
-      const { data, error } = await Promise.race([fetchProfile, timeout]);
-      if (error || !data) return null;
-      return data;
-    } catch (err) {
-      return null;
+      if (error) {
+        if (i < retries - 1) {
+          await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
+          continue;
+        }
+        return null;
+      }
+      if (!data || data.statut !== 'actif') return null;
+
+      let magasin_nom = null;
+      if (data.magasin_id) {
+        const { data: mag } = await supabase
+          .from('magasins')
+          .select('nom')
+          .eq('id', data.magasin_id)
+          .maybeSingle();
+        magasin_nom = mag?.nom || null;
+      }
+
+      return { ...data, magasin_nom };
+    } catch {
+      if (i < retries - 1) await new Promise(r => setTimeout(r, 500 * Math.pow(2, i)));
     }
-  };
+  }
+  return null;
+}
 
-  // ─── Initialisation Silencieuse ────────────────────────────────
+// ─── Provider ─────────────────────────────────────────────────────────────────
+export function AuthProvider({ children }) {
+  const [user,    setUser]    = useState(null);
+
+  // loading ne vaut true QUE lors du chargement initial.
+  // Après, les refreshs de token sont silencieux.
+  const [loading, setLoading] = useState(true);
+
+  // Mutex : empêche deux appels concurrents à loadUserProfile
+  const resolving = useRef(false);
+
+  // Flag : le chargement initial est-il terminé ?
+  const initialLoadDone = useRef(false);
+
+  const resolveProfile = useCallback(async (supabaseUser) => {
+    if (resolving.current) return;
+    resolving.current = true;
+
+    try {
+      if (!supabaseUser) {
+        setUser(null);
+        return;
+      }
+      const profile = await loadUserProfile(supabaseUser.id);
+      if (profile) {
+        setUser(profile);
+} else {
+  // Profil non chargé (erreur réseau transitoire ou compte inactif).
+  // On ne déconnecte PAS Supabase — on garde la session intacte
+  // pour que le prochain regain de focus puisse réessayer.
+  setUser(null);
+}
+    } catch {
+      setUser(null);
+    } finally {
+      resolving.current = false;
+      // Ne remettre loading à false qu'une seule fois — au chargement initial.
+      // Les refreshs ultérieurs sont silencieux et ne doivent pas affecter loading.
+      if (!initialLoadDone.current) {
+        initialLoadDone.current = true;
+        setLoading(false);
+      }
+    }
+  }, []);
+
   useEffect(() => {
-    const initialize = async () => {
+    let mounted = true;
+
+    // Safety timeout — déblocage forcé si initAuth ne répond pas
+    const safetyTimeout = setTimeout(() => {
+      if (mounted && !initialLoadDone.current) {
+        initialLoadDone.current = true;
+        setLoading(false);
+      }
+    }, import.meta.env.DEV ? 30000 : 15000);
+
+    // Chargement initial depuis la session stockée
+    const initAuth = async () => {
       try {
-        // Tentative de récupération de session avec limite de 3s
-        const sessionPromise = supabase.auth.getSession();
-        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000));
-
-        const { data: { session } } = await Promise.race([sessionPromise, timeout]);
-
-        if (session?.user) {
-          const profile = await loadUserProfile(session.user.id);
-          if (profile) {
-            setUser(profile);
-          } else {
-            autoClean(); // Session présente mais profil injoignable
+        const { data: { session } } = await supabase.auth.getSession();
+        if (mounted) {
+          await resolveProfile(session?.user ?? null);
+        }
+      } catch {
+        if (mounted) {
+          setUser(null);
+          if (!initialLoadDone.current) {
+            initialLoadDone.current = true;
+            setLoading(false);
           }
         }
-      } catch (err) {
-        autoClean(); // Timeout ou erreur réseau
-      } finally {
-        setLoading(false);
       }
     };
 
-    if (isInitialMount.current) {
-      initialize();
-      isInitialMount.current = false;
-    }
+    initAuth();
 
-    // Gestion des événements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN' && session) {
-        const profile = await loadUserProfile(session.user.id);
-        setUser(profile);
-        setLoading(false);
-      } else if (event === 'SIGNED_OUT') {
-        setUser(null);
-        setLoading(false);
+    // Listener auth — silencieux après le premier chargement
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+
+        if (event === 'SIGNED_OUT') {
+          setUser(null);
+          // Pas de setLoading(true) ici — on laisse ProtectedRoute gérer la redirection
+          return;
+        }
+
+        // TOKEN_REFRESHED : Supabase renouvelle le token silencieusement.
+        // On ne fait rien — le user est toujours connecté, pas besoin de recharger le profil.
+        if (event === 'TOKEN_REFRESHED') {
+          return;
+        }
+
+        // INITIAL_SESSION : déjà géré par initAuth(), on ignore pour éviter le double appel.
+        if (event === 'INITIAL_SESSION') {
+          return;
+        }
+
+        // SIGNED_IN depuis un autre onglet ou après une vraie déconnexion/reconnexion
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Silencieux si l'utilisateur est déjà chargé (cas du TOKEN_REFRESHED mal typé)
+          if (user) return;
+          await resolveProfile(session.user);
+        }
       }
-    });
+    );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimeout);
+      subscription.unsubscribe();
+    };
+  }, [resolveProfile, user]);
 
+  // ─── Login ──────────────────────────────────────────────────────────────────
   const login = async ({ username, password }) => {
-    setLoading(true);
-    // On vide avant pour garantir un jeton frais
-    await supabase.auth.signOut().catch(() => {});
-    
-    // Logique email/username...
-    const { data, error } = await supabase.auth.signInWithPassword({ 
-      email: username.includes('@') ? username : await getEmailFromUsername(username), 
-      password 
-    });
+    let email = username;
 
-    if (error) {
-      setLoading(false);
-      throw error;
+    if (!username.includes('@')) {
+      const { data } = await supabase
+        .from('users')
+        .select('email')
+        .eq('username', username)
+        .maybeSingle();
+      if (!data?.email) throw new Error('Utilisateur introuvable');
+      email = data.email;
     }
-    // Le onAuthStateChange prendra le relais pour le setUser
+
+    // Nettoyage préventif
+
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'Identifiants incorrects');
+
+    const profile = await loadUserProfile(data.user.id);
+    if (!profile) throw new Error('Profil utilisateur introuvable ou inactif');
+
+    setUser(profile);
+    return profile;
+  };
+
+  // ─── Logout ─────────────────────────────────────────────────────────────────
+  const logout = async () => {
+    try {
+      await supabase.auth.signOut().catch(() => {});
+    } finally {
+      setUser(null);
+      resolving.current = false;
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      logout,
+      isAuthenticated: !!user,
+      isSuperAdmin:    user?.role === 'superadmin',
+      isAdmin:         user?.role === 'admin' || user?.role === 'superadmin',
+      magasinId:       user?.magasin_id ?? null,
+    }}>
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = () => useContext(AuthContext);
-
-// Helper rapide pour le login
-async function getEmailFromUsername(username) {
-  const { data } = await supabase.from('users').select('email').eq('username', username).maybeSingle();
-  if (!data?.email) throw new Error('Utilisateur introuvable');
-  return data.email;
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
+  return ctx;
 }
