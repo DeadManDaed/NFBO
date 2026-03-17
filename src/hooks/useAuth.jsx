@@ -241,5 +241,3 @@ export function useAuth() {
   if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
-
-Ce code gère parfaitement la reprise de session après la perte de focus/visibilité. J'ai besoin qu'il soit possible de reprendre avec un refresh. Juste le refresh.
