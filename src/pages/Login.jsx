@@ -20,18 +20,31 @@ export default function Login() {
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
   // ─── Connexion ─────────────────────────────────────────────────────────────
+    // ─── Connexion ─────────────────────────────────────────────────────────────
   const handleLogin = async e => {
     e.preventDefault();
-    setError(''); setLoading(true);
+    setError(''); 
+    setLoading(true);
+
+    // Sécurité locale : si au bout de 10s on n'a pas bougé, on rend la main
+    const timer = setTimeout(() => {
+      setLoading(false);
+      setError("Le serveur met trop de temps à répondre. Réessayez.");
+    }, 10000);
+
     try {
       await login({ username: form.username, password: form.password });
+      clearTimeout(timer); // On annule le timer si ça réussit
       navigate('/dashboard', { replace: true });
     } catch (err) {
+      clearTimeout(timer);
       setError(err.message || 'Identifiants incorrects');
     } finally {
+      // Si on est encore sur la page (pas redirigé), on libère le bouton
       setLoading(false);
     }
   };
+
 
   // ─── Inscription ───────────────────────────────────────────────────────────
   const handleRegister = async e => {
@@ -98,7 +111,20 @@ export default function Login() {
 
         {/* ── Logo ── */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{ fontSize: 52, marginBottom: 8 }}>📦</div>
+          {/* ── Logo ── */}
+<div style={{ textAlign: 'center', marginBottom: 28 }}>
+  {/* Remplace l'émoji par une image si tu as déjà exporté le logo Khepri */}
+  <div style={{ fontSize: 52, marginBottom: 8, filter: 'drop-shadow(0 0 10px rgba(76, 175, 80, 0.3))' }}>
+    🏢
+  </div>
+  <h1 style={{ margin: 0, fontSize: '1.8rem', color: 'var(--color-primary, #4caf50)', fontWeight: 800, letterSpacing: '1px' }}>
+    NFBO APP
+  </h1>
+  <p style={{ margin: '4px 0 0', color: 'var(--color-text-muted, #aaa)', fontSize: 13, fontWeight: 500 }}>
+    Copyright ©️ 2026 • KHEPRI DESIGN™
+  </p>
+</div>
+
           <h1 style={{ margin: 0, fontSize: '1.8rem', color: 'var(--color-primary, #4caf50)', fontWeight: 800 }}>
             NFBO
           </h1>
