@@ -1,4 +1,4 @@
-src/components/LogoKhepri.jsx
+//src/components/LogoKhepri.jsx
 
 import React from 'react';
 
