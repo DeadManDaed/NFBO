@@ -142,9 +142,10 @@ export function AuthProvider({ children }) {
         if (mounted) {
           setUser(null);
           if (!initialLoadDone.current) {
-            initialLoadDone.current = true;
-            setLoading(false);
-          }
+  initialLoadDone.current = true;
+  // Petit délai pour laisser onAuthStateChange se stabiliser
+  setTimeout(() => setLoading(false), 200);
+}
         }
       }
     };
