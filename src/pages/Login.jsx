@@ -30,7 +30,7 @@ export default function Login() {
     const timer = setTimeout(() => {
       setLoading(false);
       setError("Le serveur met trop de temps à répondre. Réessayez.");
-    }, 10000);
+    }, 30000);
 
     try {
       await login({ username: form.username, password: form.password });
