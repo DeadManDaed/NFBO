@@ -5,6 +5,26 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
+// ─── Nettoyage des données locales de l'utilisateur ──────────────────────────
+function clearLocalUserData() {
+  // QueryClient React Query — vidé depuis App.jsx via l'événement auth:signout
+  window.dispatchEvent(new Event('auth:signout'));
+
+  // Clés localStorage liées à l'utilisateur (hors session Supabase)
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    // On ne touche pas aux clés Supabase Auth (storageKey configuré)
+    if (key && !key.startsWith('nfbo-secure-auth')) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+
+  // sessionStorage complet
+  sessionStorage.clear();
+}
+
 // ─── Helper fetch authentifié ─────────────────────────────────────────────────
 export async function authFetch(url, options = {}) {
   const { data: { session } } = await supabase.auth.getSession();
@@ -73,15 +93,9 @@ async function loadUserProfile(authId, retries = 3) {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
-
-  // loading ne vaut true QUE lors du chargement initial.
-  // Après, les refreshs de token sont silencieux.
   const [loading, setLoading] = useState(true);
 
-  // Mutex : empêche deux appels concurrents à loadUserProfile
-  const resolving = useRef(false);
-
-  // Flag : le chargement initial est-il terminé ?
+  const resolving       = useRef(false);
   const initialLoadDone = useRef(false);
 
   const resolveProfile = useCallback(async (supabaseUser) => {
@@ -96,18 +110,13 @@ export function AuthProvider({ children }) {
       const profile = await loadUserProfile(supabaseUser.id);
       if (profile) {
         setUser(profile);
-} else {
-  // Profil non chargé (erreur réseau transitoire ou compte inactif).
-  // On ne déconnecte PAS Supabase — on garde la session intacte
-  // pour que le prochain regain de focus puisse réessayer.
-  setUser(null);
-}
+      } else {
+        setUser(null);
+      }
     } catch {
       setUser(null);
     } finally {
       resolving.current = false;
-      // Ne remettre loading à false qu'une seule fois — au chargement initial.
-      // Les refreshs ultérieurs sont silencieux et ne doivent pas affecter loading.
       if (!initialLoadDone.current) {
         initialLoadDone.current = true;
         setLoading(false);
@@ -118,7 +127,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
-    // Safety timeout — déblocage forcé si initAuth ne répond pas
     const safetyTimeout = setTimeout(() => {
       if (mounted && !initialLoadDone.current) {
         initialLoadDone.current = true;
@@ -126,13 +134,10 @@ export function AuthProvider({ children }) {
       }
     }, import.meta.env.DEV ? 30000 : 15000);
 
-    // Chargement initial depuis la session stockée
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (mounted) {
-          await resolveProfile(session?.user ?? null);
-        }
+        if (mounted) await resolveProfile(session?.user ?? null);
       } catch {
         if (mounted) {
           setUser(null);
@@ -146,31 +151,20 @@ export function AuthProvider({ children }) {
 
     initAuth();
 
-    // Listener auth — silencieux après le premier chargement
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
 
         if (event === 'SIGNED_OUT') {
+          clearLocalUserData();
           setUser(null);
-          // Pas de setLoading(true) ici — on laisse ProtectedRoute gérer la redirection
           return;
         }
 
-        // TOKEN_REFRESHED : Supabase renouvelle le token silencieusement.
-        // On ne fait rien — le user est toujours connecté, pas besoin de recharger le profil.
-        if (event === 'TOKEN_REFRESHED') {
-          return;
-        }
+        if (event === 'TOKEN_REFRESHED') return;
+        if (event === 'INITIAL_SESSION') return;
 
-        // INITIAL_SESSION : déjà géré par initAuth(), on ignore pour éviter le double appel.
-        if (event === 'INITIAL_SESSION') {
-          return;
-        }
-
-        // SIGNED_IN depuis un autre onglet ou après une vraie déconnexion/reconnexion
         if (event === 'SIGNED_IN' && session?.user) {
-          // Silencieux si l'utilisateur est déjà chargé (cas du TOKEN_REFRESHED mal typé)
           if (user) return;
           await resolveProfile(session.user);
         }
@@ -198,8 +192,6 @@ export function AuthProvider({ children }) {
       email = data.email;
     }
 
-    // Nettoyage préventif
-
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message || 'Identifiants incorrects');
 
@@ -213,6 +205,7 @@ export function AuthProvider({ children }) {
   // ─── Logout ─────────────────────────────────────────────────────────────────
   const logout = async () => {
     try {
+      clearLocalUserData();
       await supabase.auth.signOut().catch(() => {});
     } finally {
       setUser(null);
