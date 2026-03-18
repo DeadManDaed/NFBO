@@ -40,11 +40,11 @@ export async function authFetch(url, options = {}) {
   });
 
   if (res.status === 401) {
-    await supabase.auth.signOut().catch(() => {});
-    window.dispatchEvent(new Event('auth:expired'));
-    throw new Error('Session expirée');
-  }
-
+  // Ne pas signOut automatiquement — peut être une requête race condition
+  // au rechargement. Lancer l'événement seulement.
+  window.dispatchEvent(new Event('auth:expired'));
+  throw new Error('Session expirée');
+}
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `Erreur HTTP ${res.status}` }));
     throw new Error(err.message || `Erreur HTTP ${res.status}`);
