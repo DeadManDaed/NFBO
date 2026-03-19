@@ -407,11 +407,20 @@ export default function Admissions({ onBack }) {
   // États locaux pour le formulaire et l'UI
   const [activeLot, setActiveLot] = useState(null);
   const [gradeInfo, setGradeInfo] = useState({ grade: null, coef: 1.0 });
-  const [formData, setFormData] = useState({
-    lot_id: '', producteur_id: '', quantite: '', unite: '',
-    prix_ref: '', date_expiration: '',
-    magasin_id: 1, mode_paiement: 'especes', source: 'achat_direct',
-  });
+  
+const [formData, setFormData] = useState({
+  lot_id: '', 
+  producteur_id: '', 
+  quantite: '', 
+  unite: '',
+  prix_ref: '', 
+  date_expiration: '',
+  // Si superadmin : on laisse vide ('') pour forcer la sélection manuelle.
+  // Sinon : on assigne directement le magasin de l'utilisateur (admin/stock).
+  magasin_id: user?.role === 'superadmin' ? '' : (user?.magasin_id || ''), 
+  mode_paiement: 'especes', 
+  source: 'achat_direct',
+});
   const [showForm, setShowForm] = useState(false);
 
   // États pour le drag du sheet
