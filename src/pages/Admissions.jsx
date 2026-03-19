@@ -427,6 +427,14 @@ const [formData, setFormData] = useState({
   const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [startY, setStartY] = useState(0);
+useEffect(() => {
+    if (user) {
+      setFormData(prev => ({
+        ...prev,
+        magasin_id: user.role === 'superadmin' ? '' : (user.magasin_id || magasinId || '')
+      }));
+    }
+  }, [user, magasinId]);
 
   // ─── REQUÊTES AVEC REACT QUERY ───────────────────────────────────────────────
 
