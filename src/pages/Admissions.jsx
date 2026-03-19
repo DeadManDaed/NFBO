@@ -407,21 +407,20 @@ export default function Admissions({ onBack }) {
   // États locaux pour le formulaire et l'UI
   const [activeLot, setActiveLot] = useState(null);
   const [gradeInfo, setGradeInfo] = useState({ grade: null, coef: 1.0 });
-  
-const [formData, setFormData] = useState({
 
+const [formData, setFormData] = useState({
   lot_id: '', 
   producteur_id: '', 
   quantite: '', 
   unite: '',
   prix_ref: '', 
   date_expiration: '',
-  // Si superadmin : on laisse vide ('') pour forcer la sélection manuelle.
-  // Sinon : on assigne directement le magasin de l'utilisateur (admin/stock).
+  // FORCE le vide si superadmin, même si un magasin_id traîne dans le profil
   magasin_id: user?.role === 'superadmin' ? '' : (user?.magasin_id || ''), 
   mode_paiement: 'especes', 
   source: 'achat_direct',
 });
+
   const [showForm, setShowForm] = useState(false);
 
   // États pour le drag du sheet
@@ -429,13 +428,20 @@ const [formData, setFormData] = useState({
   const [isDragging, setIsDragging] = useState(false);
   const [startY, setStartY] = useState(0);
 useEffect(() => {
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        magasin_id: user.role === 'superadmin' ? '' : (user.magasin_id || magasinId || '')
-      }));
-    }
-  }, [user, magasinId]);
+  if (user) {
+    const isSuper = user.role === 'superadmin';
+    const currentMagasin = isSuper ? '' : (user.magasin_id || '');
+    
+    setFormData(prev => {
+      // On ne change l'état que si la valeur actuelle est différente de la cible
+      if (prev.magasin_id !== currentMagasin) {
+        return { ...prev, magasin_id: currentMagasin };
+      }
+      return prev;
+    });
+  }
+}, [user]); // On surveille le changement d'utilisateur
+
 
   // ─── REQUÊTES AVEC REACT QUERY ───────────────────────────────────────────────
 
