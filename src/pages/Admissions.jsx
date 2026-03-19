@@ -463,10 +463,17 @@ useEffect(() => {
       queryClient.invalidateQueries(['admissions']);
       showAlert('✅ Admission validée avec succès !', 'success');
       setFormData({
-        lot_id: '', producteur_id: '', quantite: '', unite: '',
-        prix_ref: '', date_expiration: '',
-        magasin_id: user?.role === 'superadmin' ? '' : (magasinId || ''), mode_paiement: 'especes', source: 'achat_direct',
+        lot_id: '', 
+        producteur_id: '', 
+        quantite: '', 
+        unite: '',
+        prix_ref: '', 
+        date_expiration: '',
+        magasin_id: user?.role === 'superadmin' ? '' : (user?.magasin_id || magasinId || ''), 
+        mode_paiement: 'especes', 
+        source: 'achat_direct',
       });
+      
       setActiveLot(null);
       setGradeInfo({ grade: null, coef: 1.0 });
       setShowForm(false);
