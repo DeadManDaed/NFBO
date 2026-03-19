@@ -409,6 +409,7 @@ export default function Admissions({ onBack }) {
   const [gradeInfo, setGradeInfo] = useState({ grade: null, coef: 1.0 });
   
 const [formData, setFormData] = useState({
+
   lot_id: '', 
   producteur_id: '', 
   quantite: '', 
@@ -646,6 +647,8 @@ const payload = {
         {/* Le Contenu Scrollable */}
         <div className="sheet-content">
           <form id="form-admission-mobile" onSubmit={handleSubmit}>
+<p style={{ color: 'red', fontSize: 12 }}>DEBUG RÔLE ACTUEL : {user?.role}</p>
+
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
 
               {/* Colonne 1 : Source & Destination */}
