@@ -663,22 +663,31 @@ export default function Admissions({ onBack }) {
                   </div>
                 )}
 
-                {user?.role === 'superadmin' ? (
-                  <div className="form-group">
-                    <label className="form-label">Magasin</label>
-                    <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
-                      {magasins.find(m => m.id === 1)?.nom || 'Magasin principal'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="form-group">
-                    <label className="form-label">Magasin</label>
-                    <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
-                      {magasins.find(m => m.id === parseInt(magasinId))?.nom || `Magasin #${magasinId}`}
-                    </p>
-                  </div>
-                )}
-              </div>
+                 {/* Sélecteur de magasin - select pour superadmin, sinon texte fixe */}
+              {user?.role === 'superadmin' ? (
+                <div className="form-group">
+                  <label className="form-label">Magasin *</label>
+                  <select
+                    className="form-control"
+                    required
+                    value={formData.magasin_id}
+                    onChange={set('magasin_id')}
+                  >
+                    <option value="">-- Sélectionner un magasin --</option>
+                    {magasins.map(m => (
+                      <option key={m.id} value={m.id}>{m.nom}</option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label className="form-label">Magasin</label>
+                  <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
+                    {magasins.find(m => m.id === parseInt(magasinId))?.nom || `Magasin #${magasinId}`}
+                  </p>
+                </div>
+              )}
+            </div>
 
               {/* Colonne 2 : Mesures & Finance */}
               <div style={colStyle}>
