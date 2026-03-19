@@ -448,7 +448,7 @@ export default function Admissions({ onBack }) {
       setFormData({
         lot_id: '', producteur_id: '', quantite: '', unite: '',
         prix_ref: '', date_expiration: '',
-        magasin_id: 1, mode_paiement: 'especes', source: 'achat_direct',
+        magasin_id: user?.role === 'superadmin' ? '' : (magasinId || ''), mode_paiement: 'especes', source: 'achat_direct',
       });
       setActiveLot(null);
       setGradeInfo({ grade: null, coef: 1.0 });
