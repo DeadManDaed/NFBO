@@ -38,6 +38,7 @@ module.exports = withCors(requireAuth(async (req, res) => {
       );
       return res.json(result.rows[0]);
     } catch (err) {
+console.error('[magasins POST] Erreur SQL:', err.message);
       return res.status(500).json({ error: 'Erreur serveur' });
     }
   }
