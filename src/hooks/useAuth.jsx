@@ -5,23 +5,22 @@ import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-// ─── Nettoyage des données locales de l'utilisateur ──────────────────────────
+// ─── Nettoyage des données locales à la déconnexion ──────────────────────────
 function clearLocalUserData() {
-  // QueryClient React Query — vidé depuis App.jsx via l'événement auth:signout
+  // Vider le cache React Query via événement global (écouté dans App.jsx)
   window.dispatchEvent(new Event('auth:signout'));
 
-  // Clés localStorage liées à l'utilisateur (hors session Supabase)
+  // Vider localStorage sauf la clé de session Supabase
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
-    // On ne touche pas aux clés Supabase Auth (storageKey configuré)
     if (key && !key.startsWith('nfbo-secure-auth')) {
       keysToRemove.push(key);
     }
   }
   keysToRemove.forEach(k => localStorage.removeItem(k));
 
-  // sessionStorage complet
+  // Vider sessionStorage
   sessionStorage.clear();
 }
 
@@ -40,11 +39,10 @@ export async function authFetch(url, options = {}) {
   });
 
   if (res.status === 401) {
-  // Ne pas signOut automatiquement — peut être une requête race condition
-  // au rechargement. Lancer l'événement seulement.
-  window.dispatchEvent(new Event('auth:expired'));
-  throw new Error('Session expirée');
-}
+    window.dispatchEvent(new Event('auth:expired'));
+    throw new Error('Session expirée');
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ message: `Erreur HTTP ${res.status}` }));
     throw new Error(err.message || `Erreur HTTP ${res.status}`);
@@ -95,7 +93,9 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Mutex — empêche deux appels concurrents à loadUserProfile
   const resolving       = useRef(false);
+  // Flag — chargement initial terminé
   const initialLoadDone = useRef(false);
 
   const resolveProfile = useCallback(async (supabaseUser) => {
@@ -108,11 +108,7 @@ export function AuthProvider({ children }) {
         return;
       }
       const profile = await loadUserProfile(supabaseUser.id);
-      if (profile) {
-        setUser(profile);
-      } else {
-        setUser(null);
-      }
+      setUser(profile ?? null);
     } catch {
       setUser(null);
     } finally {
@@ -127,6 +123,7 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let mounted = true;
 
+    // Safety timeout — déblocage forcé si Supabase ne répond pas
     const safetyTimeout = setTimeout(() => {
       if (mounted && !initialLoadDone.current) {
         initialLoadDone.current = true;
@@ -134,6 +131,7 @@ export function AuthProvider({ children }) {
       }
     }, import.meta.env.DEV ? 30000 : 15000);
 
+    // Lecture de la session existante au chargement
     const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -142,16 +140,18 @@ export function AuthProvider({ children }) {
         if (mounted) {
           setUser(null);
           if (!initialLoadDone.current) {
-  initialLoadDone.current = true;
-  // Petit délai pour laisser onAuthStateChange se stabiliser
-  setTimeout(() => setLoading(false), 200);
-}
+            initialLoadDone.current = true;
+            setLoading(false);
+          }
         }
       }
     };
 
     initAuth();
 
+    // Supabase gère le refresh du token — on écoute uniquement
+    // SIGNED_IN et SIGNED_OUT pour la logique métier.
+    // TOKEN_REFRESHED et INITIAL_SESSION sont délibérément ignorés.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         if (!mounted) return;
@@ -166,6 +166,7 @@ export function AuthProvider({ children }) {
         if (event === 'INITIAL_SESSION') return;
 
         if (event === 'SIGNED_IN' && session?.user) {
+          // Ignorer si l'utilisateur est déjà chargé
           if (user) return;
           await resolveProfile(session.user);
         }
