@@ -98,7 +98,7 @@ const COOP_CRITERIA = {
 const GRADE_CONFIG = {
   A: { min: 9,   coef: 1.0, color: '#c8e6c9', textColor: '#1b5e20', label: 'Excellente' },
   B: { min: 7.5, coef: 0.9, color: '#fff9c4', textColor: '#f57f17', label: 'Bonne' },
-  C: { min: 6,   coef: 0.8, color: '#ffe0b2', textColor: '#e65100', label: 'Moyenne' },
+  C: { min: 6,   coef: 0.8, color: '#f fe0b2', textColor: '#e65100', label: 'Moyenne' },
   D: { min: 0,   coef: 0.7, color: '#ffcdd2', textColor: '#b71c1c', label: 'Faible' },
 };
 
@@ -522,21 +522,31 @@ export default function Admissions({ onBack }) {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const payload = {
-      lot_id: parseInt(formData.lot_id),
-      producteur_id: formData.source === 'achat_direct' ? null : parseInt(formData.producteur_id),
-      quantite: parseFloat(formData.quantite),
-      unite: formData.unite,
-      prix_ref: parseFloat(formData.prix_ref),
-      coef_qualite: gradeInfo.coef ?? 1.0,
-      grade_qualite: gradeInfo.grade || null,
-      date_expiration: formData.date_expiration || null,
-      magasin_id: 1,  // verrouillé
-      mode_paiement: formData.source === 'achat_direct' ? 'especes' : formData.mode_paiement,
-      utilisateur: user?.username || 'system',
-      source: formData.source,
-    };
+    // 1. Barrière de sécurité : Si le rôle n'est ni superadmin, ni admin, ni stock, on bloque tout.
+if (!['superadmin', 'admin', 'stock'].includes(user?.role)) {
+  // Remplace ceci par ta fonction de gestion d'erreur (ex: setError, toast, etc.)
+  console.error("Action refusée : droits insuffisants.");
+  return; 
+}
 
+// 2. Le Payload dynamique
+const payload = {
+  lot_id: parseInt(formData.lot_id),
+  producteur_id: formData.source === 'achat_direct' ? null : parseInt(formData.producteur_id),
+  quantite: parseFloat(formData.quantite),
+  unite: formData.unite,
+  prix_ref: parseFloat(formData.prix_ref),
+  coef_qualite: gradeInfo.coef ?? 1.0,
+  grade_qualite: gradeInfo.grade || null,
+  date_expiration: formData.date_expiration || null,
+  
+  // Si superadmin, on prend le select du formulaire. Sinon, on verrouille sur le magasin assigné.
+  magasin_id: user?.role === 'superadmin' ? parseInt(formData.magasin_id) : parseInt(user?.magasin_id || magasinId),
+  
+  mode_paiement: formData.source === 'achat_direct' ? 'especes' : formData.mode_paiement,
+  utilisateur: user?.username || 'system',
+  source: formData.source,
+};
     createAdmissionMutation.mutate(payload);
   };
 
@@ -663,30 +673,36 @@ export default function Admissions({ onBack }) {
                   </div>
                 )}
 
-                 {/* Sélecteur de magasin - select pour superadmin, sinon texte fixe */}
-              {user?.role === 'superadmin' ? (
-                <div className="form-group">
-                  <label className="form-label">Magasin *</label>
-                  <select
-                    className="form-control"
-                    required
-                    value={formData.magasin_id}
-                    onChange={set('magasin_id')}
-                  >
-                    <option value="">-- Sélectionner un magasin --</option>
-                    {magasins.map(m => (
-                      <option key={m.id} value={m.id}>{m.nom}</option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="form-group">
-                  <label className="form-label">Magasin</label>
-                  <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
-                    {magasins.find(m => m.id === parseInt(magasinId))?.nom || `Magasin #${magasinId}`}
-                  </p>
-                </div>
-              )}
+                 {/* Sélecteur de magasin - Logique conditionnelle selon le rôle */}
+{user?.role === 'superadmin' ? (
+  <div className="form-group">
+    <label className="form-label">Magasin *</label>
+    <select
+      className="form-control"
+      required
+      value={formData.magasin_id || ''}
+      onChange={set('magasin_id')}
+    >
+      <option value="">-- Sélectionner un magasin --</option>
+      {magasins.map(m => (
+        <option key={m.id} value={m.id}>{m.nom}</option>
+      ))}
+    </select>
+  </div>
+) : ['admin', 'stock'].includes(user?.role) ? (
+  <div className="form-group">
+    <label className="form-label">Magasin</label>
+    <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
+      {magasins.find(m => m.id === parseInt(user?.magasin_id || magasinId))?.nom || `Magasin #${user?.magasin_id || magasinId}`}
+    </p>
+  </div>
+) : (
+  <div className="form-group">
+    <p style={{ padding: '10px 14px', background: 'rgba(244, 67, 54, 0.1)', color: '#d32f2f', borderRadius: 8, fontSize: 13, border: '1px solid #ffcdd2' }}>
+      ⚠️ Vous n'avez pas l'autorisation d'enregistrer des admissions pour un magasin.
+    </p>
+  </div>
+)}
             </div>
 
               {/* Colonne 2 : Mesures & Finance */}
