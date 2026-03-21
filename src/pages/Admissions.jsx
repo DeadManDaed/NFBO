@@ -714,7 +714,7 @@ const payload = {
       className="form-control"
       required
       value={formData.magasin_id || ''}
-      onChange={set('magasin_id')}
+      onChange={e => setFormData(f => ({ ...f, magasin_id: parseInt(e.target.value) || '' }))}
     >
       <option value="">-- Sélectionner un magasin --</option>
       {magasins.map(m => (
