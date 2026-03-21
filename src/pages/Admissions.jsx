@@ -187,7 +187,7 @@ function AuditQualite({ categorie, onGradeChange }) {
 }
 
 // ─── Aperçu financier (inchangé) ───────────────────────────────────────────────
-function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpiration }) {
+function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpiration, source }) {
   const qty  = parseFloat(quantite)    || 0;
   const prix = parseFloat(prixRef)     || 0;
   const coef = parseFloat(coefQualite) || 1.0;
@@ -195,6 +195,22 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
   if (!qty || !prix) return null;
 
   const baseMontant = qty * prix * coef;
+
+  // Achat direct — pas de commission, juste le montant total
+  if (source === 'achat_direct') {
+    return (
+      <div style={{ background: '#fff3e0', border: '1px solid #ffe0b2', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+          <span style={{ color: '#555' }}>Montant total (débit caisse) :</span>
+          <span style={{ fontWeight: 700, color: '#e65100', fontSize: 15 }}>
+            {Math.round(baseMontant).toLocaleString()} FCFA
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Admission producteur — calcul commission habituel
   let taxeTaux = modePaiement === 'mobile_money' ? 0.07 : 0.05;
 
   if (dateExpiration) {
@@ -780,13 +796,14 @@ const payload = {
                   )}
                 </div>
 
-                <FinancePreview
-                  quantite={formData.quantite}
-                  prixRef={formData.prix_ref}
-                  coefQualite={gradeInfo.coef}
-                  modePaiement={formData.mode_paiement}
-                  dateExpiration={formData.date_expiration}
-                />
+               <FinancePreview
+  quantite={formData.quantite}
+  prixRef={formData.prix_ref}
+  coefQualite={gradeInfo.coef}
+  modePaiement={formData.mode_paiement}
+  dateExpiration={formData.date_expiration}
+  source={formData.source}
+/>
               </div>
 
               {/* Colonne 3 : Audit qualité */}
