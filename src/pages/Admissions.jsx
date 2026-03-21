@@ -1,5 +1,4 @@
 // src/pages/Admissions.jsx
-// Port complet de admission.js : grille d'audit qualité, sliders, calcul financier temps réel + Bottom Sheet
 
 import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -10,95 +9,69 @@ import api from '../services/api';
 import Alert from '../components/Alert';
 import PageLayout from '../components/PageLayout';
 
-// ─── STYLES DU BOTTOM SHEET (inchangés) ────────────────────────────────────────
+// ─── STYLES DU BOTTOM SHEET ───────────────────────────────────────────────────
 const BottomSheetStyles = () => (
   <style>{`
     .sheet-overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.4);
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4);
       backdrop-filter: blur(2px);
-      z-index: 1000;
-      opacity: 0;
-      visibility: hidden;
+      z-index: 1000; opacity: 0; visibility: hidden;
       transition: all 0.3s ease;
     }
-    .sheet-overlay.active {
-      opacity: 1;
-      visibility: visible;
-    }
+    .sheet-overlay.active { opacity: 1; visibility: visible; }
     .bottom-sheet {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      position: fixed; bottom: 0; left: 0; right: 0;
       max-height: 80vh;
       background: var(--color-surface, #ffffff);
       border-radius: 24px 24px 0 0;
       z-index: 1001;
       transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.15);
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
       box-shadow: 0 -10px 40px rgba(0,0,0,0.2);
       touch-action: none;
     }
-    .bottom-sheet.dragging {
-      transition: none;
-    }
+    .bottom-sheet.dragging { transition: none; }
     .sheet-header {
       padding: 12px 20px 20px;
       border-bottom: 1px solid var(--color-border, #eee);
-      flex-shrink: 0;
-      text-align: center;
-      cursor: grab;
+      flex-shrink: 0; text-align: center; cursor: grab;
     }
-    .sheet-header:active {
-      cursor: grabbing;
-    }
+    .sheet-header:active { cursor: grabbing; }
     .sheet-handle {
-      width: 40px;
-      height: 5px;
-      background: #ccc;
-      border-radius: 3px;
-      margin: 0 auto 12px;
+      width: 40px; height: 5px; background: #ccc;
+      border-radius: 3px; margin: 0 auto 12px;
     }
     .sheet-content {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      padding-bottom: 120px;
+      flex: 1; overflow-y: auto;
+      padding: 20px; padding-bottom: 120px;
       touch-action: pan-y;
       -webkit-overflow-scrolling: touch;
     }
     .sheet-footer {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
+      position: absolute; bottom: 0; left: 0; right: 0;
       padding: 16px 20px;
       background: linear-gradient(to top, var(--color-surface, #ffffff) 80%, rgba(255,255,255,0));
       z-index: 2;
     }
-    body.sheet-open {
-      overflow: hidden;
-    }
+    body.sheet-open { overflow: hidden; }
   `}</style>
 );
 
-// ─── Critères d'audit qualité par catégorie ────────────────────────────────────
+// ─── CRITÈRES D'AUDIT QUALITÉ ─────────────────────────────────────────────────
 const COOP_CRITERIA = {
-  frais: ['Aspect visuel (couleur/forme)', 'Absence de moisissures', 'Odeur', 'Fermeté / Texture', 'Présence de parasites'],
-  court: ['Aspect visuel', 'Odeur', 'Conditionnement', 'Humidité', 'Conformité étiquetage'],
-  secs: ['Humidité résiduelle', "Absence d'impuretés", 'Granulométrie', 'Couleur homogène', 'Absence de parasites', 'Taux de brisures'],
-  manufactures_alim: ['Intégrité emballage', 'Date de péremption', 'Conformité poids', 'Aspect général', 'Traçabilité lot'],
-  manufactures_non_alim: ['Intégrité emballage', 'Conformité référence', 'Absence de défauts', 'Fonctionnalité', 'Étiquetage'],
-  sensibles: ['Température de stockage', 'Intégrité conditionnement', 'Date validité', 'Conformité réglementaire', 'Traçabilité'],
+  frais:                ['Aspect visuel (couleur/forme)', 'Absence de moisissures', 'Odeur', 'Fermeté / Texture', 'Présence de parasites'],
+  court:                ['Aspect visuel', 'Odeur', 'Conditionnement', 'Humidité', 'Conformité étiquetage'],
+  secs:                 ['Humidité résiduelle', "Absence d'impuretés", 'Granulométrie', 'Couleur homogène', 'Absence de parasites', 'Taux de brisures'],
+  manufactures_alim:    ['Intégrité emballage', 'Date de péremption', 'Conformité poids', 'Aspect général', 'Traçabilité lot'],
+  manufactures_non_alim:['Intégrité emballage', 'Conformité référence', 'Absence de défauts', 'Fonctionnalité', 'Étiquetage'],
+  sensibles:            ['Température de stockage', 'Intégrité conditionnement', 'Date validité', 'Conformité réglementaire', 'Traçabilité'],
 };
 
 const GRADE_CONFIG = {
   A: { min: 9,   coef: 1.0, color: '#c8e6c9', textColor: '#1b5e20', label: 'Excellente' },
   B: { min: 7.5, coef: 0.9, color: '#fff9c4', textColor: '#f57f17', label: 'Bonne' },
-  C: { min: 6,   coef: 0.8, color: '#f fe0b2', textColor: '#e65100', label: 'Moyenne' },
+  C: { min: 6,   coef: 0.8, color: '#ffe0b2', textColor: '#e65100', label: 'Moyenne' },
   D: { min: 0,   coef: 0.7, color: '#ffcdd2', textColor: '#b71c1c', label: 'Faible' },
 };
 
@@ -109,7 +82,7 @@ function getGrade(moyenne) {
   return 'D';
 }
 
-// ─── Grille d'audit qualité (inchangée) ─────────────────────────────────────────
+// ─── COMPOSANT : AUDIT QUALITÉ ────────────────────────────────────────────────
 function AuditQualite({ categorie, onGradeChange }) {
   const criteres = COOP_CRITERIA[categorie] || [];
   const [notes, setNotes] = useState(() => (COOP_CRITERIA[categorie] || []).map(() => 10));
@@ -186,7 +159,7 @@ function AuditQualite({ categorie, onGradeChange }) {
   );
 }
 
-// ─── Aperçu financier (inchangé) ───────────────────────────────────────────────
+// ─── COMPOSANT : APERÇU FINANCIER ─────────────────────────────────────────────
 function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpiration, source }) {
   const qty  = parseFloat(quantite)    || 0;
   const prix = parseFloat(prixRef)     || 0;
@@ -195,12 +168,13 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
   if (!qty || !prix) return null;
 
   const baseMontant = qty * prix * coef;
+  const rowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 };
 
-  // Achat direct — pas de commission, juste le montant total
+  // Achat direct — pas de commission, juste le montant débité de la caisse
   if (source === 'achat_direct') {
     return (
       <div style={{ background: '#fff3e0', border: '1px solid #ffe0b2', borderRadius: 10, padding: '14px 16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 }}>
+        <div style={rowStyle}>
           <span style={{ color: '#555' }}>Montant total (débit caisse) :</span>
           <span style={{ fontWeight: 700, color: '#e65100', fontSize: 15 }}>
             {Math.round(baseMontant).toLocaleString()} FCFA
@@ -210,9 +184,8 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
     );
   }
 
-  // Admission producteur — calcul commission habituel
+  // Admission producteur — calcul commission
   let taxeTaux = modePaiement === 'mobile_money' ? 0.07 : 0.05;
-
   if (dateExpiration) {
     const joursRestants = Math.ceil((new Date(dateExpiration) - new Date()) / 86400000);
     if (joursRestants > 0 && joursRestants < 30) taxeTaux += (30 - joursRestants) * 0.005;
@@ -220,7 +193,6 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
 
   const montantTaxe   = baseMontant * taxeTaux;
   const netProducteur = baseMontant - montantTaxe;
-  const rowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 13 };
 
   return (
     <div style={{ background: '#e8f5e9', border: '1px solid #c8e6c9', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -240,7 +212,7 @@ function FinancePreview({ quantite, prixRef, coefQualite, modePaiement, dateExpi
   );
 }
 
-// ─── Carte admission fold/unfold (inchangée avec export PDF) ────────────────────
+// ─── COMPOSANT : CARTE ADMISSION ──────────────────────────────────────────────
 function AdmissionCard({ admission: a }) {
   const [open, setOpen] = useState(false);
 
@@ -275,7 +247,6 @@ function AdmissionCard({ admission: a }) {
           .grade-C { background: #ffe0b2; color: #e65100; }
           .grade-D { background: #ffcdd2; color: #b71c1c; }
           .footer { margin-top: 40px; font-size: 10px; color: #999; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }
-          @media print { body { padding: 20px; } }
         </style>
       </head><body>
         <div class="header">
@@ -327,7 +298,6 @@ function AdmissionCard({ admission: a }) {
       background: 'var(--color-surface-alt)', borderRadius: 'var(--radius-md)',
       border: '1px solid var(--color-border)', overflow: 'hidden',
     }}>
-      {/* ── Ligne principale ── */}
       <div
         onClick={() => setOpen(v => !v)}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', cursor: 'pointer', gap: 10 }}
@@ -355,11 +325,8 @@ function AdmissionCard({ admission: a }) {
         </div>
       </div>
 
-      {/* ── Contenu déplié ── */}
       {open && (
         <div style={{ borderTop: '1px solid var(--color-border)', padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-          {/* Infos générales */}
           <div className="grid-2" style={{ gap: 10 }}>
             {[
               ['Lot',            a.lot_description || `Lot #${a.lot_id}`],
@@ -379,7 +346,6 @@ function AdmissionCard({ admission: a }) {
             ))}
           </div>
 
-          {/* Audit qualité */}
           <div style={{
             display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'center',
             background: g ? gradeColors[g] : 'var(--color-surface)',
@@ -390,7 +356,6 @@ function AdmissionCard({ admission: a }) {
             <span style={{ fontSize: 12, color: 'var(--color-text)' }}>Commission : {a.taux_tax ? (parseFloat(a.taux_tax) * 100).toFixed(1) + '%' : '—'}</span>
           </div>
 
-          {/* Finances */}
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius-sm)', padding: '10px 14px' }}>
             {[
               ['Valeur totale', a.valeur_totale, '#333'],
@@ -406,97 +371,64 @@ function AdmissionCard({ admission: a }) {
               <span>{Number(a.montant_verse || 0).toLocaleString('fr-FR')} FCFA</span>
             </div>
           </div>
-
         </div>
       )}
     </div>
   );
 }
 
-// ─── Page principale ────────────────────────────────────────────────────────────
+// ─── PAGE PRINCIPALE ───────────────────────────────────────────────────────────
 export default function Admissions({ onBack }) {
   const { user, magasinId } = useAuth();
   const { alert, showAlert, hideAlert } = useAlert();
   const queryClient = useQueryClient();
-  const { lots } = useLots(); // on suppose que ce hook utilise React Query
+  const { lots } = useLots();
 
-  // États locaux pour le formulaire et l'UI
-  const [activeLot, setActiveLot] = useState(null);
-  const [gradeInfo, setGradeInfo] = useState({ grade: null, coef: 1.0 });
-
-const [formData, setFormData] = useState({
-  lot_id: '', 
-  producteur_id: '', 
-  quantite: '', 
-  unite: '',
-  prix_ref: '', 
-  date_expiration: '',
-  // FORCE le vide si superadmin, même si un magasin_id traîne dans le profil
-  magasin_id: user?.role === 'superadmin' ? '' : (user?.magasin_id || ''), 
-  mode_paiement: 'especes', 
-  source: 'achat_direct',
-});
-
-  const [showForm, setShowForm] = useState(false);
-
-  // États pour le drag du sheet
-  const [dragY, setDragY] = useState(0);
+  const [activeLot,  setActiveLot]  = useState(null);
+  const [gradeInfo,  setGradeInfo]  = useState({ grade: null, coef: 1.0 });
+  const [showForm,   setShowForm]   = useState(false);
+  const [dragY,      setDragY]      = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [startY, setStartY] = useState(0);
-useEffect(() => {
-  if (user) {
-    const isSuper = user.role === 'superadmin';
-    const currentMagasin = isSuper ? '' : (user.magasin_id || '');
-    
-    setFormData(prev => {
-      // On ne change l'état que si la valeur actuelle est différente de la cible
-      if (prev.magasin_id !== currentMagasin) {
-        return { ...prev, magasin_id: currentMagasin };
-      }
-      return prev;
-    });
-  }
-}, [user]); // On surveille le changement d'utilisateur
+  const [startY,     setStartY]     = useState(0);
 
+  // État initial du formulaire — tout en string pour cohérence avec les selects HTML
+  const emptyForm = useCallback(() => ({
+    lot_id:        '',
+    producteur_id: '',
+    quantite:      '',
+    unite:         '',
+    prix_ref:      '',
+    date_expiration: '',
+    magasin_id:    user?.role === 'superadmin' ? '' : String(user?.magasin_id || magasinId || ''),
+    mode_paiement: 'especes',
+    source:        'achat_direct',
+  }), [user, magasinId]);
 
-  // ─── REQUÊTES AVEC REACT QUERY ───────────────────────────────────────────────
+  const [formData, setFormData] = useState(emptyForm);
 
-  // Admissions (filtrées par magasin si non superadmin)
-  const { data: admissions = [], refetch: refetchAdmissions } = useQuery({
+  // ─── REQUÊTES ──────────────────────────────────────────────────────────────
+  const { data: admissions = [] } = useQuery({
     queryKey: ['admissions', magasinId],
-    queryFn: () => api.getAdmissions(magasinId || null),
+    queryFn:  () => api.getAdmissions(magasinId || null),
   });
 
-  // Producteurs
   const { data: producteurs = [] } = useQuery({
     queryKey: ['producteurs'],
-    queryFn: () => api.getProducteurs(),
+    queryFn:  () => api.getProducteurs(),
   });
 
-  // Magasins
   const { data: magasins = [] } = useQuery({
     queryKey: ['magasins'],
-    queryFn: () => api.getMagasins(),
+    queryFn:  () => api.getMagasins(),
   });
 
-  // Mutation pour créer une admission
+  // ─── MUTATION ──────────────────────────────────────────────────────────────
   const createAdmissionMutation = useMutation({
     mutationFn: (payload) => api.createAdmission(payload),
     onSuccess: () => {
       queryClient.invalidateQueries(['admissions']);
       showAlert('✅ Admission validée avec succès !', 'success');
-      setFormData({
-        lot_id: '', 
-        producteur_id: '', 
-        quantite: '', 
-        unite: '',
-        prix_ref: '', 
-        date_expiration: '',
-        magasin_id: user?.role === 'superadmin' ? '' : (user?.magasin_id || magasinId || ''), 
-        mode_paiement: 'especes', 
-        source: 'achat_direct',
-      });
-      
+      setFormData(emptyForm());
       setActiveLot(null);
       setGradeInfo({ grade: null, coef: 1.0 });
       setShowForm(false);
@@ -504,43 +436,29 @@ useEffect(() => {
     onError: (err) => showAlert(`❌ Erreur : ${err.message}`, 'error'),
   });
 
-  // ─── GESTION DES TOUCHES POUR LE SWIPE ───────────────────────────────────────
+  // ─── DRAG DU SHEET ─────────────────────────────────────────────────────────
   const handleTouchStart = (e) => {
-    if (e.touches && e.touches.length > 0) {
-      setStartY(e.touches[0].clientY);
-      setIsDragging(true);
-    }
+    if (e.touches?.length > 0) { setStartY(e.touches[0].clientY); setIsDragging(true); }
   };
-
   const handleTouchMove = (e) => {
-    if (!isDragging || !e.touches || e.touches.length === 0) return;
-    const currentY = e.touches[0].clientY;
-    const deltaY = currentY - startY;
-    if (deltaY > 0) {
-      setDragY(deltaY);
-    }
+    if (!isDragging || !e.touches?.length) return;
+    const delta = e.touches[0].clientY - startY;
+    if (delta > 0) setDragY(delta);
   };
-
   const handleTouchEnd = () => {
     setIsDragging(false);
-    if (dragY > 150) {
-      setShowForm(false);
-    } else {
-      setDragY(0);
-    }
+    if (dragY > 150) setShowForm(false);
+    else setDragY(0);
   };
 
   useEffect(() => {
-    if (showForm) {
-      document.body.classList.add('sheet-open');
-    } else {
-      document.body.classList.remove('sheet-open');
-      setDragY(0);
-    }
+    if (showForm) document.body.classList.add('sheet-open');
+    else { document.body.classList.remove('sheet-open'); setDragY(0); }
     return () => document.body.classList.remove('sheet-open');
   }, [showForm]);
 
-  // ─── HANDLERS ───────────────────────────────────────────────────────────────
+  // ─── HANDLERS ──────────────────────────────────────────────────────────────
+  const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
 
   const handleLotChange = async (lotId) => {
     setFormData(f => ({ ...f, lot_id: lotId, unite: '', prix_ref: '' }));
@@ -548,20 +466,14 @@ useEffect(() => {
     if (!lotId) return;
 
     const cached = lots.find(l => l.id === parseInt(lotId));
-    if (cached) {
-      setActiveLot(cached);
-      const unites = Array.isArray(cached.unites_admises) ? cached.unites_admises : JSON.parse(cached.unites_admises || '[]');
-      setFormData(f => ({ ...f, lot_id: lotId, prix_ref: cached.prix_ref, unite: unites[0] || '' }));
-    } else {
-      try {
-        const lot = await api.getLot(lotId);
-        setActiveLot(lot);
-        const unites = Array.isArray(lot.unites_admises) ? lot.unites_admises : JSON.parse(lot.unites_admises || '[]');
-        setFormData(f => ({ ...f, lot_id: lotId, prix_ref: lot.prix_ref, unite: unites[0] || '' }));
-      } catch (err) {
-        console.error('Erreur chargement lot:', err);
-      }
-    }
+    const lot = cached || await api.getLot(lotId).catch(() => null);
+    if (!lot) return;
+
+    setActiveLot(lot);
+    const unites = Array.isArray(lot.unites_admises)
+      ? lot.unites_admises
+      : JSON.parse(lot.unites_admises || '[]');
+    setFormData(f => ({ ...f, lot_id: lotId, prix_ref: String(lot.prix_ref), unite: unites[0] || '' }));
   };
 
   const handleGradeChange = useCallback((info) => setGradeInfo(info), []);
@@ -569,35 +481,37 @@ useEffect(() => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // 1. Barrière de sécurité : Si le rôle n'est ni superadmin, ni admin, ni stock, on bloque tout.
-if (!['superadmin', 'admin', 'stock'].includes(user?.role)) {
-  // Remplace ceci par ta fonction de gestion d'erreur (ex: setError, toast, etc.)
-  console.error("Action refusée : droits insuffisants.");
-  return; 
-}
+    if (!['superadmin', 'admin', 'stock'].includes(user?.role)) {
+      showAlert('❌ Droits insuffisants', 'error');
+      return;
+    }
 
-// 2. Le Payload dynamique
-const payload = {
-  lot_id: parseInt(formData.lot_id),
-  producteur_id: formData.source === 'achat_direct' ? null : parseInt(formData.producteur_id),
-  quantite: parseFloat(formData.quantite),
-  unite: formData.unite,
-  prix_ref: parseFloat(formData.prix_ref),
-  coef_qualite: gradeInfo.coef ?? 1.0,
-  grade_qualite: gradeInfo.grade || null,
-  date_expiration: formData.date_expiration || null,
-  
-  // Si superadmin, on prend le select du formulaire. Sinon, on verrouille sur le magasin assigné.
-  magasin_id: user?.role === 'superadmin' ? parseInt(formData.magasin_id) : parseInt(user?.magasin_id || magasinId),
-  
-  mode_paiement: formData.source === 'achat_direct' ? 'especes' : formData.mode_paiement,
-  utilisateur: user?.username || 'system',
-  source: formData.source,
-};
+    const magasinFinal = user?.role === 'superadmin'
+      ? parseInt(formData.magasin_id)
+      : parseInt(user?.magasin_id || magasinId);
+
+    if (!magasinFinal) {
+      showAlert('❌ Veuillez sélectionner un magasin', 'error');
+      return;
+    }
+
+    const payload = {
+      lot_id:          parseInt(formData.lot_id),
+      producteur_id:   formData.source === 'achat_direct' ? null : parseInt(formData.producteur_id),
+      quantite:        parseFloat(formData.quantite),
+      unite:           formData.unite,
+      prix_ref:        parseFloat(formData.prix_ref),
+      coef_qualite:    gradeInfo.coef ?? 1.0,
+      grade_qualite:   gradeInfo.grade || null,
+      date_expiration: formData.date_expiration || null,
+      magasin_id:      magasinFinal,
+      mode_paiement:   formData.source === 'achat_direct' ? 'especes' : formData.mode_paiement,
+      utilisateur:     user?.username || 'system',
+      source:          formData.source,
+    };
+
     createAdmissionMutation.mutate(payload);
   };
-
-  const set = (field) => (e) => setFormData(f => ({ ...f, [field]: e.target.value }));
 
   const unitesDisponibles = activeLot
     ? (Array.isArray(activeLot.unites_admises)
@@ -605,60 +519,33 @@ const payload = {
         : JSON.parse(activeLot.unites_admises || '[]'))
     : [];
 
-  const colStyle = {
-    display: 'flex', flexDirection: 'column', gap: 16,
-    background: 'var(--color-surface-alt)', borderRadius: 12, padding: 16,
-  };
+  const colStyle     = { display: 'flex', flexDirection: 'column', gap: 16, background: 'var(--color-surface-alt)', borderRadius: 12, padding: 16 };
+  const colHeadStyle = { fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6 };
 
-  const colHeadStyle = {
-    fontWeight: 700, fontSize: 11, textTransform: 'uppercase',
-    letterSpacing: '.06em', color: 'var(--color-text-muted)',
-    display: 'flex', alignItems: 'center', gap: 6,
-  };
-
+  // ─── RENDU ─────────────────────────────────────────────────────────────────
   return (
-    <PageLayout
-      title="Réception de Lot"
-      icon="📥" onBack={onBack}
-      subtitle="Admission avec audit qualité automatique"
-    >
+    <PageLayout title="Réception de Lot" icon="📥" onBack={onBack} subtitle="Admission avec audit qualité automatique">
       <BottomSheetStyles />
       <Alert message={alert?.message} type={alert?.type} onClose={hideAlert} />
 
-      {/* ── Bouton d'ouverture du formulaire ── */}
+      {/* Bouton d'ouverture */}
       <div className="card" style={{ marginBottom: 16 }}>
         <div className="card-header" style={{ border: 'none' }}>
           <h3 className="card-title">📥 Nouvelle admission</h3>
-          <button
-            onClick={() => setShowForm(true)}
-            className="btn btn-primary btn-sm"
-          >
-            + Nouveau
-          </button>
+          <button onClick={() => setShowForm(true)} className="btn btn-primary btn-sm">+ Nouveau</button>
         </div>
       </div>
 
-      {/* ── LE BOTTOM SHEET ── */}
-      <div 
-        className={`sheet-overlay ${showForm ? 'active' : ''}`} 
-        onClick={() => setShowForm(false)} 
-      />
+      {/* Overlay */}
+      <div className={`sheet-overlay ${showForm ? 'active' : ''}`} onClick={() => setShowForm(false)} />
 
-      <div 
-        className={`bottom-sheet ${showForm ? 'active' : ''} ${isDragging ? 'dragging' : ''}`}
-        style={{ 
-          transform: showForm 
-            ? `translateY(${dragY}px)` 
-            : `translateY(100%)` 
-        }}
+      {/* Bottom Sheet */}
+      <div
+        className={`bottom-sheet ${isDragging ? 'dragging' : ''}`}
+        style={{ transform: showForm ? `translateY(${dragY}px)` : 'translateY(100%)' }}
       >
-        {/* Le Header (Zone de saisie pour glisser) */}
-        <div 
-          className="sheet-header"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
+        {/* Header draggable */}
+        <div className="sheet-header" onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}>
           <div className="sheet-handle" />
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Nouvelle Réception</h3>
@@ -666,23 +553,22 @@ const payload = {
           </div>
         </div>
 
-        {/* Le Contenu Scrollable */}
+        {/* Contenu scrollable */}
         <div className="sheet-content">
           <form id="form-admission-mobile" onSubmit={handleSubmit}>
-<p style={{ color: 'red', fontSize: 12 }}>DEBUG RÔLE ACTUEL : {user?.role}</p>
-
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
 
-              {/* Colonne 1 : Source & Destination */}
+              {/* ── Colonne 1 : Source & Destination ── */}
               <div style={colStyle}>
                 <p style={colHeadStyle}><span>🏪</span> Source & Destination</p>
 
+                {/* Lot */}
                 <div className="form-group">
                   <label className="form-label">Produit / Lot *</label>
                   <select required value={formData.lot_id} onChange={(e) => handleLotChange(e.target.value)} className="form-control">
                     <option value="">-- Sélectionner un lot --</option>
                     {lots.map(l => (
-                      <option key={l.id} value={l.id}>{l.description} ({l.prix_ref} FCFA)</option>
+                      <option key={l.id} value={String(l.id)}>{l.description} ({l.prix_ref} FCFA)</option>
                     ))}
                   </select>
                   {activeLot && (
@@ -694,6 +580,7 @@ const payload = {
                   )}
                 </div>
 
+                {/* Source */}
                 <div className="form-group">
                   <label className="form-label">Source *</label>
                   <select value={formData.source} onChange={set('source')} className="form-control">
@@ -702,59 +589,58 @@ const payload = {
                   </select>
                 </div>
 
+                {/* Producteur — uniquement si source = producteur */}
                 {formData.source === 'producteur' && (
                   <div className="form-group">
                     <label className="form-label">Producteur / Déposant *</label>
-                    <select
-                      required
-                      value={formData.producteur_id}
-                      onChange={set('producteur_id')}
-                      className="form-control"
-                    >
+                    <select required value={formData.producteur_id} onChange={set('producteur_id')} className="form-control">
                       <option value="">-- Sélectionner --</option>
                       {producteurs
                         .filter(p => p.type_producteur !== 'interne')
                         .map(p => (
-                          <option key={p.id} value={p.id}>{p.nom_producteur}</option>
+                          <option key={p.id} value={String(p.id)}>{p.nom_producteur}</option>
                         ))
                       }
                     </select>
                   </div>
                 )}
 
-                 {/* Sélecteur de magasin - Logique conditionnelle selon le rôle */}
-{user?.role === 'superadmin' ? (
-  <div className="form-group">
-    <label className="form-label">Magasin *</label>
-    <select
-      className="form-control"
-      required
-      value={formData.magasin_id || ''}
-      onChange={e => setFormData(f => ({ ...f, magasin_id: parseInt(e.target.value) || '' }))}
-    >
-      <option value="">-- Sélectionner un magasin --</option>
-      {magasins.map(m => (
-        <option key={m.id} value={m.id}>{m.nom}</option>
-      ))}
-    </select>
-  </div>
-) : ['admin', 'stock'].includes(user?.role) ? (
-  <div className="form-group">
-    <label className="form-label">Magasin</label>
-    <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
-      {magasins.find(m => m.id === parseInt(user?.magasin_id || magasinId))?.nom || `Magasin #${user?.magasin_id || magasinId}`}
-    </p>
-  </div>
-) : (
-  <div className="form-group">
-    <p style={{ padding: '10px 14px', background: 'rgba(244, 67, 54, 0.1)', color: '#d32f2f', borderRadius: 8, fontSize: 13, border: '1px solid #ffcdd2' }}>
-      ⚠️ Vous n'avez pas l'autorisation d'enregistrer des admissions pour un magasin.
-    </p>
-  </div>
-)}
-            </div>
+                {/* Magasin — select pour superadmin, affichage fixe sinon */}
+                {user?.role === 'superadmin' ? (
+                  <div className="form-group">
+                    <label className="form-label">Magasin *</label>
+                    <select
+                      required
+                      className="form-control"
+                      value={formData.magasin_id}
+                      onChange={e => setFormData(f => ({ ...f, magasin_id: e.target.value }))}
+                    >
+                      <option value="">-- Sélectionner un magasin --</option>
+                      {magasins
+                        .filter(m => m.id !== 21)
+                        .map(m => (
+                          <option key={m.id} value={String(m.id)}>{m.nom}</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                ) : ['admin', 'stock'].includes(user?.role) ? (
+                  <div className="form-group">
+                    <label className="form-label">Magasin</label>
+                    <p style={{ padding: '10px 14px', background: '#f0f0f0', borderRadius: 8, fontSize: 13, color: '#555' }}>
+                      {magasins.find(m => m.id === parseInt(user?.magasin_id || magasinId))?.nom || `Magasin #${user?.magasin_id || magasinId}`}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="form-group">
+                    <p style={{ padding: '10px 14px', background: 'rgba(244,67,54,0.1)', color: '#d32f2f', borderRadius: 8, fontSize: 13, border: '1px solid #ffcdd2' }}>
+                      ⚠️ Vous n'avez pas l'autorisation d'enregistrer des admissions.
+                    </p>
+                  </div>
+                )}
+              </div>
 
-              {/* Colonne 2 : Mesures & Finance */}
+              {/* ── Colonne 2 : Mesures & Finance ── */}
               <div style={colStyle}>
                 <p style={colHeadStyle}><span>⚖️</span> Mesures & Finance</p>
 
@@ -796,38 +682,34 @@ const payload = {
                   )}
                 </div>
 
-               <FinancePreview
-  quantite={formData.quantite}
-  prixRef={formData.prix_ref}
-  coefQualite={gradeInfo.coef}
-  modePaiement={formData.mode_paiement}
-  dateExpiration={formData.date_expiration}
-  source={formData.source}
-/>
+                <FinancePreview
+                  quantite={formData.quantite}
+                  prixRef={formData.prix_ref}
+                  coefQualite={gradeInfo.coef}
+                  modePaiement={formData.mode_paiement}
+                  dateExpiration={formData.date_expiration}
+                  source={formData.source}
+                />
               </div>
 
-              {/* Colonne 3 : Audit qualité */}
+              {/* ── Colonne 3 : Audit qualité ── */}
               <div style={colStyle}>
                 <p style={colHeadStyle}><span>📋</span> Audit Qualité</p>
-                <div>
-                  <AuditQualite
-                    categorie={activeLot?.categorie}
-                    onGradeChange={handleGradeChange}
-                  />
-                </div>
+                <AuditQualite categorie={activeLot?.categorie} onGradeChange={handleGradeChange} />
               </div>
+
             </div>
           </form>
         </div>
 
-        {/* Bouton de validation fixé en bas du Bottom Sheet */}
+        {/* Bouton de validation fixe en bas */}
         <div className="sheet-footer">
-          <button 
-            type="submit" 
-            form="form-admission-mobile" 
-            disabled={createAdmissionMutation.isLoading} 
-            className="btn btn-primary btn-lg" 
-            style={{ width: '100%', boxShadow: '0 4px 12px rgba(22, 101, 52, 0.2)' }}
+          <button
+            type="submit"
+            form="form-admission-mobile"
+            disabled={createAdmissionMutation.isLoading}
+            className="btn btn-primary btn-lg"
+            style={{ width: '100%', boxShadow: '0 4px 12px rgba(22,101,52,0.2)' }}
           >
             {createAdmissionMutation.isLoading ? '⏳ Enregistrement...' : "✅ VALIDER L'ADMISSION"}
           </button>
