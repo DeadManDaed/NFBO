@@ -469,7 +469,7 @@ export function AuthProvider({ children }) {
   // ═════════════════════════════════════════════════════════════════════════
   // Login
   // ═════════════════════════════════════════════════════════════════════════
-
+/*
   const login = async ({ identifier, password }) => {
     console.log('[useAuth] login avec:', identifier);
     
@@ -561,7 +561,30 @@ export function AuthProvider({ children }) {
     setUser(profile);
     return profile;
   };
+*/
 
+const login = async ({ username, password }) => {
+  let email = username;
+
+  if (!username.includes('@')) {
+    const { data } = await supabase
+      .from('users')
+      .select('email')
+      .eq('username', username)
+      .maybeSingle();
+    if (!data?.email) throw new Error('Utilisateur introuvable');
+    email = data.email;
+  }
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message || 'Identifiants incorrects');
+
+  const profile = await loadUserProfile(data.user.id);
+  if (!profile) throw new Error('Profil utilisateur introuvable ou inactif');
+
+  setUser(profile);
+  return profile;
+};
   // ═════════════════════════════════════════════════════════════════════════
   // Logout
   // ═════════════════════════════════════════════════════════════════════════
